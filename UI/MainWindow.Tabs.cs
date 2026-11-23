@@ -59,6 +59,7 @@ namespace Clip.UI
             _images = images;
             _tabName = name;
             CloseOverlays();
+            RichRow.Clear();
             _rows = LoadRows();
             ReloadTabs();
             ApplyFilter();

@@ -98,9 +98,8 @@ namespace Clip.UI
             Show();
             Activate();
             Reload();
-            // Reload selects before the rows are realized; snap the selected row open once layout exists.
+            // One forced pass so the selected row is realised (scroll cue + first paint) before we animate.
             UpdateLayout();
-            ShowSelection(false);
             Search.Focus();
             AnimateIn();
         }
@@ -121,20 +120,26 @@ namespace Clip.UI
             if (_images && item.Kind != "image") return;
             if (!_images && item.Kind == "image") return;
 
-            int oldIndex = _rows.FindIndex(r => r.Id == item.Id);
-            if (oldIndex >= 0) _rows.RemoveAt(oldIndex);
+            // Measure the row that is about to move to the top BEFORE the list is rebuilt (FLIP).
+            var previous = _rows.FirstOrDefault(r => r.Id == item.Id);
+            double? before = RowY(previous);
 
-            var row = new ClipRow(item, _cfg.PreviewLines);
+            if (previous != null) _rows.Remove(previous);
+            var row = new ClipRow(item, _cfg.PreviewLines, _store);
             _rows.Insert(0, row);
 
             string keep = SelectedItem?.Id.ToString();
             ApplyFilter(keep);
+            History.UpdateLayout();
+            double? after = RowY(row);
+
             PulseRow(row);
-            if (oldIndex > 0) FlipToTop(row, oldIndex);
+            if (before.HasValue && after.HasValue) FlipToTop(row, before.Value - after.Value);
         }
 
         public void Reload()
         {
+            RichRow.Clear();
             _rows = LoadRows();
             ReloadTabs();
             ApplyFilter();
@@ -146,7 +151,7 @@ namespace Clip.UI
             if (_tabId is long id) items = _store.GetTabItems(-1, id);
             else if (_images) items = _store.GetRecent(_cfg.MaxItems, "image");
             else items = _store.GetRecent(_cfg.MaxItems).Where(i => i.Kind != "image").ToList();
-            return items.Select(i => new ClipRow(i, _cfg.PreviewLines)).ToList();
+            return items.Select(i => new ClipRow(i, _cfg.PreviewLines, _store)).ToList();
         }
 
         void ApplyFilter(string selectId = null)
@@ -156,6 +161,7 @@ namespace Clip.UI
             var hits = SearchService.Filter(_rows.Select(r => r.Item).ToList(), Search.Text);
             var ids = new HashSet<long>(hits.Select(i => i.Id));
             var display = new List<ClipRow>();
+            string query = Search.Text ?? "";
             string section = null;
             foreach (var row in _rows)
             {
@@ -163,6 +169,8 @@ namespace Clip.UI
                 row.SectionLabel = SectionFor(row.Item.CapturedAt);
                 row.ShowSection = row.SectionLabel != section;
                 section = row.SectionLabel;
+                row.Number = display.Count + 1;
+                row.Query = query;
                 display.Add(row);
             }
 
@@ -218,7 +226,40 @@ namespace Clip.UI
             StatusCount.Text = n == 0 ? "" : n + (_images ? (n == 1 ? " image" : " images") : (n == 1 ? " clip" : " clips"));
         }
 
-        void OnSelectionChanged(object sender, SelectionChangedEventArgs e) => ShowSelection(Keyboard.Modifiers == ModifierKeys.None);
+        // ---- scroll cue ------------------------------------------------------
+
+        double _extent, _viewport, _offset;
+        bool _cueQueued;
+
+        void OnListScrolled(object sender, ScrollChangedEventArgs e)
+        {
+            _extent = e.ExtentHeight;
+            _viewport = e.ViewportHeight;
+            _offset = e.VerticalOffset;
+            UpdateScrollCue();
+        }
+
+        /// <summary>A position signal only: the list scrolls by item, so a part row needs an explanation.</summary>
+        void UpdateScrollCue()
+        {
+            double track = ScrollCue.ActualHeight;
+            bool scrollable = _extent > _viewport + 1;
+            if (scrollable && track <= 24 && !_cueQueued)
+            {
+                // The first scroll event lands before the cue has been measured: one retry is enough.
+                _cueQueued = true;
+                Dispatcher.BeginInvoke(new Action(() => { _cueQueued = false; UpdateScrollCue(); }), DispatcherPriority.Loaded);
+            }
+            ScrollCue.Opacity = scrollable && track > 24 ? 1 : 0;
+            if (!scrollable || track <= 24) return;
+
+            double thumb = Math.Max(24, track * _viewport / _extent);
+            ScrollCueThumb.Height = thumb;
+            Canvas.SetLeft(ScrollCueThumb, 2);
+            Canvas.SetTop(ScrollCueThumb, _extent <= _viewport ? 0 : (track - thumb) * (_offset / (_extent - _viewport)));
+        }
+
+        void OnScrollCueSizeChanged(object sender, SizeChangedEventArgs e) => UpdateScrollCue();
 
         void OnRowDoubleClick(object sender, MouseButtonEventArgs e)
         {
@@ -335,7 +376,7 @@ namespace Clip.UI
             Shell.Opacity = 1;
             ShellShift.BeginAnimation(TranslateTransform.YProperty, null);
             ShellShift.Y = 0;
-            ClearRich();
+            // The 32-entry inline cache survives a hide on purpose: reopening must not re-parse rows.
             if (IsVisible) Hide();
         }
 

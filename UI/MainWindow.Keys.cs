@@ -11,8 +11,6 @@ namespace Clip.UI
     /// <summary>The keyboard contract and the one ordered Esc cascade (docs\RESEARCH-keyboard-ux.md §8/§10).</summary>
     public partial class MainWindow
     {
-        bool _navRepeat;
-
         protected override void OnPreviewKeyDown(KeyEventArgs e)
         {
             base.OnPreviewKeyDown(e);
@@ -145,7 +143,7 @@ namespace Clip.UI
 
             if (e.Key == Key.Up || e.Key == Key.Down)
             {
-                Navigate(e.Key == Key.Down ? 1 : -1, e.IsRepeat);
+                Navigate(e.Key == Key.Down ? 1 : -1);
                 e.Handled = true;
                 return;
             }
@@ -161,8 +159,8 @@ namespace Clip.UI
                 return;
             }
 
-            if (e.Key == Key.Home && Search.Text.Length == 0) { SelectAt(0, false); e.Handled = true; return; }
-            if (e.Key == Key.End && Search.Text.Length == 0) { SelectAt(_visible.Count - 1, false); e.Handled = true; return; }
+            if (e.Key == Key.Home && Search.Text.Length == 0) { SelectAt(0); e.Handled = true; return; }
+            if (e.Key == Key.End && Search.Text.Length == 0) { SelectAt(_visible.Count - 1); e.Handled = true; return; }
 
             if (e.Key == Key.PageUp) { PageMove(-1); e.Handled = true; return; }
             if (e.Key == Key.PageDown) { PageMove(1); e.Handled = true; return; }
@@ -183,7 +181,8 @@ namespace Clip.UI
                 return;
             }
 
-            if (e.Key == Key.Apps || (e.Key == Key.F10 && shift))
+            // F10 arrives as a system key (WM_SYSKEYDOWN), so the real key is SystemKey.
+            if (e.Key == Key.Apps || ((e.Key == Key.F10 || e.SystemKey == Key.F10) && shift))
             {
                 ShowRowMenu(History.SelectedItem as ClipRow, atMouse: false);
                 e.Handled = true;
@@ -230,27 +229,22 @@ namespace Clip.UI
             e.Handled = true;
         }
 
-        void Navigate(int delta, bool repeat)
-        {
-            _navRepeat = repeat;
-            SelectAt(History.SelectedIndex + delta, repeat);
-            _navRepeat = false;
-        }
+        void Navigate(int delta) => SelectAt(History.SelectedIndex + delta);
 
         void PageMove(int direction)
         {
-            int page = Math.Max(1, (int)(History.ActualHeight / 65));
-            if (page < 1) page = 8;
-            SelectAt(History.SelectedIndex + direction * page, false);
+            // One page = the rows that fit the viewport at the CURRENT row's height (heights vary now).
+            double rowHeight = (History.SelectedItem as ClipRow)?.RowHeight ?? 34;
+            int page = Math.Max(1, (int)Math.Floor(History.ActualHeight / Math.Max(1, rowHeight)));
+            SelectAt(History.SelectedIndex + direction * page);
         }
 
-        void SelectAt(int index, bool repeat)
+        /// <summary>Minimal delta only: WPF's ScrollIntoView is a no-op on a fully visible row.</summary>
+        void SelectAt(int index)
         {
             if (_visible.Count == 0) return;
-            _navRepeat = repeat;
             History.SelectedItem = _visible[Math.Max(0, Math.Min(_visible.Count - 1, index))];
             History.ScrollIntoView(History.SelectedItem);
-            _navRepeat = false;
         }
 
         void JumpSection(int direction)
@@ -262,18 +256,18 @@ namespace Clip.UI
             if (direction > 0)
             {
                 for (int i = start + 1; i < _visible.Count; i++)
-                    if (_visible[i].SectionLabel != section) { SelectAt(i, false); return; }
-                SelectAt(_visible.Count - 1, false);
+                    if (_visible[i].SectionLabel != section) { SelectAt(i); return; }
+                SelectAt(_visible.Count - 1);
             }
             else
             {
                 // Walk back to the first row of the previous section.
                 int i = start;
                 while (i > 0 && _visible[i - 1].SectionLabel == section) i--;
-                if (i == 0) { SelectAt(0, false); return; }
+                if (i == 0) { SelectAt(0); return; }
                 string previous = _visible[i - 1].SectionLabel;
                 while (i > 0 && _visible[i - 1].SectionLabel == previous) i--;
-                SelectAt(i, false);
+                SelectAt(i);
             }
         }
 

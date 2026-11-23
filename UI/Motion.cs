@@ -20,17 +20,6 @@ namespace Clip.UI
                 KeyFrames = { new SplineDoubleKeyFrame(to, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(ms)), new KeySpline(x1, y1, x2, y2)) }
             };
 
-        /// <summary>Spline from an explicit start value — used for the one layout animation (row growth).</summary>
-        public static DoubleAnimationUsingKeyFrames SplineFrom(double from, double to, double ms)
-            => new DoubleAnimationUsingKeyFrames
-            {
-                KeyFrames =
-                {
-                    new LinearDoubleKeyFrame(from, KeyTime.FromTimeSpan(TimeSpan.Zero)),
-                    new SplineDoubleKeyFrame(to, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(ms)), new KeySpline(0, 0, 0, 1))
-                }
-            };
-
         public static DoubleAnimation Linear(double to, double ms)
             => new DoubleAnimation(to, TimeSpan.FromMilliseconds(ms));
 

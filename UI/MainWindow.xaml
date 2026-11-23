@@ -10,8 +10,6 @@
         >
 
   <Window.Resources>
-    <BooleanToVisibilityConverter x:Key="BoolToVis"/>
-
     <Style x:Key="TabButton" TargetType="Button">
       <Setter Property="Background" Value="Transparent"/>
       <Setter Property="BorderThickness" Value="0"/>
@@ -70,22 +68,6 @@
       <Setter Property="Foreground" Value="{DynamicResource Fg75}"/>
       <Setter Property="VerticalAlignment" Value="Center"/>
     </Style>
-
-    <Style x:Key="MenuStyle" TargetType="ContextMenu">
-      <Setter Property="Background" Value="{DynamicResource Surface}"/>
-      <Setter Property="BorderBrush" Value="{DynamicResource Hairline}"/>
-      <Setter Property="BorderThickness" Value="1"/>
-      <Setter Property="Padding" Value="4"/>
-      <Setter Property="FontFamily" Value="{StaticResource UiFont}"/>
-      <Setter Property="FontSize" Value="12"/>
-      <Setter Property="Foreground" Value="{DynamicResource Fg75}"/>
-    </Style>
-
-    <Style x:Key="MenuItemStyle" TargetType="MenuItem">
-      <Setter Property="Foreground" Value="{DynamicResource Fg75}"/>
-      <Setter Property="FontSize" Value="12"/>
-      <Setter Property="Padding" Value="10,6"/>
-    </Style>
   </Window.Resources>
 
   <Border x:Name="Shell" Background="{DynamicResource App}" CornerRadius="8"
@@ -124,7 +106,17 @@
                      Background="Transparent" BorderThickness="0" Padding="0"
                      VerticalContentAlignment="Center"
                      TextChanged="OnSearchChanged"
-                     AutomationProperties.Name="Search clips"/>
+                     AutomationProperties.Name="Search clips">
+              <!-- Declared here so the search box's own menu uses the app's skin, not Aero2's. -->
+              <TextBox.ContextMenu>
+                <ContextMenu>
+                  <MenuItem Header="Cut" Command="ApplicationCommands.Cut"/>
+                  <MenuItem Header="Copy" Command="ApplicationCommands.Copy"/>
+                  <MenuItem Header="Paste" Command="ApplicationCommands.Paste"/>
+                  <MenuItem Header="Select all" Command="ApplicationCommands.SelectAll"/>
+                </ContextMenu>
+              </TextBox.ContextMenu>
+            </TextBox>
             <TextBlock x:Name="PlaceholderText" Text="Search Clipboard" FontSize="14" LineHeight="20"
                        Foreground="{DynamicResource Placeholder}" IsHitTestVisible="False"
                        VerticalAlignment="Center"/>
@@ -221,164 +213,21 @@
                  VirtualizingPanel.VirtualizationMode="Recycling"
                  VirtualizingPanel.ScrollUnit="Item"
                  VirtualizingPanel.CacheLength="1,1"
-                 SelectionChanged="OnSelectionChanged"
+                 ItemTemplate="{StaticResource ClipRowTemplate}"
+                 ItemContainerStyle="{StaticResource ClipRowItem}"
+                 ScrollViewer.ScrollChanged="OnListScrolled"
+                 SizeChanged="OnScrollCueSizeChanged"
                  MouseDoubleClick="OnRowDoubleClick"
                  PreviewMouseRightButtonDown="OnRowRightClick"
                  AutomationProperties.Name="Clipboard history">
-          <ListBox.Resources>
-            <Style TargetType="ListBoxItem">
-              <Setter Property="Focusable" Value="False"/>
-              <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-              <Setter Property="Padding" Value="0"/>
-              <Setter Property="Template">
-                <Setter.Value>
-                  <ControlTemplate TargetType="ListBoxItem">
-                    <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"/>
-                  </ControlTemplate>
-                </Setter.Value>
-              </Setter>
-            </Style>
-          </ListBox.Resources>
-
-          <ListBox.ItemTemplate>
-            <DataTemplate>
-              <StackPanel x:Name="ItemRoot" Background="Transparent">
-                <StackPanel.RenderTransform>
-                  <TranslateTransform/>
-                </StackPanel.RenderTransform>
-
-                <!-- Time section header: a band, not a row (DESIGN-layout §8) -->
-                <Grid x:Name="SectionBand" Margin="12,0,12,8" Visibility="{Binding ShowSection, Converter={StaticResource BoolToVis}}">
-                  <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                  </Grid.ColumnDefinitions>
-                  <TextBlock x:Name="SectionText" Text="{Binding SectionLabel}"
-                             FontSize="10" LineHeight="14" FontWeight="SemiBold"
-                             Foreground="{DynamicResource Fg48}"/>
-                  <Border Grid.Column="1" Height="1" Margin="8,0,0,0" VerticalAlignment="Center"
-                          Background="{DynamicResource Divider}"/>
-                </Grid>
-
-                <Border x:Name="RowRoot" Background="Transparent" CornerRadius="12">
-                  <Grid>
-                    <Border x:Name="HoverLayer" Background="{DynamicResource RowHover}" CornerRadius="12"
-                            Opacity="0" IsHitTestVisible="False"/>
-                    <Border x:Name="SelLayer" Background="{DynamicResource RowSelected}" CornerRadius="12"
-                            Opacity="0" IsHitTestVisible="False"/>
-                    <Border x:Name="Ring" BorderBrush="{DynamicResource SelectionRing}" BorderThickness="1"
-                            CornerRadius="12" Opacity="0" IsHitTestVisible="False"/>
-                    <Border x:Name="Rail" Width="2" Height="24" CornerRadius="1"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="0,8,0,0"
-                            Background="{DynamicResource SelectionRail}" Opacity="0" IsHitTestVisible="False"/>
-                    <Border x:Name="PulseLayer" Background="{DynamicResource PulseFill}"
-                            BorderBrush="{DynamicResource PulseRing}" BorderThickness="1"
-                            CornerRadius="12" Opacity="0" IsHitTestVisible="False"/>
-
-                    <Grid Margin="12,8">
-                      <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                      </Grid.RowDefinitions>
-                      <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="22"/>
-                        <ColumnDefinition Width="10"/>
-                        <ColumnDefinition Width="*"/>
-                      </Grid.ColumnDefinitions>
-
-                      <Border x:Name="TypeTile" Grid.Row="0" Grid.Column="0" Width="22" Height="22"
-                              CornerRadius="8" Background="{DynamicResource TileBackground}"
-                              VerticalAlignment="Top">
-                        <Viewbox Width="12" Height="12">
-                          <Path Data="{Binding KindIcon}" Stroke="{DynamicResource Fg48}" StrokeThickness="2"
-                                StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
-                        </Viewbox>
-                      </Border>
-
-                      <Border x:Name="ThumbTile" Grid.Row="0" Grid.Column="0" Width="22" Height="22"
-                              CornerRadius="8" Background="{DynamicResource TileBackground}"
-                              VerticalAlignment="Top" Visibility="Collapsed">
-                        <Image Source="{Binding Thumb}" Stretch="UniformToFill"/>
-                      </Border>
-
-                      <TextBlock x:Name="Body" Grid.Row="0" Grid.Column="2"
-                                 Text="{Binding BodyText}" FontSize="13" LineHeight="18"
-                                 FontWeight="Normal" Foreground="{DynamicResource Fg55}"
-                                 TextWrapping="Wrap" TextTrimming="CharacterEllipsis"
-                                 Height="18"/>
-
-                      <Border x:Name="MetaBlock" Grid.Row="1" Grid.ColumnSpan="3"
-                              Margin="0,8,0,0" Padding="0,8,0,0"
-                              BorderBrush="{DynamicResource Divider}" BorderThickness="0,1,0,0">
-                        <Grid>
-                          <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                          </Grid.ColumnDefinitions>
-                          <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="{Binding MetaApp}" FontSize="11" LineHeight="14"
-                                       FontWeight="Medium" Foreground="{DynamicResource Fg55}"
-                                       TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
-                            <TextBlock Text="{Binding MetaTime}" Margin="8,0,0,0" FontSize="11" LineHeight="14"
-                                       FontWeight="Normal" Foreground="{DynamicResource Fg55}"
-                                       Typography.NumeralAlignment="Tabular" VerticalAlignment="Center"/>
-                          </StackPanel>
-                          <Border x:Name="Badge" Grid.Column="1" Height="16" Padding="6,0" CornerRadius="8"
-                                  Background="{DynamicResource BadgeBackground}" VerticalAlignment="Center"
-                                  Visibility="{Binding BadgeVisibility}">
-                            <TextBlock Text="{Binding MoreLines}" FontSize="9" LineHeight="12"
-                                       FontWeight="SemiBold"
-                                       Foreground="{DynamicResource Fg48}" VerticalAlignment="Center"/>
-                          </Border>
-                        </Grid>
-                      </Border>
-
-                      <Border x:Name="PreviewHost" Grid.Row="2" Grid.Column="2"
-                              Margin="0,8,0,0" MaxHeight="150" ClipToBounds="True" Visibility="Collapsed">
-                        <ContentControl x:Name="RichHost"/>
-                      </Border>
-                    </Grid>
-                  </Grid>
-                </Border>
-              </StackPanel>
-
-              <DataTemplate.Triggers>
-                <DataTrigger Binding="{Binding IsImage}" Value="True">
-                  <Setter TargetName="TypeTile" Property="Visibility" Value="Collapsed"/>
-                  <Setter TargetName="ThumbTile" Property="Visibility" Value="Visible"/>
-                  <Setter TargetName="Body" Property="FontWeight" Value="Normal"/>
-                </DataTrigger>
-
-                <Trigger SourceName="RowRoot" Property="IsMouseOver" Value="True">
-                  <Trigger.EnterActions>
-                    <BeginStoryboard>
-                      <Storyboard>
-                        <DoubleAnimation Storyboard.TargetName="HoverLayer" Storyboard.TargetProperty="Opacity"
-                                         To="1" Duration="0:0:0.100"/>
-                      </Storyboard>
-                    </BeginStoryboard>
-                  </Trigger.EnterActions>
-                  <Trigger.ExitActions>
-                    <BeginStoryboard>
-                      <Storyboard>
-                        <DoubleAnimation Storyboard.TargetName="HoverLayer" Storyboard.TargetProperty="Opacity"
-                                         To="0" Duration="0:0:0.100"/>
-                      </Storyboard>
-                    </BeginStoryboard>
-                  </Trigger.ExitActions>
-                </Trigger>
-
-                <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
-                  <Setter TargetName="SelLayer" Property="Opacity" Value="1"/>
-                  <Setter TargetName="Ring" Property="Opacity" Value="1"/>
-                  <Setter TargetName="Rail" Property="Opacity" Value="1"/>
-                  <Setter TargetName="Body" Property="Foreground" Value="{DynamicResource Fg75}"/>
-                </DataTrigger>
-              </DataTemplate.Triggers>
-            </DataTemplate>
-          </ListBox.ItemTemplate>
         </ListBox>
+
+        <!-- Scroll cue: the list scrolls by item, so a part row at the edge needs a position signal. -->
+        <Canvas x:Name="ScrollCue" Width="4" HorizontalAlignment="Right" Margin="0,6,3,6"
+                IsHitTestVisible="False" Opacity="0" ClipToBounds="True">
+          <Border x:Name="ScrollCueThumb" Width="2" Height="24" CornerRadius="1"
+                  Background="{DynamicResource ScrollThumb}"/>
+        </Canvas>
 
         <!-- Empty states (docs\DESIGN-antislop.md §7) -->
         <StackPanel x:Name="EmptyPanel" Visibility="Collapsed" Margin="0,40,0,0"

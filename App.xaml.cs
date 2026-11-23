@@ -76,6 +76,9 @@ namespace Clip
             string failure = RegisterHotkeys();
             BuildTray();
 
+            // Warm the row renderer off the critical path: the first Alt+V must not pay its JIT.
+            Dispatcher.BeginInvoke(new Action(RichRow.Warm), DispatcherPriority.Background);
+
             if (_cfg.WasNew)
                 Dispatcher.BeginInvoke(new Action(() =>
                     _notif.ShowMessage($"{Product} is running. Press {_cfg.Hotkey} to open the list.")));
@@ -300,14 +303,8 @@ namespace Clip
         /// <summary>Opened by hand: H.NotifyIcon's own ShowContextMenu routing failed on Win11 (spike).</summary>
         void OpenTrayMenu()
         {
-            var menu = new ContextMenu
-            {
-                Background = (Brush)FindResource("Surface"),
-                Foreground = (Brush)FindResource("Fg75"),
-                BorderBrush = (Brush)FindResource("Hairline"),
-                FontFamily = (FontFamily)FindResource("UiFont"),
-                FontSize = 12
-            };
+            // No properties set here: UI\Themes\Popups.xaml styles every ContextMenu and MenuItem.
+            var menu = new ContextMenu();
 
             AddTrayItem(menu, $"Open {Product}", () => _main.ShowPopup());
             AddTrayItem(menu, "Settings\u2026", () => OpenSettings(false));
@@ -326,7 +323,7 @@ namespace Clip
 
         void AddTrayItem(ContextMenu menu, string header, Action action)
         {
-            var item = new MenuItem { Header = header, FontFamily = (FontFamily)FindResource("UiFont"), FontSize = 12 };
+            var item = new MenuItem { Header = header };
             item.Click += (s, e) => action();
             menu.Items.Add(item);
         }
