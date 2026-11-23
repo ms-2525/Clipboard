@@ -1,4 +1,4 @@
-# Clip — Feature Verification Checklist (frozen contracts)
+﻿# Clip — Feature Verification Checklist (frozen contracts)
 
 **How to use:** every item below must be verified with OBSERVED EVIDENCE before it is checked off:
 - `[H]` = scratch-harness assertion (component-level, per the verify-parts-first rule)
@@ -15,7 +15,7 @@ No item may be marked from a sub-agent's self-report alone.
 
 ## 1. Core capture & storage (M1 spec)
 - ✅ `[H]` Tray-resident app, no visible window at startup; closing/hiding never exits (Exit only via tray) — **plus S0's runtime fix: `ShutdownMode="OnExplicitShutdown"` (the app previously exited silently after the first toast closed)**
-- ⬜ `[U]` Tray icon visually confirmed — S0 created it without error but couldn't verify from Win11's hidden-icons flyout in 3 attempts; owner eyeball or S3 audit with the icon pinned outside overflow
+- ⬜ `[U]` Tray icon visually confirmed — S0 created it without error but couldn't verify from Win11's hidden-icons flyout in 3 attempts; owner eyeball or S3 audit with the icon pinned outside overflow -- **S3 AUDIT: PASS** (reached in the Win11 overflow flyout: left-click opened the popup, right-click opened the menu -- tray-overflow-open.png, tray-menu-open.png)
 - ✅ `[H]` Single-instance mutex — second launch shows a message and exits
 - 🟡 `[L]` Text capture on WM_CLIPBOARDUPDATE with: source app name, window title, local ISO timestamp
 - 🟡 `[L]` Copies under `minTextLength` (default 3) skipped; whitespace-only skipped
@@ -47,7 +47,7 @@ No item may be marked from a sub-agent's self-report alone.
 - ✅ `[L]` **Ctrl+Z = one-level undo of item deletion — VERIFIED live in S3** (Delete removes the row, Ctrl+Z restores it; Core `Restore(item)` round-trip already proven `[H]`)
 - ⬜ `[L]` **Context menu on rows** (right-click / Menu key / Shift+F10) — one surface exposing the seven existing commands (paste, paste-plain, edit/pin/move-to-tab, delete, open-image)
 - ⬜ `[L]` **Esc cascade, one ordered function**: IME → editor discard prompt → tab-delete confirm → tab-name editor → Ctrl+M picker → F2 editor → clear search → hide popup
-- ⬜ `[U]` Selection stays stable when a live capture arrives while the popup is open
+- ⬜ `[U]` Selection stays stable when a live capture arrives while the popup is open -- **S3 AUDIT: UNTESTED-BY-AUTOMATION** (not driven with the popup open)
 
 ## 3. Paste fidelity (owner: "paste exactly like I copied, for EVERYTHING")
 - 🟡 `[L]` All-formats snapshot on copy (HGLOBAL bytes per format, budget `maxItemBytes` 10 MB, handle formats skipped knowingly)
@@ -61,11 +61,11 @@ No item may be marked from a sub-agent's self-report alone.
 - ⬜ `[L]` Same shortcut with popup open = selected item as plain text
 
 ## 5. Rich text (render like rich text)
-- 🟡 `[U]` Selected card expands into a rich preview: tables, colors, font sizes, line breaks via HtmlRenderer.WPF; ONLY the selected card renders (list stays fast, one panel alive)
+- 🟡 `[U]` Selected card expands into a rich preview: tables, colors, font sizes, line breaks via HtmlRenderer.WPF; ONLY the selected card renders (list stays fast, one panel alive) -- **S3 AUDIT: FAIL** (it is an appended 150 DIP block below the meta in unstyled serif, not a content swap -- zoom-nav2-richpreview.png; DESIGN-v2 section 4 wants the swap)
 - ⬜ `[H]` CF_HTML byte-offset fragment extraction (Unicode-safe; non-ASCII torture test) — `Interop\HtmlFragment.cs`
-- ⬜ `[U]` Remote images blocked in preview (data: URIs allowed) — no network fetch on open
-- ⬜ `[U]` RTF-only items render via RtfPipe → same renderer (fallback path)
-- ⬜ `[U]` Known ceilings documented (verified in spike): color emoji render as tofu glyphs in preview; Google Docs/Notion HTML degrades; rowspan=4 did NOT reproduce in 1.6.1 (upstream bug may not apply) — paste-back fidelity unaffected in all cases
+- ⬜ `[U]` Remote images blocked in preview (data: URIs allowed) — no network fetch on open -- **S3 AUDIT: UNTESTED-BY-AUTOMATION** (no HTML clip containing a remote img was available and I will not fabricate one)
+- ⬜ `[U]` RTF-only items render via RtfPipe → same renderer (fallback path) -- **S3 AUDIT: UNTESTED-BY-AUTOMATION** (no RTF-only source available; WordPad is absent on this build)
+- ⬜ `[U]` Known ceilings documented (verified in spike): color emoji render as tofu glyphs in preview; Google Docs/Notion HTML degrades; rowspan=4 did NOT reproduce in 1.6.1 (upstream bug may not apply) — paste-back fidelity unaffected in all cases -- **S3 AUDIT: UNTESTED-BY-AUTOMATION** (an editorial act, not a visual observation)
 
 ## 6. Images
 - ✅ `[H]` Image capture: PNG ≤ `maxImageBytes` (5 MB default), 96px thumbnail, kind='image'; text never in image kind
@@ -73,8 +73,8 @@ No item may be marked from a sub-agent's self-report alone.
 - ✅ `[H]` **Paste-back sets a real CF_DIB** (24-bpp bottom-up, white-flattened, DWORD-aligned stride) + PNG verbatim; image branch runs BEFORE Formats (a stored "PNG" blob can no longer own an image paste); `SetImage` removed
 - ✅ `[H]` **Pixel-count guard before decode** (50 MP / 16,384 px per side — patched-IHDR bomb rejected in 4 ms) + over-limit skips fire `Skipped` with human reasons, never silent
 - ✅ `[H]` Thumbnail capped on BOTH axes (100×4000 → 2×96, 1920×1080 → 96×54)
-- 🟡 `[L]` Images tab: thumbnail grid, click/Enter copies image back; images auto-routed, text never appears there
-- ⬜ `[U]` **Notification shows the image thumbnail** — 40×40 DIP, DecodePixelWidth=96, Uniform, from `item.Thumb` never `item.Image` ("Image copied" fallback if thumb missing)
+- 🟡 `[L]` Images tab: thumbnail grid, click/Enter copies image back; images auto-routed, text never appears there -- **S3 AUDIT: FAIL** (no grid: 22 DIP tiles in text rows, selected image gets no bigger preview -- tab-images.png, P1-3)
+- ⬜ `[U]` **Notification shows the image thumbnail** — 40×40 DIP, DecodePixelWidth=96, Uniform, from `item.Thumb` never `item.Image` ("Image copied" fallback if thumb missing) -- **S3 AUDIT: UNTESTED-BY-AUTOMATION** (image copies I made did not surface a toast thumbnail in any capture; zoom-notification-*.png show text toasts)
 - ⬜ `[L]` **F2 on an image opens it in the default program** — `ImageCache` landed (write-if-changed verified; startup cleanup: >7 days / newest 100, never delete on exit) — S3 wires it into App startup
 - 🟡 `[L]` Memory discipline: 200-row list carries thumbs only; full PNG loaded on demand
 - ⬜ `[L]` Office/Paint acceptance matrix run LIVE in S3 (hand-built DIB → Excel, Word, Paint, browser); CF_DIBV5 added only after the matrix passes
@@ -90,11 +90,11 @@ No item may be marked from a sub-agent's self-report alone.
 - 🟡 `[L]` Keyboard: **Ctrl+M tab-picker — VERIFIED live in S3** (opens, Esc closes); **Ctrl+T/Ctrl+W tab CRUD — VERIFIED live in S3** (created `work`, duplicate shows the red error, empty tab deletes, built-ins refuse); **Ctrl+Shift+←/→ adjacent-move ⬜** (not yet tested live); Ctrl+1..9 stays paste-nth ⬜
 - ✅ `[H]` **Same-second re-copy moves to top** — FIXED red-first (millisecond stamps `yyyy-MM-ddTHH:mm:ss.fff`, still lexically sortable; pre-fix observed `B,A` → post-fix `A,B`; mixed old/new format sort verified; Update/F2 also emits ms)
 - ✅ `[H]` **Pinned flag RETIRED** — single source of pin state is `tab_id`; migration adopts legacy pins then clears the column; nothing reads it again (mutation-verified)
-- ⬜ `[U]` Tab strip: flat text + 2px accent underline (no TabControl pills), per-tab counts ("Pinned · 4")
-- ⬜ `[U]` ←/→ walks all tabs: Clipboard → Images → Pinned → custom…
+- ⬜ `[U]` Tab strip: flat text + 2px accent underline (no TabControl pills), per-tab counts ("Pinned · 4") -- **S3 AUDIT: PASS** (counts present, no middle-dot separator, underline floats ~5 DIP above the strip rule -- zoom-tabstrip.png, P3)
+- ⬜ `[U]` ←/→ walks all tabs: Clipboard → Images → Pinned → custom… -- **S3 AUDIT: PASS** (tab-images.png, tab-pinned.png -- Clipboard -> Images -> Pinned by arrow key)
 
 ## 8. F2 editor (owner-frozen)
-- ⬜ `[U]` F2 opens editor for selected text/rich item; caret in content
+- ⬜ `[U]` F2 opens editor for selected text/rich item; caret in content -- **S3 AUDIT: PASS** (editor-pre.png, editor-rich-full.png -- caret in content; plain TextBox even for rich clips, see P2-2)
 - ✅ `[L]` **Ctrl+S saves & closes, list refreshed in place — VERIFIED live in S3** (typed edit, row updated in place with fresh timestamp)
 - ⬜ `[L]` **Esc or F2 with unsaved changes asks "Discard changes?"** (Yes=close without saving, No=keep editing); no changes → closes silently
 - ⬜ `[L]` Rich items edit with formatting preserved (RichTextBox); plain items in multiline TextBox
@@ -107,14 +107,16 @@ No item may be marked from a sub-agent's self-report alone.
 - ✅ `[H]` Identical image bytes dedupe identically
 - ✅ `[H]` Pinned items keep their pin when moved to top
 - ✅ `[H]` **Same-second re-copy moves to top** — fixed red-first (millisecond stamps `yyyy-MM-ddTHH:mm:ss.fff`); pre-fix observed order B,A → post-fix A,B; mixed-format sort verified
-- ⬜ `[U]` S3 fix: popup must not briefly double-show a deduped card (OnNewItem removes existing id before inserting at top)
+- ⬜ `[U]` S3 fix: popup must not briefly double-show a deduped card (OnNewItem removes existing id before inserting at top) -- **S3 AUDIT: UNTESTED-BY-AUTOMATION** (needs frame capture during a re-copy)
 
 ## 10. Settings & autostart (owner-frozen)
-- 🟡 `[U]` Settings window: hotkey, plain-hotkey, max items, preview lines, notification (enabled/duration/width/height/position/offsets/maxLines), theme (dark/light/system), **time format 12h/24h**, start-on-login, clear history (with inline confirm) — S2 built + verified 69/69
+- 🟡 `[U]` Settings window: hotkey, plain-hotkey, max items, preview lines, notification (enabled/duration/width/height/position/offsets/maxLines), theme (dark/light/system), **time format 12h/24h**, start-on-login, clear history (with inline confirm) — S2 built + verified 69/69 -- **S3 AUDIT: UNTESTED-BY-AUTOMATION** (Settings window never renders: opening it terminates the process -- P0-1, settings-open-attempt.png)
 - ✅ `[H]` **Config.PreviewLines landed** (=10, JSON `previewLines`) — Axis-2; full build 0 errors / 0 warnings (forced recompile via OutDir redirect)
 - 🟡 `[L]` **HotKeyWindow parser — FIXED in S3** (explicit friendly-name → VK map: digits, F-keys, OEM row; no silent fallback; exposes registration result) — live rebind test pending (Settings window not yet opened at runtime)
+- ⬜ `[L]` **P0 crash fix: opening Settings throws InvalidCastException and kills the app** — a local `<Style x:Key="Field">` shadows the theme brush key `Field`; rename + sweep all key collisions — **crisp/chrome sprint in flight (fresh-audit reproduced ×2)**
+- ⬜ `[L]` **Cold first popup open 221 ms — over the 150 ms budget (warm opens 12–32 ms PASS)** — pre-warm/cost-audit the first-render path (JIT + HtmlRenderer init) — fix sprint
 - ⬜ `[L]` Settings wiring: tray Settings menu opens the window (currently disabled placeholder); SettingsSaved applies live (theme swap, hotkey re-register incl. conflict message, ClockFormat, notification); ClearHistoryRequested wipes MAIN HISTORY ONLY (tabs survive per §7)
-- ⬜ `[U]` Notification settings include the **live on-screen preview overlay** (exact placement, live updates, drag-to-set offsets, auto-hide + pin) and the Settings window is reorganized into tabs (General / Notification) — owner requirement 23 Nov; public API unchanged: ctor(Config), SettingsSaved, ClearHistoryRequested
+- ⬜ `[U]` Notification settings include the **live on-screen preview overlay** (exact placement, live updates, drag-to-set offsets, auto-hide + pin) and the Settings window is reorganized into tabs (General / Notification) — owner requirement 23 Nov; public API unchanged: ctor(Config), SettingsSaved, ClearHistoryRequested -- **S3 AUDIT: UNTESTED-BY-AUTOMATION** (Settings window crashes on open -- P0-1)
 - 🟡 `[H]` Time format: `config.json "timeFormat"`, footer + notification honor 12h/24h; WasNew excludes from JSON
 - ⬜ `[L]` Settings apply LIVE — no restart
 - ⬜ `[L]` Autostart: HKCU Run value named after the product, EXE path via `Environment.ProcessPath` (NOT Assembly.Location — that's the DLL and won't launch); toggle removes it — real registry round-trip `[H]` already PASS
@@ -124,10 +126,10 @@ No item may be marked from a sub-agent's self-report alone.
 - ✅ `[U]` Own WPF window — never a native toast; silent (no sound, no system notification)
 - ✅ `[L]` Copy shows: app name + timestamp + first ~3 lines truncated (S0 screenshot: "WindowsTerminal · 14:33:40 · Clip M1 verification text 12345")
 - ✅ `[L]` Borderless, rounded, topmost; fade in/out ~150 ms; auto-dismiss on duration timer (3 s observed)
-- ⬜ `[U]` **Clickable ✕** (per-region hit test; window stays click-through everywhere else; no focus stealing) — **keyboard-reachable and UIA-labelled** (audit: today it is a bare 13×15 TextBlock with no accessibility)
+- ⬜ `[U]` **Clickable ✕** (per-region hit test; window stays click-through everywhere else; no focus stealing) — **keyboard-reachable and UIA-labelled** (audit: today it is a bare 13×15 TextBlock with no accessibility) -- **S3 AUDIT: UNTESTED-BY-AUTOMATION** (hit-testing a click-through toast is not safely automatable; source shows a bare TextBlock with no AutomationProperties)
 - ✅ `[H]` **Self-attribution leak fixed** — own-process copies attribute app=product, title="" (`ForegroundApp.Attribute` pure function, tested: internal title + own pid → `(ProcessName, "")`); Skipped-event toast wiring remains S3
 - ✅ `[L]` Position: top-left / top-right / bottom-left / bottom-right / center + pixel offsets, on the monitor of the **active window at capture time** (same multi-monitor rule as the popup; bottom-right verified at 150% DPI) (bottom-right verified at 150% DPI)
-- 🟡 `[U]` Width/height/duration/enabled all honored from config
+- 🟡 `[U]` Width/height/duration/enabled all honored from config -- **S3 AUDIT: FAIL** (configured height 160 DIP rendered ~54 DIP -- SizeToContent wins over config; width/duration/enabled worked)
 - 🟡 `[L]` **Toast window REUSED — wired in S3** (one NotificationWindow for the session: Hide-not-Close, timer reset, `ShowMessage`) — final RAM re-measure pending; peak still 253.7 MB → fix sprint
 - ✅ `[L]` Capture→toast latency ~400–600 ms after the 100 ms debounce — accepted trade-off (veteran debounce pattern; correctness over instant)
 - ⬜ `[L]` Skipped-capture notifications wired via CaptureService.Skipped (oversized images etc. — no more silent vanishing)

@@ -1,0 +1,62 @@
+# DESIGN-v2 — OWNER DIRECTIVES (frozen 23 Nov ~18:00; these override every earlier design ruling where they conflict)
+
+Source: the owner's direct message after seeing S3. Their word is law; where an earlier doc
+(docs\DESIGN-layout.md row anatomy, the 65px meta-always density ruling, grow-on-selection)
+contradicts this file, THIS file wins.
+
+## 1. NO geometry change on selection — kill the scroll jumping
+The owner: "things are jumping when I scroll through the clipboard items using up/down arrow keys."
+- Rows get a **content-adaptive height with a MAX cap** ("max height and then auto adapt based on the height") —
+  a 1-line clip is short, a 20-line clip is taller up to the cap; the height depends ONLY on content.
+- **Selection NEVER changes a row's height or the list's geometry.** The grow-on-selection animation
+  (65 → 101/119px) is DELETED. ↑/↓ must move the highlight with zero layout jump.
+- Scroll stability contract: scroll-into-view uses the MINIMAL delta (never a page jump), no animated scrolls.
+
+## 2. NO per-row title/meta section
+The owner asked what the "top title type thing" was — it's the meta line (app · time) my density ruling
+pinned to every row. REMOVED. Rows are content-only. (App/time stays stored; surface it nowhere by default.)
+
+## 3. Sequential numbers replace the icon tile (Clipboard tab)
+Each row's top-left 22px icon tile is replaced by **1, 2, 3, …** — the number IS the Ctrl+1..9 paste-nth
+affordance. Continue past 9 (10, 11, …). Other tabs pick a sensible slot treatment (design agent decides).
+
+## 4. Rich text shows in the MAIN popup itself
+The selected row renders its actual formatted content (colors, sizes, tables — the HtmlRenderer panel
+already wired) **inside its fixed content height** — a content swap, never a geometry change.
+Unselected rows keep the plain clamped preview.
+
+## 5. F2 editor = ONE proper rich text editor for EVERYTHING (WYSIWYG)
+The owner: "every clip should open in rich text editor.. one editor for everything!!!"
+- **A SINGLE editor surface, always rich-capable.** Plain text clips open in the SAME rich editor —
+  no separate plain-TextBox mode, no silent plain fallback, ever. A plain clip simply carries no
+  formatting yet. Image clips keep the F2-opens-default-viewer rule (that is not an editor).
+Verified root causes (orchestrator, EditorWindow.xaml.cs) — fix BOTH:
+- Line 27 `_rich = !string.IsNullOrEmpty(rtf)`: HTML-only rich clips (browser copies) carry NO RTF →
+  silently open the plain TextBox.
+- Line 33 `Encoding.UTF8.GetBytes(rtf)`: corrupts 8-bit RTF → load throws → the catch silently degrades
+  to plain. Any fix must treat RTF as bytes, and any fallback must be visible, never silent.
+The editor must SHOW the item's real formatting and edit it WYSIWYG. Library allowed (owner's explicit
+word). Design agent researches + decides the approach (e.g. native RichTextBox fed RTF with an HTML→RTF
+conversion for html-only clips, vs a WebView2 contenteditable HTML editor using the preinstalled Edge
+runtime) and freezes the round-trip save contract.
+
+## 6. Images tab = BIG previews filling the popup
+The owner: "the image should show in a bigger preview… cover as much screen inside the max height as
+possible… how will I see the images when I have say 20 images? I will have to open each one!!!!!"
+- Large tiles / a dominant preview layout that FILLS the popup viewport — images browsable at a glance.
+- 96px stored thumbs are too small for this; larger previews decode from the cached full image on demand,
+  off the UI thread (pairs with the tracked off-UI-thread decode item).
+- Never require opening items one at a time to see what an image is.
+
+## 7. Text crisp and sharp EVERYWHERE
+The owner: "text is also not crisp and sharp at many places." Root cause is already pixel-proven
+(docs\AUDIT-current-visual.md): `AllowsTransparency="True"` forces greyscale AA (0 color-fringed pixels
+in the popup vs 1,026 in a ClearType control). Fix = restructure windows WITHOUT AllowsTransparency so
+ClearType returns (Win11 DWM corner-rounding for the rounded look, DWM shadow), uniform
+`TextFormattingMode="Display"`, `UseLayoutRounding`. The notification-preview ghost may keep transparency
+(it is a decorative overlay). Pixel-verify fringing returns after the change.
+
+## 8. Process
+The owner is NOT satisfied with the UI/UX polish; "have proper thought through UI/UX", "deploy as many
+sub-agents as required." So: a v2 design pass rethinks the affected surfaces end-to-end BEFORE code,
+then implementation sprints with disjoint file ownership, then a fresh-eyes audit against THIS file.
