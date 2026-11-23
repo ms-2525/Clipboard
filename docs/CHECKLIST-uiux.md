@@ -23,6 +23,7 @@ Visual authority: Ortu (docs\RESEARCH-ortu-ui.md) — the owner pinned it. Where
 - ⬜ `[U]` **Truthful copy everywhere** (docs\DESIGN-antislop.md table): clear-history copy states pinned/tab items survive; "Close" discards without destruction language; badge "+90 more lines"; status keycaps; tray menu — every visible string from the doc's replacement table
 - ⬜ `[U]` **Tray Clear History gets a confirm step** (it currently wipes with none — contradicts the designed confirm path); S3 wires it
 - ⬜ `[U]` Empty states designed with exact copy per the doc: first-run (no history), no search matches, empty Images, empty Pinned
+- ⬜ `[U]` **Bottom-edge mid-glyph clipping fixed** (audit: the popup viewport slices a text line at y≈905 with no scroll cue) — fixed row heights + bottom viewport padding or a scroll cue in the S3 rebuild
 - REJECTED deviations (owner contracts stand): preview-lines stays 1..100 (not 1–3); duration stays `durationMs` (not seconds)
 - ⬜ `[U]` Hover states on rows and interactive controls
 - ⬜ `[U]` Copy pulse feedback (~380 ms flash) when an item is pasted — Ortu's signature moment
@@ -36,12 +37,12 @@ Visual authority: Ortu (docs\RESEARCH-ortu-ui.md) — the owner pinned it. Where
 - ⬜ `[U]` Clear-history confirm is an inline two-click swap
 
 ## 3. Typography & color (evidence-corrected by docs\DESIGN-typography.md)
-- ⬜ `[U]` **Static Manrope 400/500/600 shipped; the variable default-200 TTF is REMOVED** — root cause of "text looks bad": WPF cannot drive variable axes (dotnet/wpf#7758), so everything renders ExtraLight with no real bold anywhere. Gate: `usWeightClass` reads 400/500/600 per file; 400% crop of 400-vs-600 shows a visible weight step
+- ✅ `[H]` **Static Manrope 400/500/600 shipped; the variable default-200 TTF is REMOVED** — root cause of "text looks bad": WPF cannot drive variable axes (dotnet/wpf#7758). VERIFIED: usWeightClass 400/500/600 per file, no fvar/gvar; ink measurement old variable 1393px Normal AND SemiBold (0.0% diff = the bug) vs new statics +36.5%; family names rewritten (GWfH ships source names → silent Arial fallback, caught + fixed); OFL.txt included; resources confirmed embedding exactly the three statics
 - ⬜ `[U]` Manrope embedded (pack URI) renders everywhere — headings, rows, meta, settings, notification; no fallback font anywhere visible
 - ⬜ `[U]` **Meta line: 11 px, weight 500, NON-italic** (italic killed: Microsoft excludes it for readability; Ortu never italicises metadata), tabular figures, 1 px hairline, selected-card treatment; **10 px is allowed ONLY for uppercase ≤3-word labels**
 - ⬜ `[U]` **Contrast token fixes applied (docs\DESIGN-contrast.md — computed values, not guesses)**: Dark — Muted `#8A909C`→`#9BA1AC` (7.03 on Surface, 5.01 under tint), placeholder→`#82868F` (4.51), hover/selection tints capped at **8 %** (15 % kills corrected Muted to 3.94). Light — full semantic re-solve: AccentText `#B84900`, Error `#CC2E33`, Sage `#686C47`, Amber `#826000`, Sky `#046C99`, Violet `#7347E8`, Muted `#586070`, placeholder `#69696E` (Accent stays `#FF8A3D` for FILLS only). Both — new tokens `OnAccent` (#08090C / #FFFFFF) and `ControlLine` (#666C7C / #7F8691) so the white-on-orange tick hits 7.78 and checkbox borders 3.14/3.16
 - ⬜ `[U]` **The 2px accent rail carries selection** — the accent/0.15 ring measures 1.27:1 and is decoration only, never the indicator
-- ⬜ `[U]` Small-size stack: window-level `TextFormattingMode="Display"` + `TextRenderingMode="Grayscale"` (ClearType unreachable under AllowsTransparency + root shadow), explicit `LineHeight` (18 @13 px, 16 @11 px), fixed `Height` (not `MaxHeight`) for ellipsis rows
+- ⬜ `[U]` Small-size stack: window-level `TextFormattingMode="Display"` + `TextRenderingMode="Grayscale"` — **pixel-verified necessity** (docs\AUDIT-current-visual.md: AllowsTransparency forces greyscale AA, 0 vs 1,026 fringed pixels in a ClearType control); a DWM-composited ClearType window restructure is a fix-sprint EXPERIMENT if text still reads soft after the statics land — not the S3 path
 - ⬜ `[U]` Scale corrections applied (supersede the earlier Ortu numbers): meta 10→11, section labels 9→10 uppercase, status bar 9→11, title 15 Bold→13/600
 - ⬜ `[U]` `✓ ✕ ▾` removed (verified absent from Manrope's cmap — Windows was silently falling back) → MDL2 glyphs or `×`
 - ⬜ `[U]` Notification: app name in accent, timestamp muted, body readable at a glance (~3 lines)

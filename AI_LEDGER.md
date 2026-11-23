@@ -29,3 +29,5 @@
 - `HotKeyWindow` parses with `Enum.TryParse<Keys>` — friendly names like "1" resolve to mouse buttons; explicit VK mapping required (S2 finding; S3 must-fix).
 - A running stale Clip instance owns Alt+V → stop it before testing any new build.
 - SQLite string compare is BINARY collation — that IS the exact-match guarantee; never add NOCASE/trim to dedupe paths (dedupe sprint).
+- Manrope statics: GWfH-instanced files ship with the SOURCE family names ("Manrope ExtraLight") — always rewrite name IDs 1/3/4/6/16/17 + checksums or WPF falls back to Arial silently (font sprint).
+- `new FontFamily("pack://application:,,,/Assets/Fonts/#Manrope")` IN CODE silently resolves to Arial with zero glyph typefaces — only the XAML FontFamilyConverter path (StaticResource UiFont) or `new FontFamily(new Uri("pack://..."), "./#Manrope")` work (font sprint).

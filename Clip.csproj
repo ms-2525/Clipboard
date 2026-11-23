@@ -18,8 +18,11 @@
     <Page Remove="_fonttest\**" />
   </ItemGroup>
 
+  <!-- Static Manrope faces: WPF cannot drive a variable font's wght axis, so 400/500/600 ship as three files. -->
   <ItemGroup>
-    <Resource Include="Assets\Fonts\Manrope.ttf" />
+    <Resource Include="Assets\Fonts\Manrope-Regular.ttf" />
+    <Resource Include="Assets\Fonts\Manrope-Medium.ttf" />
+    <Resource Include="Assets\Fonts\Manrope-SemiBold.ttf" />
   </ItemGroup>
 
   <ItemGroup>

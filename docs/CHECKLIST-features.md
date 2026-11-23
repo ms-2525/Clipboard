@@ -39,6 +39,15 @@ No item may be marked from a sub-agent's self-report alone.
 - ⬜ `[L]` Search placeholder text visible when empty
 - ⬜ `[L]` Visible keyboard-focus treatment on the selected row
 - 🟡 `[L]` Newest first ordering (captured_at DESC, id DESC)
+- ⬜ `[L]` **Home/End** → first/last item (only when search is EMPTY — the caret keeps them while typing); **PageUp/PageDown** → one viewport of rows, clamped, never wraps
+- ⬜ `[L]` **IME composition gate**: while a Hindi/Chinese/Japanese composition is open, Esc cancels the composition (NOT the popup) and Enter commits it (never pastes) — docs\RESEARCH-keyboard-ux.md; protects real input work
+- ⬜ `[L]` **Type-to-search from anywhere**: a printable key while focus is on the list redirects into the search box (closes the dead state after F2 closes); **Tab/Shift+Tab = no-op** in the popup
+- ⬜ `[L]` Aliases: **Ctrl+Tab / Ctrl+Shift+Tab** also switch tabs; **Ctrl+↑/↓** jump between time sections (Today/Yesterday…)
+- ⬜ `[L]` **Shift+Enter = paste selected as PLAIN text** (fixes the latent bug where it pastes formatted); **Ctrl+C = copy-without-paste** (guarded: only when no text is selected in the query; self-paste suppression applies)
+- ⬜ `[L]` **Ctrl+Z = one-level undo of item deletion** — Core `Restore(item)` per docs\RESEARCH-keyboard-ux.md §9 (queued Core polish sprint; depends on `ClipboardItem.TabId`, which S3 adds)
+- ⬜ `[L]` **Context menu on rows** (right-click / Menu key / Shift+F10) — one surface exposing the seven existing commands (paste, paste-plain, edit/pin/move-to-tab, delete, open-image)
+- ⬜ `[L]` **Esc cascade, one ordered function**: IME → editor discard prompt → tab-delete confirm → tab-name editor → Ctrl+M picker → F2 editor → clear search → hide popup
+- ⬜ `[U]` Selection stays stable when a live capture arrives while the popup is open
 
 ## 3. Paste fidelity (owner: "paste exactly like I copied, for EVERYTHING")
 - 🟡 `[L]` All-formats snapshot on copy (HGLOBAL bytes per format, budget `maxItemBytes` 10 MB, handle formats skipped knowingly)
@@ -79,6 +88,7 @@ No item may be marked from a sub-agent's self-report alone.
 - ✅ `[H]` **Dedupe scoped per tab**: a pinned copy never swallows a fresh history copy (verified head-to-head)
 - ✅ `[H]` Tab CRUD: create/rename (blank/duplicate → `ArgumentException`/`false`); **delete purges items+formats and returns the count**; Pinned rejects delete/rename (`-1`/`false`) — the macOS keep-clips model is explicitly rejected
 - ⬜ `[L]` Keyboard: **Ctrl+M tab-picker** (primary move command, Ditto-proven), **Ctrl+Shift+←/→** adjacent-move fallback, Ctrl+T/Ctrl+W tab CRUD; Ctrl+1..9 stays paste-nth
+- ⬜ `[H]` **Pinned-flag reset bug (Axis-2 P1)**: the migration never clears legacy `pinned=1`, so unpinning a pre-upgrade item re-pins it on next launch — TogglePin/migration flag consistency — **Core polish sprint**
 - ⬜ `[U]` Tab strip: flat text + 2px accent underline (no TabControl pills), per-tab counts ("Pinned · 4")
 - ⬜ `[U]` ←/→ walks all tabs: Clipboard → Images → Pinned → custom…
 
@@ -99,7 +109,7 @@ No item may be marked from a sub-agent's self-report alone.
 
 ## 10. Settings & autostart (owner-frozen)
 - 🟡 `[U]` Settings window: hotkey, plain-hotkey, max items, preview lines, notification (enabled/duration/width/height/position/offsets/maxLines), theme (dark/light/system), **time format 12h/24h**, start-on-login, clear history (with inline confirm) — S2 built + verified 69/69
-- ⬜ `[L]` **S3 must land `Config.PreviewLines`** (S2 shipped against the pinned contract — the full build stays RED until this lands)
+- ✅ `[H]` **Config.PreviewLines landed** (=10, JSON `previewLines`) — Axis-2; full build 0 errors / 0 warnings (forced recompile via OutDir redirect)
 - ⬜ `[L]` **S3 must-fix: HotKeyWindow parser accepts the friendly names Settings emits** — "1" currently parses as `Keys.LButton` (a mouse button) and silently breaks; needs digits "1"→D1 and OEM keys (`` ` `` `=` `[` … ) → VK mapping
 - ⬜ `[L]` Settings wiring: tray Settings menu opens the window (currently disabled placeholder); SettingsSaved applies live (theme swap, hotkey re-register incl. conflict message, ClockFormat, notification); ClearHistoryRequested wipes MAIN HISTORY ONLY (tabs survive per §7)
 - ⬜ `[U]` Notification settings include the **live on-screen preview overlay** (exact placement, live updates, drag-to-set offsets, auto-hide + pin) and the Settings window is reorganized into tabs (General / Notification) — owner requirement 23 Nov; public API unchanged: ctor(Config), SettingsSaved, ClearHistoryRequested
@@ -112,7 +122,8 @@ No item may be marked from a sub-agent's self-report alone.
 - ✅ `[U]` Own WPF window — never a native toast; silent (no sound, no system notification)
 - ✅ `[L]` Copy shows: app name + timestamp + first ~3 lines truncated (S0 screenshot: "WindowsTerminal · 14:33:40 · Clip M1 verification text 12345")
 - ✅ `[L]` Borderless, rounded, topmost; fade in/out ~150 ms; auto-dismiss on duration timer (3 s observed)
-- ⬜ `[U]` **Clickable ✕** (per-region hit test; window stays click-through everywhere else; no focus stealing)
+- ⬜ `[U]` **Clickable ✕** (per-region hit test; window stays click-through everywhere else; no focus stealing) — **keyboard-reachable and UIA-labelled** (audit: today it is a bare 13×15 TextBlock with no accessibility)
+- ⬜ `[L]` **Self-attribution leak fixed** (audit screenshot: meta printed "Clip · … · ClipHotkey" — our own process's copies capture our internal message-window title) — own-process exclusion/attribution rule in CaptureService — **Core polish sprint**
 - ✅ `[L]` Position: top-left / top-right / bottom-left / bottom-right / center + pixel offsets, on the monitor of the **active window at capture time** (same multi-monitor rule as the popup; bottom-right verified at 150% DPI) (bottom-right verified at 150% DPI)
 - 🟡 `[U]` Width/height/duration/enabled all honored from config
 - ⬜ `[L]` **Toast window REUSED — one NotificationWindow instance for the whole session** (App currently creates a new one per capture; S0 measured +35–40 MB per toast, 116→252 MB). S3 must-fix; re-measured under the 150/250 MB protocol
@@ -156,4 +167,7 @@ Core items (scale sprint, queued behind the CA audits so Core stays stable while
 - ⬜ `[H]` Image dedupe via a stored **hash column** (BLOB scans: 10–13 ms @1000, 54–61 ms @5000)
 - ⬜ `[H]` `EnforceCap` gated (periodic/batched, not per-capture)
 - ⬜ `[H]` Image decode/encode moved off the UI thread
+- ⬜ `[H]` **ClipboardStore split** (429 lines → items/tabs/core partial classes, zero call-site changes) + **transaction wrapper** for Insert+InsertFormats and the dedupe path — done together per docs\AUDIT-axis2-standards.md A2-07
+- ⬜ `[L]` **Corrupt/locked clip.db recovery path** (rename + recreate + user notice) instead of killing startup — Axis-2 P2
+- ⬜ `[L]` Acceptance-run note: **stop the stale running Clip.exe before in-place builds** — it locks `bin\Release\...\Clip.exe` and fails the copy step (MSB3027); build via OutDir redirect if the app must stay up
 Acceptance at 1000 items: scroll jank-free, search <50 ms end-to-end, cold start → popup <300 ms, idle RAM unchanged vs 200, `GetRecent(1000)` ≤10 ms
