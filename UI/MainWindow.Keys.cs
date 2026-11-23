@@ -143,6 +143,8 @@ namespace Clip.UI
 
             if (e.Key == Key.Up || e.Key == Key.Down)
             {
+                // Images: one strip page per vertical arrow (DESIGN-v2-ui §3.3).
+                if (_images) { StepImage(e.Key == Key.Down ? 8 : -8); e.Handled = true; return; }
                 Navigate(e.Key == Key.Down ? 1 : -1);
                 e.Handled = true;
                 return;
@@ -153,7 +155,8 @@ namespace Clip.UI
                 // Arrows switch tabs only when the caret is not being used in a non-empty query.
                 if (Search.Text.Length == 0 || !Search.IsKeyboardFocusWithin)
                 {
-                    SwitchAdjacentTab(e.Key == Key.Right ? 1 : -1);
+                    if (_images) StepImage(e.Key == Key.Right ? 1 : -1); // ←/→ browse the strip
+                    else SwitchAdjacentTab(e.Key == Key.Right ? 1 : -1);
                     e.Handled = true;
                 }
                 return;
@@ -297,6 +300,8 @@ namespace Clip.UI
                 Formats = _store.GetFormats(row.Id)
             };
             if (row.IsImage) undo.Image = _store.GetImage(row.Id)?.Image;
+            // The thumb rides along too: a restored image whose tile says "No preview" is a lie.
+            undo.Thumb = row.Item.Thumb;
             var rich = _store.GetRich(row.Id);
             if (rich != null) { undo.Html = rich.Html; undo.Rtf = rich.Rtf; }
 

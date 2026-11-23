@@ -32,7 +32,7 @@ No item may be marked from a sub-agent's self-report alone.
 - ⬜ `[L]` **←/→ switch tabs** (Clipboard → Images → Pinned → custom…), selection resets to first item
 - ⬜ `[L]` **Esc #1 clears search** (list returns, caret stays in search); **Esc #2 hides popup**
 - ⬜ `[L]` Focus-loss (clicking away) hides popup
-- ⬜ `[L]` ↑/↓ navigate items, selected item scrolls into view
+- ✅ `[L]` ↑/↓ navigate items, selected item scrolls into view — **v2: zero geometry change on navigation** (S1: one ↓ leaves 0 differing pixels below the selection; later moves scroll the minimal 54–88 px; heights 16+lines×18 computed once, never on selection)
 - 🟡 `[L]` **Enter pastes selected — VERIFIED live in S3** (sentinel text landed in Notepad, focus returned); Ctrl+1..9 pastes nth visible item ⬜ (not yet tested live)
 - ⬜ `[L]` **Delete in list context = delete the item** (CRUD); in **edit mode = character right-delete**, never the item
 - ⬜ `[L]` Popup is **draggable** (drag anywhere on the background)

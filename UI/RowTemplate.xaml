@@ -148,4 +148,107 @@
     </DataTemplate.Triggers>
   </DataTemplate>
 
+  <!--
+    Images tab (docs\DESIGN-v2-ui.md §3.2): the same ListBox in a horizontal, virtualising panel.
+    4 tiles + a peek at 550 px. ClipListPanel is the text list's own panel, re-applied on the way out.
+  -->
+  <ItemsPanelTemplate x:Key="ImageStripPanel">
+    <VirtualizingStackPanel Orientation="Horizontal"
+                            VirtualizingPanel.IsVirtualizing="True"
+                            VirtualizingPanel.VirtualizationMode="Recycling"
+                            VirtualizingPanel.ScrollUnit="Item"
+                            VirtualizingPanel.CacheLength="2,2"/>
+  </ItemsPanelTemplate>
+
+  <ItemsPanelTemplate x:Key="ClipListPanel">
+    <VirtualizingStackPanel VirtualizingPanel.IsVirtualizing="True"
+                            VirtualizingPanel.VirtualizationMode="Recycling"
+                            VirtualizingPanel.ScrollUnit="Item"
+                            VirtualizingPanel.CacheLength="1,1"/>
+  </ItemsPanelTemplate>
+
+  <!--
+    One image tile. Fit never crop (synthesis Q6): Stretch=Uniform, never UniformToFill. The thumb is
+    the stored 96 px PNG decoded once per row; selection and hover change brushes only, 100 ms.
+  -->
+  <DataTemplate x:Key="ImageTileTemplate">
+    <Border x:Name="Tile" Width="104" Height="104" Margin="0,0,8,0" CornerRadius="8"
+            Background="{DynamicResource Field}" ClipToBounds="True">
+      <Grid>
+        <Grid Margin="4">
+          <Image Source="{Binding Thumb}" Stretch="Uniform"
+                 RenderOptions.BitmapScalingMode="HighQuality"
+                 HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+          <!-- A tile that cannot decode says so: a blank grey box is not a state (AUDIT-s3-visual P1-3). -->
+          <StackPanel x:Name="NoThumb" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <Viewbox Width="20" Height="20">
+              <Path Data="{DynamicResource IconPicture}" Stroke="{DynamicResource Fg40}" StrokeThickness="1.5"
+                    StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+            </Viewbox>
+            <TextBlock Text="No preview" FontSize="11" LineHeight="14" Foreground="{DynamicResource Fg48}"
+                       HorizontalAlignment="Center" Margin="0,6,0,0"/>
+          </StackPanel>
+        </Grid>
+
+        <Border x:Name="HoverRing" BorderBrush="{DynamicResource ControlLine}" BorderThickness="1"
+                CornerRadius="8" Opacity="0" IsHitTestVisible="False"/>
+        <Border x:Name="SelRing" BorderBrush="{DynamicResource AccentText}" BorderThickness="1"
+                CornerRadius="8" Opacity="0" IsHitTestVisible="False"/>
+
+        <!-- The number is the Ctrl+1..9 affordance; an opaque pill reads over any image (§1.4). -->
+        <Border Height="16" Padding="4,0" CornerRadius="4" Background="{DynamicResource App}"
+                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="4" IsHitTestVisible="False">
+          <TextBlock Text="{Binding Number}" FontSize="11" LineHeight="14" FontWeight="SemiBold"
+                     Foreground="{DynamicResource Fg75}" VerticalAlignment="Center"
+                     Typography.NumeralAlignment="Tabular"/>
+        </Border>
+      </Grid>
+    </Border>
+
+    <DataTemplate.Triggers>
+      <DataTrigger Binding="{Binding Thumb}" Value="{x:Null}">
+        <Setter TargetName="NoThumb" Property="Visibility" Value="Visible"/>
+      </DataTrigger>
+
+      <Trigger SourceName="Tile" Property="IsMouseOver" Value="True">
+        <Trigger.EnterActions>
+          <BeginStoryboard>
+            <Storyboard>
+              <DoubleAnimation Storyboard.TargetName="HoverRing" Storyboard.TargetProperty="Opacity"
+                               To="1" Duration="0:0:0.100"/>
+            </Storyboard>
+          </BeginStoryboard>
+        </Trigger.EnterActions>
+        <Trigger.ExitActions>
+          <BeginStoryboard>
+            <Storyboard>
+              <DoubleAnimation Storyboard.TargetName="HoverRing" Storyboard.TargetProperty="Opacity"
+                               To="0" Duration="0:0:0.100"/>
+            </Storyboard>
+          </BeginStoryboard>
+        </Trigger.ExitActions>
+      </Trigger>
+
+      <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
+        <DataTrigger.EnterActions>
+          <BeginStoryboard>
+            <Storyboard>
+              <DoubleAnimation Storyboard.TargetName="SelRing" Storyboard.TargetProperty="Opacity"
+                               To="1" Duration="0:0:0.100"/>
+            </Storyboard>
+          </BeginStoryboard>
+        </DataTrigger.EnterActions>
+        <DataTrigger.ExitActions>
+          <BeginStoryboard>
+            <Storyboard>
+              <DoubleAnimation Storyboard.TargetName="SelRing" Storyboard.TargetProperty="Opacity"
+                               To="0" Duration="0:0:0.100"/>
+            </Storyboard>
+          </BeginStoryboard>
+        </DataTrigger.ExitActions>
+      </DataTrigger>
+    </DataTemplate.Triggers>
+  </DataTemplate>
+
 </ResourceDictionary>

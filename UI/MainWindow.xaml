@@ -205,6 +205,37 @@
 
       <!-- List -->
       <Grid Grid.Row="2">
+        <!--
+          Images tab (docs\DESIGN-v2-ui.md §3.2): a 538 x 263 dominant preview over the filmstrip below.
+          The pane is a view of the selected image; it never changes size when the selection moves.
+        -->
+        <Border x:Name="ImagesPane" Visibility="Collapsed" Height="263" Margin="6,6,6,0"
+                VerticalAlignment="Top" Background="{DynamicResource Field}"
+                CornerRadius="12" ClipToBounds="True">
+          <Grid>
+            <Image x:Name="PreviewImage" Margin="8" Stretch="Uniform"
+                   RenderOptions.BitmapScalingMode="HighQuality"/>
+
+            <!-- Decode failure degrades visibly, never to an empty box. -->
+            <StackPanel x:Name="PreviewFallback" Visibility="Collapsed" Margin="24"
+                        HorizontalAlignment="Center" VerticalAlignment="Center">
+              <TextBlock Text="Preview unavailable" FontSize="13" LineHeight="18" FontWeight="Medium"
+                         Foreground="{DynamicResource Fg75}" HorizontalAlignment="Center"/>
+              <TextBlock x:Name="PreviewFallbackNote" FontSize="11" LineHeight="16" TextWrapping="Wrap"
+                         Foreground="{DynamicResource Fg55}" TextAlignment="Center"
+                         HorizontalAlignment="Center" Margin="0,4,0,0"/>
+            </StackPanel>
+
+            <Border Height="20" Padding="6,0" CornerRadius="6" Margin="8"
+                    Background="{DynamicResource App}" IsHitTestVisible="False"
+                    HorizontalAlignment="Right" VerticalAlignment="Bottom">
+              <TextBlock x:Name="PreviewCounterText" FontSize="11" LineHeight="14" FontWeight="Medium"
+                         Foreground="{DynamicResource Fg55}" VerticalAlignment="Center"
+                         Typography.NumeralAlignment="Tabular"/>
+            </Border>
+          </Grid>
+        </Border>
+
         <ListBox x:Name="History" Background="Transparent" BorderThickness="0" Padding="6"
                  ScrollViewer.VerticalScrollBarVisibility="Hidden"
                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
@@ -217,6 +248,9 @@
                  ItemContainerStyle="{StaticResource ClipRowItem}"
                  ScrollViewer.ScrollChanged="OnListScrolled"
                  SizeChanged="OnScrollCueSizeChanged"
+                 SelectionChanged="OnHistorySelectionChanged"
+                 PreviewMouseWheel="OnStripWheel"
+                 IsVisibleChanged="OnHistoryVisibleChanged"
                  MouseDoubleClick="OnRowDoubleClick"
                  PreviewMouseRightButtonDown="OnRowRightClick"
                  AutomationProperties.Name="Clipboard history">
