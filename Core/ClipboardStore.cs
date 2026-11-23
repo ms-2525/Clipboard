@@ -59,7 +59,7 @@ namespace Clip.Core
             }
             catch
             {
-                conn.Dispose();
+                conn.Dispose(); // close the half-open handle before the caller sees the failure
                 throw;
             }
         }

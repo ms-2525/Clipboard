@@ -68,7 +68,7 @@ No item may be marked from a sub-agent's self-report alone.
 
 ## 5. Rich text (render like rich text)
 - ✅ `[H]` **S0 converters landed** — `Core\RtfText.cs` (RTF-as-bytes: Latin-1 envelope, 256/256 round-trip, 8-bit WordPad RTF loads clean) + `Core\HtmlToRtf.cs` (400 lines, 38/38 harness assertions incl. Devanagari/emoji lossless, tables→tabs, 32 KB in 2.12 ms); S1-critical findings frozen in docs\S0-HANDOFF.md (Span-wrapped underline/highlight; rows render foreground only)
-- 🟡 `[U]` Selected card expands into a rich preview: tables, colors, font sizes, line breaks via HtmlRenderer.WPF; ONLY the selected card renders (list stays fast, one panel alive) -- **S3 AUDIT: FAIL** (it is an appended 150 DIP block below the meta in unstyled serif, not a content swap -- zoom-nav2-richpreview.png; DESIGN-v2 section 4 wants the swap) -- **ACC-v2 PASS**: the selected row now renders its formatted content INSIDE its own fixed height (bold/coloured/underlined runs, styled sans type, no appended block, rows below do not move) -- `rich-rtf-row-clean-crop.png`
+- 🟡 `[U]` **Rich content renders in EVERY realized row** — `UI\RowContent.cs:29-32` fills each realised row's `TextBlock.Inlines` from `RichRow.Inlines` (CF_HTML fragment → `HtmlToRtf` → ONE shared `FlowDocument` → run records: tables→tabs, colours, font sizes, bold/underline/strike, line breaks), so the list stays fast with no panel alive; `HtmlRenderer.WPF` is **REMOVED** (not a `PackageReference`, zero code references); the old **selected-card-only rich panel is DEAD** (DESIGN-v2-directives.md §1 — selection changes no geometry, verified 0 differing pixels) -- **S3 AUDIT: FAIL** (as-built then: an appended 150 DIP block below the meta in unstyled serif, not a content swap -- zoom-nav2-richpreview.png; DESIGN-v2 section 4 wants the swap) -- **ACC-v2 PASS**: the row renders its formatted content INSIDE its own fixed height (bold/coloured/underlined runs, styled sans type, no appended block, rows below do not move) -- `rich-rtf-row-clean-crop.png`
 - ⬜ `[H]` CF_HTML byte-offset fragment extraction (Unicode-safe; non-ASCII torture test) — `Interop\HtmlFragment.cs`
 - ⬜ `[U]` Remote images blocked in preview (data: URIs allowed) — no network fetch on open -- **S3 AUDIT: UNTESTED-BY-AUTOMATION** (no HTML clip containing a remote img was available and I will not fabricate one)
 - ⬜ `[U]` RTF-only items render via RtfPipe → same renderer (fallback path) -- **S3 AUDIT: UNTESTED-BY-AUTOMATION** (no RTF-only source available; WordPad is absent on this build)
@@ -122,7 +122,7 @@ No item may be marked from a sub-agent's self-report alone.
 - ✅ `[H]` **Config.PreviewLines landed** (=10, JSON `previewLines`) — Axis-2; full build 0 errors / 0 warnings (forced recompile via OutDir redirect)
 - ✅ `[L]` **HotKeyWindow parser — FIXED in S3** (explicit friendly-name → VK map: digits, F-keys, OEM row; no silent fallback; exposes registration result) -- **ACC-v2 PASS live**: rebind Alt+V → Ctrl+Alt+K (new key opens, old one does not) → back to Alt+V (old opens, new does not)
 - ✅ `[L]` **P0 crash fix: opening Settings threw InvalidCastException and killed the app — FIXED** (local `<Style x:Key="Field">` renamed `FieldBox`; every x:Key in all 5 windows swept against theme keys — no other collisions; live-verified ×2 from the tray, dark + light, process alive)
-- ❌ `[L]` **Cold first popup open 221 ms — over the 150 ms budget (warm opens 12–32 ms PASS)** — pre-warm/cost-audit the first-render path (JIT + HtmlRenderer init) — fix sprint -- **ACC-v2 re-measured: 309.9 / 282.4 / 262.7 ms across 3 restarts (one 129.7)**; warm 60.6/56.3/53.4/50.9/49.8 ms — cold budget still FAILED, warm now slower than S3
+- ❌ `[L]` **Cold first popup open 221 ms — over the 150 ms budget (warm opens 12–32 ms PASS)** — pre-warm/cost-audit the first-render path (JIT + rich-row renderer warm-up) — fix sprint -- **ACC-v2 re-measured: 309.9 / 282.4 / 262.7 ms across 3 restarts (one 129.7)**; warm 60.6/56.3/53.4/50.9/49.8 ms — cold budget still FAILED, warm now slower than S3
 - ✅ `[L]` Settings wiring: tray Settings menu opens the window (currently disabled placeholder); SettingsSaved applies live (theme swap, hotkey re-register incl. conflict message, ClockFormat, notification); ClearHistoryRequested wipes MAIN HISTORY ONLY (tabs survive per §7) -- **ACC-v2 PASS**: tray → Settings opens (no crash); theme Dark→Light→Dark applied live; hotkey rebind worked both ways; Clear history wiped Clipboard+Images to 0 and left Pinned's 1 clip (`settings-open.png`, `popup-light-theme2.png`, `after-clear-pinned3.png`)
 - ⬜ `[U]` Notification settings include the **live on-screen preview overlay** (exact placement, live updates, drag-to-set offsets, auto-hide + pin) and the Settings window is reorganized into tabs (General / Notification) — owner requirement 23 Nov; public API unchanged: ctor(Config), SettingsSaved, ClearHistoryRequested -- **S3 AUDIT: UNTESTED-BY-AUTOMATION** (Settings window crashes on open -- P0-1)
 - 🟡 `[H]` Time format: `config.json "timeFormat"`, footer + notification honor 12h/24h; WasNew excludes from JSON
@@ -150,7 +150,7 @@ No item may be marked from a sub-agent's self-report alone.
 - 🔬 docs\RESEARCH-logic-best-practices.md ADOPT list (Ditto/CopyQ/PowerToys techniques; GPL = technique reference only)
 
 ## 13. Dependencies (library research, adopted)
-- ✅ Packages resolve + app builds 0 errors / 0 warnings (S3 full Release build): HtmlRenderer.WPF 1.6.1, H.NotifyIcon.Wpf 2.4.1, RtfPipe (fallback-only), System.Text.Encoding.CodePages, Microsoft.Data.Sqlite
+- ✅ Packages resolve + app builds 0 errors / 0 warnings (Release build via OutDir redirect): H.NotifyIcon.Wpf 2.4.1, RtfPipe (fallback-only), Microsoft.Data.Sqlite 11.0.0 — `HtmlRenderer.WPF` is **no longer a dependency** (removed with the selected-panel renderer; see §5)
 - ✅ `[L]` `Encoding.RegisterProvider(CodePagesEncodingProvider.Instance)` runs at startup (S3 App wiring); rich previews rendered live with no TypeInitializationException (the crash-without-it was proven in the spike)
 - ⬜ Remote images in preview answered with a transparent 1×1 image (not a broken-image glyph) while http(s) loads stay cancelled
 - ⬜ Tray swapped to H.NotifyIcon (vector/themed) — menu must NOT rely on `ShowContextMenu` (routing failed in Win11 overflow; opening the same ContextMenu directly works — use positioned manual open or a click handler, and verify live with the icon pinned outside the overflow)
@@ -161,7 +161,7 @@ No item may be marked from a sub-agent's self-report alone.
 - ⬜ Paste **focus poll** (our 100 ms hide→paste delay matches Ditto's shipped default; a focus-confirmation poll would be stronger)
 - ⬜ **CF_DIBV5** paste format — ships only after the live Office/Photoshop matrix passes (least-proven step)
 - ⬜ Owner-based / per-app capture exclusion list (beyond the two ignore formats)
-- ⬜ HtmlRenderer **CSS3 engine** — upgrades automatically when upstream ships the release containing it
+- ❌ **DEAD — `HtmlRenderer` CSS3 engine** (the package was removed; rich rows render via HTML→RTF→FlowDocument, so there is no upstream engine to upgrade)
 - ⬜ OfficeIMO.Rtf as RtfPipe replacement — only if RTF-only sources (WordPad-era) prove to matter
 - ⬜ Feature landscape + **1000-item scale contract** — docs\RESEARCH-features-and-scale.md (agent in flight; must/should/nice split lands here when it reports)
 - ✅ RtfPipe frozen-2021 status — accepted as fallback-only (owner informed)
@@ -172,8 +172,8 @@ S3/UI items:
 - ⬜ `[L]` `CanContentScroll=True` + `VirtualizationMode=Recycling` preserved through the Ortu flat-row redesign (measured: Recycling ~2× faster to first layout; `False` = 1000 containers, 3.6–4.4 s — a silent kill)
 - ⬜ `[L]` Rows bind a **truncated Preview string** (~400-char cap, line-clamped by `PreviewLines`) — never full `Text` (1 MB body = 64–111 ms per relayout otherwise); preview built once at load, not per keystroke
 - ⬜ `[L]` Search: 120 ms debounce + **swap the collection instance** (Clear+Add of 1000 = 38–59 ms per keystroke; filter itself is 0.2 ms)
-- ⬜ `[L]` Row growth uses fixed `Height` per state (never `MaxHeight`), scroll-follows-selection
-Core items — ✅ all landed and verified (127 assertions, mutation-checked; store split zero call-site changes, all files ≤321 lines):
+- ❌ **DEAD per DESIGN-v2-directives.md §1** — "Row growth uses fixed `Height` per state (never `MaxHeight`)" no longer describes the design: rows are content-adaptive with a MAX cap and **selection changes NO geometry** (verified live: 0 differing pixels on ↓; `CHECKLIST-features.md` §2 nav rows). Scroll-follows-selection survives with the minimal-delta rule.
+Core items — ✅ all landed and verified (127 assertions, mutation-checked; store split zero call-site changes, all files ≤324 lines):
 - ✅ `[H]` WAL + `synchronous=NORMAL` (100 inserts measured 8.0 ms; mutation removing the PRAGMA → 103.7 ms, assertion went RED — load-bearing)
 - ✅ `[H]` `InsertWithFormats` + dedupe path in ONE transaction (forced mid-transaction failure → 0 partial rows; old two-step mutation → RED)
 - ✅ `[H]` `GetRecent` drops `html`/`rtf`; one-row `GetRich(id)` loads them
@@ -182,7 +182,7 @@ Core items — ✅ all landed and verified (127 assertions, mutation-checked; st
 - ✅ `[H]` Corrupt-db recovery (codes 11/26 only — locked DBs rethrow by design): rename → `.corrupt-<ts>`, fresh DB, `RecoveredFromCorruption` flag; verified byte-identical preservation of the corrupt file
 - ✅ `[H]` `Restore(ClipboardItem)` undo primitive — byte-identical round-trip incl. formats + tab_id + original id, position preserved, no orphans; one transaction
 - ⬜ `[H]` Image decode/encode (and SHA-256 of a 5 MB PNG, ~5–15 ms) moved off the UI thread — remaining item, fix sprint
-- ⬜ `[H]` **ClipboardStore split** (429 lines → items/tabs/core partial classes, zero call-site changes) + **transaction wrapper** for Insert+InsertFormats and the dedupe path — done together per docs\AUDIT-axis2-standards.md A2-07
+- ✅ `[H]` **ClipboardStore split LANDED** — 429 lines → `ClipboardStore.cs` 149 / `ClipboardStore.Items.cs` 324 / `ClipboardStore.Tabs.cs` 144 (three partials, every file ≤324), **zero call-site changes**, plus the transaction wrapper for `InsertWithFormats` and the dedupe path (docs\AUDIT-axis2-standards.md A2-07); re-verified by the Axis-2 milestone audit (§"Prior Axis-2 findings", A2-15) — *2026-11-23 addendum: the last format-touching write, F2 `Update`, is now transactional too (A2-22).*
 - ⬜ `[L]` **Corrupt/locked clip.db recovery path** (rename + recreate + user notice) instead of killing startup — Axis-2 P2
 - ⬜ `[L]` Acceptance-run note: **stop the stale running Clip.exe before in-place builds** — it locks `bin\Release\...\Clip.exe` and fails the copy step (MSB3027); build via OutDir redirect if the app must stay up
 Acceptance at 1000 items: scroll jank-free, search <50 ms end-to-end, cold start → popup <300 ms, idle RAM unchanged vs 200, `GetRecent(1000)` ≤10 ms

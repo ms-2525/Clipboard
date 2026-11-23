@@ -35,8 +35,8 @@ Each row's top-left 22px icon tile is replaced by **1, 2, 3, …** — the numbe
 affordance. Continue past 9 (10, 11, …). Other tabs pick a sensible slot treatment (design agent decides).
 
 ## 4. Rich text shows in the MAIN popup itself
-The selected row renders its actual formatted content (colors, sizes, tables — the HtmlRenderer panel
-already wired) **inside its fixed content height** — a content swap, never a geometry change.
+The selected row renders its actual formatted content (colors, sizes, tables — the HTML→RTF→FlowDocument
+row renderer) **inside its fixed content height** — a content swap, never a geometry change.
 Unselected rows keep the plain clamped preview.
 
 ## 5. F2 editor = ONE proper rich text editor for EVERYTHING (WYSIWYG)

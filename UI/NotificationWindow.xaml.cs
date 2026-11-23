@@ -85,7 +85,7 @@ namespace Clip.UI
             }
             catch
             {
-                return (IntPtr)HTTRANSPARENT;
+                return (IntPtr)HTTRANSPARENT; // no client geometry yet: stay click-through rather than swallow the click
             }
         }
 
@@ -129,6 +129,7 @@ namespace Clip.UI
                 }
                 catch
                 {
+                    // A thumb we cannot decode still has a truthful fallback: say an image was copied.
                     Body.Text = "Image copied";
                     Body.Foreground = (Brush)FindResource("Muted");
                 }

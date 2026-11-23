@@ -147,11 +147,13 @@ DELETE FROM item_formats WHERE item_id = $id";
             return true;
         }
 
-        /// <summary>F2 editor: rewrites an item's body and moves it to the top of the list.</summary>
+        /// <summary>F2 editor: rewrites an item's body and moves it to the top of the list, in ONE transaction (A2-22).</summary>
         public void Update(ClipboardItem it)
         {
             var now = ClipboardItem.Stamp();
+            using var tx = _conn.BeginTransaction();
             using var cmd = _conn.CreateCommand();
+            cmd.Transaction = tx;
             // The old format blobs no longer match the edited body, so drop them rather than paste stale content.
             cmd.CommandText = @"
 UPDATE items SET text = $text, html = $html, rtf = $rtf, captured_at = $at WHERE id = $id;
@@ -162,6 +164,7 @@ DELETE FROM item_formats WHERE item_id = $id";
             cmd.Parameters.AddWithValue("$at", now);
             cmd.Parameters.AddWithValue("$id", it.Id);
             cmd.ExecuteNonQuery();
+            tx.Commit();
             it.CapturedAt = now;
         }
 

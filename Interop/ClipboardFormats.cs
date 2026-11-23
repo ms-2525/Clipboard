@@ -103,7 +103,7 @@ namespace Clip.Interop
                     set();
                     return;
                 }
-                catch (COMException) { Thread.Sleep(30); }
+                catch (COMException) { Thread.Sleep(30); } // still owned by another process: the next attempt, then give up
             }
         }
 

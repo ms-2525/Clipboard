@@ -118,7 +118,7 @@ namespace Clip
                     $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} [{source}] {ex}{Environment.NewLine}{Environment.NewLine}");
             }
             catch (IOException) { } // a crash log that itself crashes is worse than no crash log
-            catch (UnauthorizedAccessException) { }
+            catch (UnauthorizedAccessException) { } // same reason: a failed log must never throw
         }
 
         void OnCaptured(ClipboardItem item)
