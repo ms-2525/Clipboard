@@ -21,9 +21,20 @@ namespace Clip.Core
         public string WindowTitle { get; set; }
         public string CapturedAt { get; set; }
         public long SizeBytes { get; set; }
+        /// <summary>Container (Pinned or a custom tab) the item currently sits in; null = main history.</summary>
+        public long? TabId { get; set; }
 
         /// <summary>Time segment of <see cref="Meta"/>; "HH:mm" or "hh:mm tt", set from config.</summary>
         public static string ClockFormat = "HH:mm";
+
+        /// <summary>
+        /// Ordering is lexical (ORDER BY captured_at DESC, id DESC), so every writer must emit exactly this shape.
+        /// Milliseconds keep a re-copy inside the same second above the copy it replaced; older second-resolution
+        /// rows still sort before them ("…:23" &lt; "…:23.500" &lt; "…:24").
+        /// </summary>
+        internal const string StampFormat = "yyyy-MM-ddTHH:mm:ss.fff";
+
+        internal static string Stamp() => DateTime.Now.ToString(StampFormat);
 
         /// <summary>Card footer: "App  ·  23 Nov 09:47  ·  window title".</summary>
         public string Meta

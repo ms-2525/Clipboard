@@ -11,7 +11,7 @@
 | `Interop\ScreenDpi.Scale(Screen)` | px→DIP for any monitor placement math |
 | `Core\Config` | camelCase JSON, `%APPDATA%\<AssemblyName>\config.json`; `WasNew` is [JsonIgnore] |
 | `UI\Themes\Dark|Light.xaml` | UiFont, App, Surface, Raised, Fg, Muted, Accent, Hairline (+ sage/amber/sky/violet to land with S3 per Ortu). No other color homes. |
-| `Core\ClipboardStore` | items/tabs/item_formats; `EnforceCap`/`Clear` scoped `tab_id IS NULL`; `TryDedupeMoveToTop` main-history scope only |
+| `Core\ClipboardStore` | items/tabs/item_formats; `EnforceCap`/`Clear` scoped `tab_id IS NULL`; `TryDedupeMoveToTop` main-history scope only, images via indexed `image_hash` (byte compare still decides); `InsertWithFormats` = the ONE atomic capture write; `GetRich` = html/rtf on demand (the list query never loads them); `Restore` = undo primitive (same id/tab/formats/timestamp, one transaction) |
 | `CaptureService.Skipped` | human-readable skip reasons → toast (S3 wires) |
 
 ## Traps (do not repeat)
@@ -29,5 +29,7 @@
 - `HotKeyWindow` parses with `Enum.TryParse<Keys>` — friendly names like "1" resolve to mouse buttons; explicit VK mapping required (S2 finding; S3 must-fix).
 - A running stale Clip instance owns Alt+V → stop it before testing any new build.
 - SQLite string compare is BINARY collation — that IS the exact-match guarantee; never add NOCASE/trim to dedupe paths (dedupe sprint).
+- `captured_at` ordering is LEXICAL: every writer must use `ClipboardItem.Stamp()` (`yyyy-MM-ddTHH:mm:ss.fff`). A second-resolution stamp made a same-second re-copy land BELOW the copy it replaced (Axis-1 D1).
+- `items.pinned` is retired — the migration clears it and nothing reads it again; `tab_id` is the only pin state (Axis-2 A2-04).
 - Manrope statics: GWfH-instanced files ship with the SOURCE family names ("Manrope ExtraLight") — always rewrite name IDs 1/3/4/6/16/17 + checksums or WPF falls back to Arial silently (font sprint).
 - `new FontFamily("pack://application:,,,/Assets/Fonts/#Manrope")` IN CODE silently resolves to Arial with zero glyph typefaces — only the XAML FontFamilyConverter path (StaticResource UiFont) or `new FontFamily(new Uri("pack://..."), "./#Manrope")` work (font sprint).

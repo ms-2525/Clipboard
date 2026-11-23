@@ -88,7 +88,8 @@ No item may be marked from a sub-agent's self-report alone.
 - ✅ `[H]` **Dedupe scoped per tab**: a pinned copy never swallows a fresh history copy (verified head-to-head)
 - ✅ `[H]` Tab CRUD: create/rename (blank/duplicate → `ArgumentException`/`false`); **delete purges items+formats and returns the count**; Pinned rejects delete/rename (`-1`/`false`) — the macOS keep-clips model is explicitly rejected
 - ⬜ `[L]` Keyboard: **Ctrl+M tab-picker** (primary move command, Ditto-proven), **Ctrl+Shift+←/→** adjacent-move fallback, Ctrl+T/Ctrl+W tab CRUD; Ctrl+1..9 stays paste-nth
-- ⬜ `[H]` **Pinned-flag reset bug (Axis-2 P1)**: the migration never clears legacy `pinned=1`, so unpinning a pre-upgrade item re-pins it on next launch — TogglePin/migration flag consistency — **Core polish sprint**
+- ✅ `[H]` **Same-second re-copy moves to top** — FIXED red-first (millisecond stamps `yyyy-MM-ddTHH:mm:ss.fff`, still lexically sortable; pre-fix observed `B,A` → post-fix `A,B`; mixed old/new format sort verified; Update/F2 also emits ms)
+- ✅ `[H]` **Pinned flag RETIRED** — single source of pin state is `tab_id`; migration adopts legacy pins then clears the column; nothing reads it again (mutation-verified)
 - ⬜ `[U]` Tab strip: flat text + 2px accent underline (no TabControl pills), per-tab counts ("Pinned · 4")
 - ⬜ `[U]` ←/→ walks all tabs: Clipboard → Images → Pinned → custom…
 
@@ -105,7 +106,7 @@ No item may be marked from a sub-agent's self-report alone.
 - ✅ `[H]` Case/space/Unicode-composition differences are DIFFERENT items
 - ✅ `[H]` Identical image bytes dedupe identically
 - ✅ `[H]` Pinned items keep their pin when moved to top
-- ⬜ `[H]` **Same-second re-copy moves to top** (Axis-1 defect D1: second-resolution `captured_at` + kept-id puts a deduped row BELOW newer same-second rows — violates acceptance #2's "moved to top") — fix = millisecond-resolution timestamps, red-loop-first — **Core polish slice B, in flight**
+- ✅ `[H]` **Same-second re-copy moves to top** — fixed red-first (millisecond stamps `yyyy-MM-ddTHH:mm:ss.fff`); pre-fix observed order B,A → post-fix A,B; mixed-format sort verified
 - ⬜ `[U]` S3 fix: popup must not briefly double-show a deduped card (OnNewItem removes existing id before inserting at top)
 
 ## 10. Settings & autostart (owner-frozen)
@@ -124,7 +125,7 @@ No item may be marked from a sub-agent's self-report alone.
 - ✅ `[L]` Copy shows: app name + timestamp + first ~3 lines truncated (S0 screenshot: "WindowsTerminal · 14:33:40 · Clip M1 verification text 12345")
 - ✅ `[L]` Borderless, rounded, topmost; fade in/out ~150 ms; auto-dismiss on duration timer (3 s observed)
 - ⬜ `[U]` **Clickable ✕** (per-region hit test; window stays click-through everywhere else; no focus stealing) — **keyboard-reachable and UIA-labelled** (audit: today it is a bare 13×15 TextBlock with no accessibility)
-- ⬜ `[L]` **Self-attribution leak fixed** (audit screenshot: meta printed "Clip · … · ClipHotkey" — our own process's copies capture our internal message-window title) — own-process exclusion/attribution rule in CaptureService — **Core polish sprint**
+- ✅ `[H]` **Self-attribution leak fixed** — own-process copies attribute app=product, title="" (`ForegroundApp.Attribute` pure function, tested: internal title + own pid → `(ProcessName, "")`); Skipped-event toast wiring remains S3
 - ✅ `[L]` Position: top-left / top-right / bottom-left / bottom-right / center + pixel offsets, on the monitor of the **active window at capture time** (same multi-monitor rule as the popup; bottom-right verified at 150% DPI) (bottom-right verified at 150% DPI)
 - 🟡 `[U]` Width/height/duration/enabled all honored from config
 - ⬜ `[L]` **Toast window REUSED — one NotificationWindow instance for the whole session** (App currently creates a new one per capture; S0 measured +35–40 MB per toast, 116→252 MB). S3 must-fix; re-measured under the 150/250 MB protocol
@@ -162,12 +163,15 @@ S3/UI items:
 - ⬜ `[L]` Rows bind a **truncated Preview string** (~400-char cap, line-clamped by `PreviewLines`) — never full `Text` (1 MB body = 64–111 ms per relayout otherwise); preview built once at load, not per keystroke
 - ⬜ `[L]` Search: 120 ms debounce + **swap the collection instance** (Clear+Add of 1000 = 38–59 ms per keystroke; filter itself is 0.2 ms)
 - ⬜ `[L]` Row growth uses fixed `Height` per state (never `MaxHeight`), scroll-follows-selection
-Core items (scale sprint, queued behind the CA audits so Core stays stable while it is being audited):
-- ⬜ `[H]` WAL + `synchronous=NORMAL`, capture writes in ONE transaction (100 autocommit inserts measured 450 ms → 10–15 ms)
-- ⬜ `[H]` `GetRecent` drops `html`/`rtf` from the list query (search/preview reads them on demand)
-- ⬜ `[H]` Image dedupe via a stored **hash column** (BLOB scans: 10–13 ms @1000, 54–61 ms @5000)
-- ⬜ `[H]` `EnforceCap` gated (periodic/batched, not per-capture)
-- ⬜ `[H]` Image decode/encode moved off the UI thread
+Core items — ✅ all landed and verified (127 assertions, mutation-checked; store split zero call-site changes, all files ≤321 lines):
+- ✅ `[H]` WAL + `synchronous=NORMAL` (100 inserts measured 8.0 ms; mutation removing the PRAGMA → 103.7 ms, assertion went RED — load-bearing)
+- ✅ `[H]` `InsertWithFormats` + dedupe path in ONE transaction (forced mid-transaction failure → 0 partial rows; old two-step mutation → RED)
+- ✅ `[H]` `GetRecent` drops `html`/`rtf`; one-row `GetRich(id)` loads them
+- ✅ `[H]` `image_hash` (full SHA-256) + index; dedupe = hash index + BLOB confirm (mutation replacing hash with a constant still refuses a 1-byte-different image — exactness never depends on the hash)
+- ✅ `[H]` `EnforceCap` gated by a COUNT check (no-op under cap, read-verified)
+- ✅ `[H]` Corrupt-db recovery (codes 11/26 only — locked DBs rethrow by design): rename → `.corrupt-<ts>`, fresh DB, `RecoveredFromCorruption` flag; verified byte-identical preservation of the corrupt file
+- ✅ `[H]` `Restore(ClipboardItem)` undo primitive — byte-identical round-trip incl. formats + tab_id + original id, position preserved, no orphans; one transaction
+- ⬜ `[H]` Image decode/encode (and SHA-256 of a 5 MB PNG, ~5–15 ms) moved off the UI thread — remaining item, fix sprint
 - ⬜ `[H]` **ClipboardStore split** (429 lines → items/tabs/core partial classes, zero call-site changes) + **transaction wrapper** for Insert+InsertFormats and the dedupe path — done together per docs\AUDIT-axis2-standards.md A2-07
 - ⬜ `[L]` **Corrupt/locked clip.db recovery path** (rename + recreate + user notice) instead of killing startup — Axis-2 P2
 - ⬜ `[L]` Acceptance-run note: **stop the stale running Clip.exe before in-place builds** — it locks `bin\Release\...\Clip.exe` and fails the copy step (MSB3027); build via OutDir redirect if the app must stay up

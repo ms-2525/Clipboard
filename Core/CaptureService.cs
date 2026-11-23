@@ -73,7 +73,7 @@ namespace Clip.Core
                     Text = text,
                     AppName = app,
                     WindowTitle = title,
-                    CapturedAt = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss"),
+                    CapturedAt = ClipboardItem.Stamp(),
                     SizeBytes = Encoding.UTF8.GetByteCount(text)
                 };
                 ReadRichText(item);
@@ -94,7 +94,7 @@ namespace Clip.Core
                         Uris = list,
                         AppName = app,
                         WindowTitle = title,
-                        CapturedAt = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss"),
+                        CapturedAt = ClipboardItem.Stamp(),
                         SizeBytes = Encoding.UTF8.GetByteCount(list)
                     });
                     return;
@@ -125,11 +125,7 @@ namespace Clip.Core
             // Every original format rides along when it fits the budget: Excel gets Biff12 back, Word RTF/HTML, browsers HTML.
             item.Formats = ClipboardFormats.Snapshot(_cfg.MaxItemBytes);
             // Exact match already in history: that row takes the fresh snapshot and moves to the top instead of a second copy.
-            if (!_store.TryDedupeMoveToTop(item))
-            {
-                _store.Insert(item);
-                _store.InsertFormats(item.Id, item.Formats);
-            }
+            if (!_store.TryDedupeMoveToTop(item)) _store.InsertWithFormats(item);
             _store.EnforceCap(_cfg.MaxItems);
             Captured?.Invoke(item);
         }
@@ -218,7 +214,7 @@ namespace Clip.Core
                 Thumb = thumb,
                 AppName = app,
                 WindowTitle = title,
-                CapturedAt = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss"),
+                CapturedAt = ClipboardItem.Stamp(),
                 SizeBytes = png.Length
             };
         }
@@ -268,7 +264,7 @@ namespace Clip.Core
                 bmp.Freeze();
                 return bmp;
             }
-            catch { return null; }
+            catch { return null; } // not a decodable PNG; the caller treats it as "no image"
         }
 
         internal static byte[] EncodePng(BitmapSource src)

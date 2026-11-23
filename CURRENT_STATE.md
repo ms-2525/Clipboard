@@ -2,28 +2,22 @@
 
 LANE: feature
 
-## Done (all harness-verified; statuses + evidence in docs\CHECKLIST-*.md)
-- M1 built, run and live-verified (S0: 3 runtime bugs found+fixed — ShutdownMode, modal-blocked startup, fields-not-properties; idle CPU +0.000 s; Alt+V popup verified at 150% DPI).
-- Core complete & verified: capture (text/rich/files/image, alpha, pixel guard, debounce, Skipped) · all-formats fidelity (snapshot/restore, FileDrop, DIB) · dedupe (exact byte, 41/41) · pinned-safe cap & clear · tabs schema in flight · plain-paste injection · modifier-release.
-- S2: SettingsWindow + Autostart + notification ✕/thumbnails, 69/69.
-- Spike: HtmlRenderer.WPF + RtfPipe + H.NotifyIcon verified; `Interop\HtmlFragment.cs` landed; CodePages startup requirement found.
-- Research docs: logic (Ditto/CopyQ/PowerToys), image, ortu-ui, motion, tabs, libraries, keyboard-ux (in flight).
+## Position (as of this write — full detail in docs\HANDOFF-orchestrator.md)
+**IN FLIGHT: S3 integration** (the assembly sprint: themes/tokens → flat-row popup rebuild → F2 editor → App wiring → live acceptance). Everything else is DONE and verified — see the ✅ rows in docs\CHECKLIST-features.md / docs\CHECKLIST-uiux.md.
 
-## In flight (background agents)
-visual audit of running app · typography / contrast / layout / anti-slop researches · scale research (1000 items + features) · keyboard-UX research.
+## After S3: checkpoint commit → walk acceptance → fresh-eyes visual audit (#high, fresh session, screenshots) → fix sprint → ca-milestone-audit release report → leave the app running + the owner's return report (owner is away ~5h; wants everything complete, audited, bug-fixed).
 
-## Next (autonomous pipeline, owner away)
-1. `@impeccable` critique agent on the visual audit's evidence
-2. **S3 integration** — the full build (brief: all frozen contracts + every research ADOPT list + design docs + S0 fixes + toast reuse + hotkey parser fix + PreviewLines + active-window monitor rule)
-3. Live acceptance run (Excel→Excel first, then Word/browser/files/alpha/RAM protocol)
-4. Fresh-eyes visual + checklist audit (per verification protocol)
-5. Fix sprint, re-verify
-6. **ca-milestone-audit** — dual-axis pre-release gate, self-fixing non-business blockers, release report
+## Done (all evidence-based; harness values in the checklist rows)
+- Core: capture (text/rich/files/image, alpha, pixel guard, 100ms debounce, Skipped, self-attribution) · all-formats fidelity · dedupe byte-exact incl. SAME-SECOND (ms stamps, red-first) · tabs (views vs containers, 75 asserts) · pinned RETIRED into tab_id · store split 3 partials + transactions + WAL (mutation-proven load-bearing) + SHA-256 image dedupe + cap gating + corrupt-db recovery + Restore undo primitive.
+- UI: settings rework (tabs, truthful copy, live ghost preview, 69) · font statics 400/500/600 (ink-proven fix of the ExtraLight root cause).
+- Audits: Axis-1 (146 asserts, 4 mutations RED) · Axis-2 (build green, retry consolidated to one home) · visual audit (12/20 incumbent) · impeccable critique (20/40; keep-list + density ruling).
+- Design specs: Ortu authority, typography, contrast (computed token fixes), layout (rails), anti-slop, motion, keyboard-ux (IME gate!), features+scale roadmap.
+
+## Known gate gaps (checked per review; tooling tickets welcome)
+- Mechanical stages (hygiene/duplication/architecture/stale-refs) have no standing automation in this dotnet-only repo — audit agents perform them each milestone (findings in docs\AUDIT-*.md).
 
 ## Not done / deliberately deferred
-docs\CHECKLIST-features.md §14 (IStream fallback, focus poll, DIBV5 behind matrix, per-app exclusion, CSS3 engine, OfficeIMO alternative, scale contract pending).
+docs\CHECKLIST-features.md §14 + §15's one open item (image decode off the UI thread) + the S3/fresh-audit/fix/milestone pipeline above.
 
-## Open owner decisions (defaults stand until they return)
-- Cap counts unpinned only (pinned are extra) — flip to total-cap on their word.
-- Binary size: untargeted, reported only.
-- RtfPipe (2021-frozen) kept as fallback-only.
+## Open owner decisions (defaults stand)
+Cap counts unpinned only · binary size untargeted · RtfPipe kept · density 65px meta-always. Rejected deviations listed in docs\HANDOFF-orchestrator.md — do not re-propose.

@@ -18,18 +18,27 @@ namespace Clip.Interop
 
             var sb = new StringBuilder(512);
             GetWindowText(hwnd, sb, sb.Capacity);
-            var title = sb.ToString();
 
             GetWindowThreadProcessId(hwnd, out uint pid);
-            if (pid == 0) return ("", title);
+            return Attribute(sb.ToString(), pid, Environment.ProcessId);
+        }
+
+        /// <summary>
+        /// Pid → (app, title). Clip's own windows are never attributed as the source: a copy made from the popup or
+        /// the hotkey host would otherwise be recorded as "Clip · ClipHotkey". Product name only, no internal names.
+        /// </summary>
+        internal static (string app, string title) Attribute(string windowTitle, uint pid, int selfPid)
+        {
+            if (pid == 0) return ("", windowTitle);
+            if (pid == (uint)selfPid) return (Process.GetCurrentProcess().ProcessName, "");
 
             if (!Cache.TryGetValue(pid, out var name))
             {
                 try { name = Process.GetProcessById((int)pid).ProcessName; }
-                catch { name = ""; }
+                catch { name = ""; } // the process exited between the clipboard change and this read
                 Cache[pid] = name;
             }
-            return (name, title);
+            return (name, windowTitle);
         }
 
         [DllImport("user32.dll")]
