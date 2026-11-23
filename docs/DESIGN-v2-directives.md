@@ -38,7 +38,13 @@ Verified root causes (orchestrator, EditorWindow.xaml.cs) — fix BOTH:
 The editor must SHOW the item's real formatting and edit it WYSIWYG. Library allowed (owner's explicit
 word). Design agent researches + decides the approach (e.g. native RichTextBox fed RTF with an HTML→RTF
 conversion for html-only clips, vs a WebView2 contenteditable HTML editor using the preinstalled Edge
-runtime) and freezes the round-trip save contract.
+runtime) and freezes the round-trip save contract. [Resolved: native RichTextBox + Core\HtmlToRtf — S0 landed.]
+- **Rich text toolbar in the editor** (owner directive 23 Nov): the editor carries a formatting toolbar
+  that operates on the selection — bold, italic, underline, strikethrough, font size, text colour,
+  highlight, and clear-formatting. WordPad-class, minimal buttons, theme-token styling, toggling state
+  reflects the caret's current formatting. No image-insert, no table editor, no alignment wall — smallest
+  complete toolbar. Saves through the SAME contract (RTF from the document via TextRange.Save;
+  html regenerated only if the clip had html).
 
 ## 6. Images tab = BIG previews filling the popup
 The owner: "the image should show in a bigger preview… cover as much screen inside the max height as

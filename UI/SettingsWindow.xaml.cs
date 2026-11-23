@@ -5,6 +5,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using Clip.Core;
+using Clip.Interop;
 
 namespace Clip.UI
 {
@@ -23,6 +24,8 @@ namespace Clip.UI
         public SettingsWindow(Config cfg)
         {
             InitializeComponent();
+
+            SourceInitialized += (s, e) => WindowChrome.Apply(this);
 
             _cfg = cfg ?? new Config();
             Title = "Settings";

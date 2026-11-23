@@ -6,6 +6,7 @@ using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media.Animation;
 using Clip.Core;
+using Clip.Interop;
 
 namespace Clip.UI
 {
@@ -23,6 +24,8 @@ namespace Clip.UI
             InitializeComponent();
             _store = store;
             _item = item;
+
+            SourceInitialized += (s, e) => WindowChrome.Apply(this);
 
             _rich = !string.IsNullOrEmpty(rtf);
             if (_rich)

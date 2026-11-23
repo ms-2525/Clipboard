@@ -10,6 +10,7 @@ using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using Clip.Core;
+using Clip.Interop;
 using WF = System.Windows.Forms;
 
 namespace Clip.UI
@@ -57,6 +58,7 @@ namespace Clip.UI
                 // No WS_EX_TRANSPARENT: clicks reach the window, and the hit-test hook
                 // lets everything outside the ✕ fall through to whatever is underneath.
                 SetWindowLong(h, GWL_EXSTYLE, ex | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW);
+                WindowChrome.Apply(this);
                 HwndSource.FromHwnd(h)?.AddHook(HitTest);
             };
         }

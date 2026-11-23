@@ -45,6 +45,8 @@ namespace Clip.UI
             _store = store;
             _cfg = cfg;
 
+            SourceInitialized += (s, e) => WindowChrome.Apply(this);
+
             _searchTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(120) };
             _searchTimer.Tick += (s, e) => { _searchTimer.Stop(); ApplyFilter(); };
 
@@ -301,12 +303,11 @@ namespace Clip.UI
 
         void AnimateIn()
         {
-            if (!Motion.On) { Shell.Opacity = 1; ShellScale.ScaleX = ShellScale.ScaleY = 1; return; }
-            Shell.Opacity = 0.70;
-            ShellScale.ScaleX = ShellScale.ScaleY = 0.985;
-            Shell.BeginAnimation(OpacityProperty, Motion.Linear(1, 140));
-            ShellScale.BeginAnimation(ScaleTransform.ScaleXProperty, Motion.Spline(1, 140, 0, 0, 0, 1));
-            ShellScale.BeginAnimation(ScaleTransform.ScaleYProperty, Motion.Spline(1, 140, 0, 0, 0, 1));
+            // No opacity fade: any opacity below 1 rasterises the subtree and greys the type it is
+            // meant to sharpen. An 8 DIP settle reads as the same arrival and keeps ClearType on.
+            if (!Motion.On) { ShellShift.Y = 0; return; }
+            ShellShift.Y = 8;
+            ShellShift.BeginAnimation(TranslateTransform.YProperty, Motion.Spline(0, 140, 0, 0, 0, 1));
         }
 
         void ClosePopup(bool handoff)
@@ -332,7 +333,8 @@ namespace Clip.UI
             _editor = null;
             Shell.BeginAnimation(OpacityProperty, null);
             Shell.Opacity = 1;
-            ShellScale.ScaleX = ShellScale.ScaleY = 1;
+            ShellShift.BeginAnimation(TranslateTransform.YProperty, null);
+            ShellShift.Y = 0;
             ClearRich();
             if (IsVisible) Hide();
         }
