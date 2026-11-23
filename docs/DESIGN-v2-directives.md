@@ -62,7 +62,14 @@ ClearType returns (Win11 DWM corner-rounding for the rounded look, DWM shadow), 
 `TextFormattingMode="Display"`, `UseLayoutRounding`. The notification-preview ghost may keep transparency
 (it is a decorative overlay). Pixel-verify fringing returns after the change.
 
-## 8. Process
+## 8. Row separation — CopyQ Forest alternate coloring + divider (owner 23 Nov)
+- Owner: "Show some divider between the items… check the forest theme of copyq i liked the alternate row coloring."
+- Rows alternate two theme-tinted surfaces (even/odd) + a 1 DIP `Divider`-token hairline between rows.
+  Brush-only (no geometry change), selection/hover/keyboard-current states paint OVER the zebra without
+  moving anything. Both dark + light themes. Exact Forest hexes/alpha to be extracted by the research
+  agent into theme tokens (no hardcoded colors outside Themes\*.xaml).
+
+## 9. Process
 The owner is NOT satisfied with the UI/UX polish; "have proper thought through UI/UX", "deploy as many
 sub-agents as required." So: a v2 design pass rethinks the affected surfaces end-to-end BEFORE code,
 then implementation sprints with disjoint file ownership, then a fresh-eyes audit against THIS file.
