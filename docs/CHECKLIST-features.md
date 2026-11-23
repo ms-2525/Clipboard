@@ -105,6 +105,7 @@ No item may be marked from a sub-agent's self-report alone.
 - ✅ `[H]` Case/space/Unicode-composition differences are DIFFERENT items
 - ✅ `[H]` Identical image bytes dedupe identically
 - ✅ `[H]` Pinned items keep their pin when moved to top
+- ⬜ `[H]` **Same-second re-copy moves to top** (Axis-1 defect D1: second-resolution `captured_at` + kept-id puts a deduped row BELOW newer same-second rows — violates acceptance #2's "moved to top") — fix = millisecond-resolution timestamps, red-loop-first — **Core polish slice B, in flight**
 - ⬜ `[U]` S3 fix: popup must not briefly double-show a deduped card (OnNewItem removes existing id before inserting at top)
 
 ## 10. Settings & autostart (owner-frozen)

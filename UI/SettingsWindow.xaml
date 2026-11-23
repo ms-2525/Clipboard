@@ -1,132 +1,97 @@
 <Window x:Class="Clip.UI.SettingsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Settings" Width="440" SizeToContent="Height"
+        Title="Settings" Width="714" SizeToContent="Height"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
-        ShowInTaskbar="False" ResizeMode="NoResize" WindowStartupLocation="CenterScreen">
+        ShowInTaskbar="False" ResizeMode="NoResize" WindowStartupLocation="CenterScreen"
+        FontFamily="{StaticResource UiFont}" FontSize="13"
+        UseLayoutRounding="True" SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Display" TextOptions.TextRenderingMode="Grayscale">
 
   <Window.Resources>
-    <!-- No error token exists in the theme dictionaries; one red shared by both themes. -->
-    <SolidColorBrush x:Key="ErrorBrush" Color="#FF6B6B"/>
+    <!-- Corrected tokens from docs\DESIGN-contrast.md §4/§7. The theme dictionaries do not ship
+         them yet and this sprint may not edit them, so the window carries one table (dark values)
+         and ApplyTokens() replaces it with the light column. DynamicResource because WPF freezes
+         brushes it parses. -->
+    <SolidColorBrush x:Key="TokMuted"       Color="#9BA1AC"/>
+    <SolidColorBrush x:Key="TokTitle"       Color="#C4C5C6"/>
+    <SolidColorBrush x:Key="TokLabel"       Color="#848588"/>
+    <SolidColorBrush x:Key="TokError"       Color="#FF6B6B"/>
+    <SolidColorBrush x:Key="TokControlLine" Color="#666C7C"/>
+    <SolidColorBrush x:Key="TokOnAccent"    Color="#08090C"/>
+    <SolidColorBrush x:Key="TokAccentText"  Color="#FF8A3D"/>
+    <SolidColorBrush x:Key="TokDivider"     Color="#212329"/>
+    <SolidColorBrush x:Key="TokField"       Color="#1F2126"/>
 
-    <Style x:Key="H" TargetType="TextBlock">
-      <Setter Property="FontSize" Value="13"/>
+    <Style x:Key="Sect" TargetType="TextBlock">
+      <Setter Property="FontSize" Value="10"/><Setter Property="LineHeight" Value="14"/>
       <Setter Property="FontWeight" Value="SemiBold"/>
-      <Setter Property="Foreground" Value="{StaticResource Fg}"/>
-      <Setter Property="Margin" Value="2,0,0,3"/>
+      <Setter Property="Foreground" Value="{DynamicResource TokLabel}"/>
+      <Setter Property="Margin" Value="0,12,0,12"/>
     </Style>
 
-    <Style x:Key="Hint" TargetType="TextBlock">
-      <Setter Property="FontSize" Value="11"/>
-      <Setter Property="Foreground" Value="{StaticResource Muted}"/>
-      <Setter Property="TextWrapping" Value="Wrap"/>
-      <Setter Property="Margin" Value="2,2,0,8"/>
-    </Style>
-
-    <Style x:Key="Row" TargetType="Border">
-      <Setter Property="Background" Value="{StaticResource Raised}"/>
-      <Setter Property="CornerRadius" Value="8"/>
+    <Style x:Key="Card" TargetType="Border">
+      <Setter Property="Background" Value="{StaticResource Surface}"/>
       <Setter Property="BorderBrush" Value="{StaticResource Hairline}"/>
       <Setter Property="BorderThickness" Value="1"/>
-      <Setter Property="Padding" Value="9,5"/>
-      <Setter Property="Margin" Value="0,0,0,4"/>
+      <Setter Property="CornerRadius" Value="12"/>
+      <Setter Property="Padding" Value="14"/>
+    </Style>
+
+    <Style x:Key="Title" TargetType="TextBlock">
+      <Setter Property="FontSize" Value="13"/><Setter Property="LineHeight" Value="18"/>
+      <Setter Property="FontWeight" Value="Medium"/>
+      <Setter Property="Foreground" Value="{DynamicResource TokTitle}"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
+    <Style x:Key="Desc" TargetType="TextBlock">
+      <Setter Property="FontSize" Value="11"/><Setter Property="LineHeight" Value="16"/>
+      <Setter Property="Foreground" Value="{DynamicResource TokMuted}"/>
+      <Setter Property="TextWrapping" Value="Wrap"/>
+      <Setter Property="Margin" Value="0,2,0,0"/>
+    </Style>
+
+    <Style x:Key="Err" TargetType="TextBlock">
+      <Setter Property="FontSize" Value="11"/><Setter Property="LineHeight" Value="16"/>
+      <Setter Property="Foreground" Value="{DynamicResource TokError}"/>
+      <Setter Property="TextWrapping" Value="Wrap"/>
+      <Setter Property="Margin" Value="0,4,0,0"/>
+      <Setter Property="Visibility" Value="Collapsed"/>
+    </Style>
+
+    <Style x:Key="Note" TargetType="TextBlock">
+      <Setter Property="FontSize" Value="13"/><Setter Property="LineHeight" Value="18"/>
+      <Setter Property="Foreground" Value="{StaticResource Fg}"/>
+      <Setter Property="TextWrapping" Value="Wrap"/>
     </Style>
 
     <Style x:Key="Field" TargetType="TextBox">
-      <Setter Property="Background" Value="Transparent"/>
-      <Setter Property="BorderThickness" Value="0"/>
-      <Setter Property="Padding" Value="0"/>
-      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="Width" Value="90"/><Setter Property="Height" Value="28"/>
+      <Setter Property="FontSize" Value="12"/><Setter Property="FontWeight" Value="Medium"/>
       <Setter Property="Foreground" Value="{StaticResource Fg}"/>
-      <Setter Property="CaretBrush" Value="{StaticResource Accent}"/>
-      <Setter Property="SelectionBrush" Value="{StaticResource Accent}"/>
+      <Setter Property="Background" Value="{DynamicResource TokField}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource TokControlLine}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Padding" Value="8,0"/><Setter Property="TextAlignment" Value="Right"/>
       <Setter Property="VerticalContentAlignment" Value="Center"/>
-    </Style>
-
-    <Style x:Key="Chk" TargetType="CheckBox">
-      <Setter Property="Foreground" Value="{StaticResource Fg}"/>
-      <Setter Property="FontSize" Value="12"/>
-      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+      <Setter Property="CaretBrush" Value="{DynamicResource TokAccentText}"/>
+      <Setter Property="SelectionBrush" Value="{StaticResource Accent}"/>
+      <Setter Property="Typography.NumeralAlignment" Value="Tabular"/>
       <Setter Property="Template">
         <Setter.Value>
-          <ControlTemplate TargetType="CheckBox">
-            <StackPanel Orientation="Horizontal" Background="Transparent">
-              <Border x:Name="Box" Width="15" Height="15" CornerRadius="4"
-                      BorderBrush="{StaticResource Hairline}" BorderThickness="1"
-                      Background="Transparent" VerticalAlignment="Center">
-                <TextBlock x:Name="Tick" Text="✓" FontSize="10"
-                           Foreground="{StaticResource Surface}"
-                           HorizontalAlignment="Center" VerticalAlignment="Center"
-                           Visibility="Collapsed"/>
-              </Border>
-              <ContentPresenter Margin="8,0,0,0" VerticalAlignment="Center"/>
-            </StackPanel>
-            <ControlTemplate.Triggers>
-              <Trigger Property="IsChecked" Value="True">
-                <Setter TargetName="Box" Property="Background" Value="{StaticResource Accent}"/>
-                <Setter TargetName="Box" Property="BorderBrush" Value="{StaticResource Accent}"/>
-                <Setter TargetName="Tick" Property="Visibility" Value="Visible"/>
-              </Trigger>
-            </ControlTemplate.Triggers>
-          </ControlTemplate>
-        </Setter.Value>
-      </Setter>
-    </Style>
-
-    <Style x:Key="Combo" TargetType="ComboBox">
-      <Setter Property="Foreground" Value="{StaticResource Fg}"/>
-      <Setter Property="FontSize" Value="12"/>
-      <Setter Property="Cursor" Value="Hand"/>
-      <Setter Property="Template">
-        <Setter.Value>
-          <ControlTemplate TargetType="ComboBox">
-            <Grid Background="Transparent">
-              <ToggleButton Focusable="False"
-                            IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
-                <ToggleButton.Template>
-                  <ControlTemplate TargetType="ToggleButton">
-                    <Border Background="Transparent">
-                      <Grid>
-                        <Grid.ColumnDefinitions>
-                          <ColumnDefinition Width="*"/>
-                          <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <ContentPresenter VerticalAlignment="Center"/>
-                        <TextBlock Grid.Column="1" Text="▾" FontSize="10" Margin="6,0,0,0"
-                                   Foreground="{StaticResource Muted}" VerticalAlignment="Center"/>
-                      </Grid>
-                    </Border>
-                  </ControlTemplate>
-                </ToggleButton.Template>
-                <ContentPresenter Content="{TemplateBinding SelectionBoxItem}"/>
-              </ToggleButton>
-              <Popup IsOpen="{TemplateBinding IsDropDownOpen}" Placement="Bottom"
-                     AllowsTransparency="True" StaysOpen="False" PopupAnimation="Fade">
-                <Border Background="{StaticResource Surface}" CornerRadius="8" Padding="4"
-                        BorderBrush="{StaticResource Hairline}" BorderThickness="1"
-                        MinWidth="{TemplateBinding ActualWidth}" Margin="0,4,0,0">
-                  <ItemsPresenter/>
-                </Border>
-              </Popup>
-            </Grid>
-          </ControlTemplate>
-        </Setter.Value>
-      </Setter>
-    </Style>
-
-    <Style TargetType="ComboBoxItem">
-      <Setter Property="Foreground" Value="{StaticResource Fg}"/>
-      <Setter Property="FontSize" Value="12"/>
-      <Setter Property="Padding" Value="8,6"/>
-      <Setter Property="Template">
-        <Setter.Value>
-          <ControlTemplate TargetType="ComboBoxItem">
-            <Border x:Name="B" Background="Transparent" CornerRadius="6" Padding="{TemplateBinding Padding}">
-              <ContentPresenter/>
+          <ControlTemplate TargetType="TextBox">
+            <Border x:Name="B" CornerRadius="8"
+                    Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}">
+              <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}"
+                            VerticalAlignment="Center"/>
             </Border>
             <ControlTemplate.Triggers>
-              <Trigger Property="IsHighlighted" Value="True">
-                <Setter TargetName="B" Property="Background" Value="{StaticResource Raised}"/>
+              <Trigger Property="IsKeyboardFocused" Value="True">
+                <Setter TargetName="B" Property="BorderBrush" Value="{DynamicResource TokAccentText}"/>
               </Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
@@ -134,26 +99,29 @@
       </Setter>
     </Style>
 
-    <Style x:Key="Btn" TargetType="Button">
-      <Setter Property="Foreground" Value="{StaticResource Fg}"/>
-      <Setter Property="FontSize" Value="12"/>
-      <Setter Property="FontWeight" Value="SemiBold"/>
-      <Setter Property="Padding" Value="16,6"/>
+    <Style x:Key="Primary" TargetType="Button">
+      <Setter Property="Height" Value="32"/><Setter Property="Padding" Value="12,0"/>
+      <Setter Property="FontSize" Value="12"/><Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="Foreground" Value="{DynamicResource TokOnAccent}"/>
+      <Setter Property="Background" Value="{DynamicResource TokAccentText}"/>
       <Setter Property="Cursor" Value="Hand"/>
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="Button">
-            <Border x:Name="B" Background="{StaticResource Raised}" CornerRadius="8"
-                    BorderBrush="{StaticResource Hairline}" BorderThickness="1"
+            <Border x:Name="B" Background="{TemplateBinding Background}" CornerRadius="8"
+                    BorderBrush="Transparent" BorderThickness="1"
                     Padding="{TemplateBinding Padding}">
               <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Border>
             <ControlTemplate.Triggers>
               <Trigger Property="IsMouseOver" Value="True">
-                <Setter TargetName="B" Property="BorderBrush" Value="{StaticResource Accent}"/>
+                <Setter TargetName="B" Property="Opacity" Value="0.9"/>
               </Trigger>
               <Trigger Property="IsPressed" Value="True">
                 <Setter TargetName="B" Property="Opacity" Value="0.8"/>
+              </Trigger>
+              <Trigger Property="IsKeyboardFocused" Value="True">
+                <Setter TargetName="B" Property="BorderBrush" Value="{DynamicResource TokOnAccent}"/>
               </Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
@@ -161,13 +129,16 @@
       </Setter>
     </Style>
 
-    <Style x:Key="BtnGhost" TargetType="Button" BasedOn="{StaticResource Btn}">
-      <Setter Property="Foreground" Value="{StaticResource Muted}"/>
-      <Setter Property="FontWeight" Value="Normal"/>
+    <Style x:Key="Ghost" TargetType="Button">
+      <Setter Property="Height" Value="32"/><Setter Property="Padding" Value="12,0"/>
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="Foreground" Value="{DynamicResource TokMuted}"/>
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Cursor" Value="Hand"/>
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="Button">
-            <Border x:Name="B" Background="Transparent" CornerRadius="8"
+            <Border x:Name="B" Background="{TemplateBinding Background}" CornerRadius="8"
                     BorderBrush="Transparent" BorderThickness="1"
                     Padding="{TemplateBinding Padding}">
               <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
@@ -177,6 +148,115 @@
                 <Setter TargetName="B" Property="Background" Value="{StaticResource Raised}"/>
                 <Setter Property="Foreground" Value="{StaticResource Fg}"/>
               </Trigger>
+              <Trigger Property="IsKeyboardFocused" Value="True">
+                <Setter TargetName="B" Property="BorderBrush" Value="{DynamicResource TokControlLine}"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <!-- Row-sized versions for actions that sit on a settings row. -->
+    <Style x:Key="GhostSmall" TargetType="Button" BasedOn="{StaticResource Ghost}">
+      <Setter Property="Height" Value="28"/><Setter Property="Padding" Value="10,0"/>
+    </Style>
+    <Style x:Key="PrimarySmall" TargetType="Button" BasedOn="{StaticResource Primary}">
+      <Setter Property="Height" Value="28"/><Setter Property="Padding" Value="10,0"/>
+    </Style>
+
+    <Style x:Key="Switch" TargetType="CheckBox">
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="CheckBox">
+            <Border x:Name="Track" Width="38" Height="22" CornerRadius="11"
+                    Background="{DynamicResource TokField}"
+                    BorderBrush="{DynamicResource TokControlLine}" BorderThickness="1">
+              <Border x:Name="Knob" Width="16" Height="16" CornerRadius="8"
+                      Background="{DynamicResource TokMuted}" Margin="2,0,0,0"
+                      HorizontalAlignment="Left"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsChecked" Value="True">
+                <Setter TargetName="Track" Property="Background" Value="{DynamicResource TokAccentText}"/>
+                <Setter TargetName="Track" Property="BorderBrush" Value="{DynamicResource TokAccentText}"/>
+                <Setter TargetName="Knob" Property="Background" Value="{DynamicResource TokOnAccent}"/>
+                <Setter TargetName="Knob" Property="HorizontalAlignment" Value="Right"/>
+                <Setter TargetName="Knob" Property="Margin" Value="0,0,2,0"/>
+              </Trigger>
+              <Trigger Property="IsKeyboardFocused" Value="True">
+                <Setter TargetName="Track" Property="BorderBrush" Value="{DynamicResource TokAccentText}"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <Style x:Key="Seg" TargetType="RadioButton">
+      <Setter Property="FontSize" Value="11"/>
+      <Setter Property="Foreground" Value="{DynamicResource TokMuted}"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="RadioButton">
+            <Border x:Name="P" Background="Transparent" CornerRadius="6"
+                    BorderBrush="Transparent" BorderThickness="1" Padding="10,4">
+              <ContentPresenter VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="P" Property="Background" Value="{StaticResource Raised}"/>
+              </Trigger>
+              <Trigger Property="IsChecked" Value="True">
+                <Setter TargetName="P" Property="Background" Value="{DynamicResource TokAccentText}"/>
+                <Setter Property="Foreground" Value="{DynamicResource TokOnAccent}"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+              </Trigger>
+              <Trigger Property="IsKeyboardFocused" Value="True">
+                <Setter TargetName="P" Property="BorderBrush" Value="{DynamicResource TokOnAccent}"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <Style x:Key="SegBox" TargetType="Border">
+      <Setter Property="Background" Value="{DynamicResource TokField}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource TokControlLine}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="8"/>
+      <Setter Property="Padding" Value="2"/>
+    </Style>
+
+    <Style x:Key="Pin" TargetType="ToggleButton">
+      <Setter Property="Height" Value="28"/><Setter Property="Padding" Value="10,0"/>
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="Foreground" Value="{DynamicResource TokMuted}"/>
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="ToggleButton">
+            <Border x:Name="B" Background="{TemplateBinding Background}" CornerRadius="8"
+                    BorderBrush="{DynamicResource TokControlLine}" BorderThickness="1"
+                    Padding="{TemplateBinding Padding}">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="B" Property="Background" Value="{StaticResource Raised}"/>
+              </Trigger>
+              <Trigger Property="IsChecked" Value="True">
+                <Setter TargetName="B" Property="Background" Value="{DynamicResource TokAccentText}"/>
+                <Setter TargetName="B" Property="BorderBrush" Value="{DynamicResource TokAccentText}"/>
+                <Setter Property="Foreground" Value="{DynamicResource TokOnAccent}"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+              </Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
         </Setter.Value>
@@ -184,251 +264,291 @@
     </Style>
   </Window.Resources>
 
-  <Border Background="{StaticResource Surface}" CornerRadius="14"
-          BorderBrush="{StaticResource Hairline}" BorderThickness="1"
-          MouseLeftButtonDown="OnDrag">
+  <Border Background="{StaticResource App}" CornerRadius="14"
+          BorderBrush="{StaticResource Hairline}" BorderThickness="1">
     <Border.Effect>
       <DropShadowEffect BlurRadius="28" ShadowDepth="6" Opacity="0.55" Color="#000000"/>
     </Border.Effect>
 
-    <Grid Margin="16" TextElement.FontFamily="{StaticResource UiFont}"
-          TextElement.Foreground="{StaticResource Fg}">
+    <Grid>
       <Grid.RowDefinitions>
         <RowDefinition Height="Auto"/>
         <RowDefinition Height="Auto"/>
+        <RowDefinition Height="*"/>
         <RowDefinition Height="Auto"/>
       </Grid.RowDefinitions>
 
-      <TextBlock Grid.Row="0" Text="Settings" FontSize="15" FontWeight="Bold"
-                 Margin="2,0,2,8"/>
+      <!-- Header band, also the drag handle. -->
+      <Border Grid.Row="0" Height="48" Padding="20,0" Background="Transparent"
+              BorderBrush="{DynamicResource TokDivider}" BorderThickness="0,0,0,1"
+              MouseLeftButtonDown="OnDrag">
+        <StackPanel VerticalAlignment="Center">
+          <TextBlock Text="Settings" FontSize="13" LineHeight="18" FontWeight="SemiBold"
+                     Foreground="{StaticResource Fg}"/>
+          <TextBlock Text="Changes apply when you save." FontSize="11" LineHeight="16"
+                     Foreground="{DynamicResource TokMuted}"/>
+        </StackPanel>
+      </Border>
 
-      <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Hidden" Focusable="False">
-        <StackPanel>
+      <!-- Flat tabs: text + 2px accent underline, no TabControl chrome. -->
+      <Border Grid.Row="1" Height="45" Padding="20,10"
+              BorderBrush="{DynamicResource TokDivider}" BorderThickness="0,0,0,1">
+        <StackPanel Orientation="Horizontal">
+          <StackPanel x:Name="TabGeneral" Background="Transparent" Cursor="Hand"
+                      MouseLeftButtonUp="OnGeneralTab">
+            <TextBlock x:Name="TabGeneralText" Text="General" FontSize="13" LineHeight="18"/>
+            <Rectangle x:Name="TabGeneralBar" Height="2" Margin="0,4,0,0"
+                       Fill="{DynamicResource TokAccentText}"/>
+          </StackPanel>
+          <StackPanel x:Name="TabNotification" Background="Transparent" Cursor="Hand"
+                      Margin="18,0,0,0" MouseLeftButtonUp="OnNotificationTab">
+            <TextBlock x:Name="TabNotificationText" Text="Notification" FontSize="13" LineHeight="18"/>
+            <Rectangle x:Name="TabNotificationBar" Height="2" Margin="0,4,0,0"
+                       Fill="{DynamicResource TokAccentText}" Visibility="Collapsed"/>
+          </StackPanel>
+        </StackPanel>
+      </Border>
 
-          <!-- Hotkey -->
-          <TextBlock Text="Hotkey" Style="{StaticResource H}"/>
-          <Border Style="{StaticResource Row}">
-            <Grid>
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-              </Grid.ColumnDefinitions>
-              <TextBlock Text="Open popup" FontSize="12" VerticalAlignment="Center"/>
-              <TextBox x:Name="HotkeyBox" Grid.Column="1" Style="{StaticResource Field}"
-                       Width="150" TextAlignment="Right" FontWeight="SemiBold"
-                       IsReadOnly="True" IsReadOnlyCaretVisible="False"
-                       PreviewKeyDown="OnHotkeyKeyDown"/>
-            </Grid>
-          </Border>
-          <Border Style="{StaticResource Row}">
-            <Grid>
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-              </Grid.ColumnDefinitions>
-              <TextBlock Text="Paste as plain text" FontSize="12" VerticalAlignment="Center"/>
-              <TextBox x:Name="PlainHotkeyBox" Grid.Column="1" Style="{StaticResource Field}"
-                       Width="150" TextAlignment="Right" FontWeight="SemiBold"
-                       IsReadOnly="True" IsReadOnlyCaretVisible="False"
-                       PreviewKeyDown="OnHotkeyKeyDown"/>
-            </Grid>
-          </Border>
-          <TextBlock Text="Click a box, then press a new combination." Style="{StaticResource Hint}"/>
-          <TextBlock x:Name="HotkeyError" Visibility="Collapsed"
-                     Foreground="{StaticResource ErrorBrush}" FontSize="11"
-                     TextWrapping="Wrap" Margin="2,-6,0,10"/>
+      <!-- 672 px content column: 714 window − 2 border − 2 × 20 padding. -->
+      <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Hidden" Focusable="False">
+        <StackPanel Width="672" HorizontalAlignment="Center" Margin="20,8,20,20">
 
-          <!-- Max items -->
-          <TextBlock Text="Max items" Style="{StaticResource H}"/>
-          <Border Style="{StaticResource Row}">
-            <Grid>
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-              </Grid.ColumnDefinitions>
-              <TextBlock Text="Items kept in history" FontSize="12" VerticalAlignment="Center"/>
-              <TextBox x:Name="MaxItemsBox" Grid.Column="1" Style="{StaticResource Field}"
-                       Width="90" TextAlignment="Right" PreviewTextInput="OnNumberInput"/>
-            </Grid>
-          </Border>
-          <TextBlock x:Name="MaxItemsError" Visibility="Collapsed"
-                     Text="Enter a whole number between 10 and 10,000."
-                     Foreground="{StaticResource ErrorBrush}" FontSize="11"
-                     TextWrapping="Wrap" Margin="2,-2,0,10"/>
+          <StackPanel x:Name="PanelGeneral">
+            <TextBlock Text="HOTKEYS" Style="{StaticResource Sect}"/>
+            <Border Style="{StaticResource Card}">
+              <StackPanel>
+                <DockPanel>
+                  <TextBox x:Name="HotkeyBox" DockPanel.Dock="Right" Style="{StaticResource Field}"
+                           Width="150" IsReadOnly="True" IsReadOnlyCaretVisible="False"
+                           PreviewKeyDown="OnHotkeyKeyDown"/>
+                  <TextBlock Text="Open the list" Style="{StaticResource Title}"/>
+                </DockPanel>
+                <DockPanel Margin="0,12,0,0">
+                  <TextBox x:Name="PlainHotkeyBox" DockPanel.Dock="Right" Style="{StaticResource Field}"
+                           Width="150" IsReadOnly="True" IsReadOnlyCaretVisible="False"
+                           PreviewKeyDown="OnHotkeyKeyDown"/>
+                  <TextBlock Text="Paste as plain text" Style="{StaticResource Title}"/>
+                </DockPanel>
+                <TextBlock Text="Click a field, then press the keys you want."
+                           Style="{StaticResource Desc}"/>
+                <TextBlock x:Name="HotkeyError" Style="{StaticResource Err}"/>
+              </StackPanel>
+            </Border>
 
-          <Border Style="{StaticResource Row}">
-            <Grid>
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-              </Grid.ColumnDefinitions>
-              <TextBlock Text="Preview lines" FontSize="12" VerticalAlignment="Center"/>
-              <TextBox x:Name="PreviewLinesBox" Grid.Column="1" Style="{StaticResource Field}"
-                       Width="90" TextAlignment="Right" PreviewTextInput="OnNumberInput"/>
-            </Grid>
-          </Border>
-          <TextBlock Text="Lines shown per clip card in the popup" Style="{StaticResource Hint}"
-                     Margin="2,0,0,4"/>
-          <TextBlock x:Name="PreviewLinesError" Visibility="Collapsed"
-                     Text="Enter a whole number between 1 and 100."
-                     Foreground="{StaticResource ErrorBrush}" FontSize="11"
-                     TextWrapping="Wrap" Margin="2,-2,0,10"/>
+            <TextBlock Text="HISTORY" Style="{StaticResource Sect}"/>
+            <Border Style="{StaticResource Card}">
+              <StackPanel>
+                <StackPanel>
+                  <DockPanel>
+                    <TextBox x:Name="MaxItemsBox" DockPanel.Dock="Right" Style="{StaticResource Field}"
+                             PreviewTextInput="OnNumberInput"/>
+                    <StackPanel>
+                      <TextBlock Text="Clips kept" Style="{StaticResource Title}"/>
+                      <TextBlock Text="10 to 10,000. Pinned clips are kept separately."
+                                 Style="{StaticResource Desc}"/>
+                    </StackPanel>
+                  </DockPanel>
+                  <TextBlock x:Name="MaxItemsError" Style="{StaticResource Err}"
+                             Text="Choose a number from 10 to 10,000."/>
+                </StackPanel>
 
-          <!-- Notification -->
-          <TextBlock Text="Notification" Style="{StaticResource H}"/>
-          <Border Style="{StaticResource Row}">
-            <CheckBox x:Name="NotifEnabled" Style="{StaticResource Chk}"
-                      Content="Show a notification when something is copied"/>
-          </Border>
+                <StackPanel Margin="0,12,0,0">
+                  <DockPanel>
+                    <TextBox x:Name="PreviewLinesBox" DockPanel.Dock="Right" Style="{StaticResource Field}"
+                             PreviewTextInput="OnNumberInput"/>
+                    <StackPanel>
+                      <TextBlock Text="Lines per clip" Style="{StaticResource Title}"/>
+                      <TextBlock Text="1 to 100. Shown on the selected clip."
+                                 Style="{StaticResource Desc}"/>
+                    </StackPanel>
+                  </DockPanel>
+                  <TextBlock x:Name="PreviewLinesError" Style="{StaticResource Err}"
+                             Text="Choose 1 to 100 lines."/>
+                </StackPanel>
 
-          <Border Style="{StaticResource Row}">
-            <Grid>
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="70"/>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="70"/>
-              </Grid.ColumnDefinitions>
-              <TextBlock Text="Duration (ms)" FontSize="12" VerticalAlignment="Center"/>
-              <TextBox x:Name="DurationBox" Grid.Column="1" Style="{StaticResource Field}"
-                       TextAlignment="Right" Margin="8,0,0,0" PreviewTextInput="OnNumberInput"/>
-              <TextBlock Grid.Column="3" Text="Max lines" FontSize="12" VerticalAlignment="Center"/>
-              <TextBox x:Name="MaxLinesBox" Grid.Column="4" Style="{StaticResource Field}"
-                       TextAlignment="Right" Margin="8,0,0,0" PreviewTextInput="OnNumberInput"/>
-            </Grid>
-          </Border>
+                <Grid Margin="0,12,0,0">
+                  <DockPanel x:Name="ClearIdle">
+                    <Button DockPanel.Dock="Right" Content="Clear history…" VerticalAlignment="Center"
+                            Style="{StaticResource GhostSmall}" Click="OnClearClick"/>
+                    <StackPanel>
+                      <TextBlock Text="Clear history" Style="{StaticResource Title}"/>
+                      <TextBlock Text="Removes clips from Clipboard and Images. Pinned clips stay."
+                                 Style="{StaticResource Desc}"/>
+                    </StackPanel>
+                  </DockPanel>
+                  <StackPanel x:Name="ClearConfirm" Visibility="Collapsed">
+                    <TextBlock Text="Delete all clips in Clipboard and Images? Pinned clips and tabs stay."
+                               Style="{StaticResource Note}"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+                      <Button Content="Keep clips" Style="{StaticResource GhostSmall}"
+                              Click="OnKeepClick"/>
+                      <Button Content="Delete clips" Style="{StaticResource PrimarySmall}"
+                              Margin="8,0,0,0" Click="OnConfirmClearClick"/>
+                    </StackPanel>
+                  </StackPanel>
+                </Grid>
+              </StackPanel>
+            </Border>
 
-          <Border Style="{StaticResource Row}">
-            <Grid>
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="70"/>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="70"/>
-              </Grid.ColumnDefinitions>
-              <TextBlock Text="Width (px)" FontSize="12" VerticalAlignment="Center"/>
-              <TextBox x:Name="WidthBox" Grid.Column="1" Style="{StaticResource Field}"
-                       TextAlignment="Right" Margin="8,0,0,0" PreviewTextInput="OnNumberInput"/>
-              <TextBlock Grid.Column="3" Text="Height (px)" FontSize="12" VerticalAlignment="Center"/>
-              <TextBox x:Name="HeightBox" Grid.Column="4" Style="{StaticResource Field}"
-                       TextAlignment="Right" Margin="8,0,0,0" PreviewTextInput="OnNumberInput"/>
-            </Grid>
-          </Border>
+            <TextBlock Text="APPEARANCE" Style="{StaticResource Sect}"/>
+            <Border Style="{StaticResource Card}">
+              <StackPanel>
+                <DockPanel>
+                  <Border DockPanel.Dock="Right" Style="{StaticResource SegBox}" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal">
+                      <RadioButton x:Name="ThemeDark" Content="Dark" GroupName="Theme"
+                                   Style="{StaticResource Seg}"/>
+                      <RadioButton x:Name="ThemeLight" Content="Light" GroupName="Theme"
+                                   Style="{StaticResource Seg}"/>
+                      <RadioButton x:Name="ThemeSystem" Content="Match Windows" GroupName="Theme"
+                                   Style="{StaticResource Seg}"/>
+                    </StackPanel>
+                  </Border>
+                  <TextBlock Text="Theme" Style="{StaticResource Title}"/>
+                </DockPanel>
+                <DockPanel Margin="0,12,0,0">
+                  <Border DockPanel.Dock="Right" Style="{StaticResource SegBox}" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal">
+                      <RadioButton x:Name="Time24" Content="24-hour (14:30)" GroupName="Time"
+                                   Style="{StaticResource Seg}"/>
+                      <RadioButton x:Name="Time12" Content="12-hour (2:30 PM)" GroupName="Time"
+                                   Style="{StaticResource Seg}"/>
+                    </StackPanel>
+                  </Border>
+                  <TextBlock Text="Time format" Style="{StaticResource Title}"/>
+                </DockPanel>
+              </StackPanel>
+            </Border>
 
-          <Border Style="{StaticResource Row}">
-            <Grid>
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-              </Grid.ColumnDefinitions>
-              <TextBlock Text="Position" FontSize="12" VerticalAlignment="Center"/>
-              <ComboBox x:Name="PositionCombo" Grid.Column="1" Style="{StaticResource Combo}" Width="140">
-                <ComboBoxItem Content="Top left" Tag="top-left"/>
-                <ComboBoxItem Content="Top right" Tag="top-right"/>
-                <ComboBoxItem Content="Bottom left" Tag="bottom-left"/>
-                <ComboBoxItem Content="Bottom right" Tag="bottom-right"/>
-                <ComboBoxItem Content="Center" Tag="center"/>
-              </ComboBox>
-            </Grid>
-          </Border>
+            <TextBlock Text="STARTUP" Style="{StaticResource Sect}"/>
+            <Border Style="{StaticResource Card}">
+              <DockPanel>
+                <CheckBox x:Name="AutostartCheck" DockPanel.Dock="Right" Style="{StaticResource Switch}"/>
+                <TextBlock Text="Open when I sign in" Style="{StaticResource Title}"/>
+              </DockPanel>
+            </Border>
+          </StackPanel>
 
-          <Border Style="{StaticResource Row}">
-            <Grid>
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="70"/>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="70"/>
-              </Grid.ColumnDefinitions>
-              <TextBlock Text="Offset X" FontSize="12" VerticalAlignment="Center"/>
-              <TextBox x:Name="OffsetXBox" Grid.Column="1" Style="{StaticResource Field}"
-                       Tag="signed" TextAlignment="Right" Margin="8,0,0,0" PreviewTextInput="OnNumberInput"/>
-              <TextBlock Grid.Column="3" Text="Offset Y" FontSize="12" VerticalAlignment="Center"/>
-              <TextBox x:Name="OffsetYBox" Grid.Column="4" Style="{StaticResource Field}"
-                       Tag="signed" TextAlignment="Right" Margin="8,0,0,0" PreviewTextInput="OnNumberInput"/>
-            </Grid>
-          </Border>
+          <StackPanel x:Name="PanelNotification" Visibility="Collapsed">
+            <TextBlock Text="NOTIFICATIONS" Style="{StaticResource Sect}"/>
+            <Border Style="{StaticResource Card}">
+              <StackPanel>
+                <DockPanel>
+                  <CheckBox x:Name="NotifEnabled" DockPanel.Dock="Right" Style="{StaticResource Switch}"
+                            Checked="OnNotifChanged" Unchecked="OnNotifChanged"/>
+                  <TextBlock Text="Notify me when I copy" Style="{StaticResource Title}"/>
+                </DockPanel>
 
-          <!-- Theme -->
-          <TextBlock Text="Theme" Style="{StaticResource H}"/>
-          <Border Style="{StaticResource Row}">
-            <Grid>
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-              </Grid.ColumnDefinitions>
-              <TextBlock Text="Appearance" FontSize="12" VerticalAlignment="Center"/>
-              <ComboBox x:Name="ThemeCombo" Grid.Column="1" Style="{StaticResource Combo}" Width="140">
-                <ComboBoxItem Content="Dark" Tag="dark"/>
-                <ComboBoxItem Content="Light" Tag="light"/>
-                <ComboBoxItem Content="System" Tag="system"/>
-              </ComboBox>
-            </Grid>
-          </Border>
+                <StackPanel Margin="0,12,0,0">
+                  <DockPanel>
+                    <TextBox x:Name="DurationBox" DockPanel.Dock="Right" Style="{StaticResource Field}"
+                             PreviewTextInput="OnNumberInput" TextChanged="OnNotifTextChanged"/>
+                    <TextBlock Text="Time on screen (ms)" Style="{StaticResource Title}"/>
+                  </DockPanel>
+                  <TextBlock x:Name="DurationError" Style="{StaticResource Err}"
+                             Text="Choose a number from 500 to 60,000."/>
+                </StackPanel>
 
-          <!-- Time format -->
-          <TextBlock Text="Time format" Style="{StaticResource H}"/>
-          <Border Style="{StaticResource Row}">
-            <Grid>
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-              </Grid.ColumnDefinitions>
-              <TextBlock Text="Clock" FontSize="12" VerticalAlignment="Center"/>
-              <ComboBox x:Name="TimeCombo" Grid.Column="1" Style="{StaticResource Combo}" Width="140">
-                <ComboBoxItem Content="24 hour" Tag="24h"/>
-                <ComboBoxItem Content="12 hour" Tag="12h"/>
-              </ComboBox>
-            </Grid>
-          </Border>
+                <StackPanel Margin="0,12,0,0">
+                  <DockPanel>
+                    <TextBox x:Name="MaxLinesBox" DockPanel.Dock="Right" Style="{StaticResource Field}"
+                             PreviewTextInput="OnNumberInput" TextChanged="OnNotifTextChanged"/>
+                    <TextBlock Text="Lines shown" Style="{StaticResource Title}"/>
+                  </DockPanel>
+                  <TextBlock x:Name="MaxLinesError" Style="{StaticResource Err}"
+                             Text="Choose 1 to 10 lines."/>
+                </StackPanel>
 
-          <!-- Start on login -->
-          <TextBlock Text="Start on login" Style="{StaticResource H}"/>
-          <Border Style="{StaticResource Row}">
-            <CheckBox x:Name="AutostartCheck" Style="{StaticResource Chk}"
-                      Content="Launch when Windows starts"/>
-          </Border>
+                <StackPanel Margin="0,12,0,0">
+                  <DockPanel>
+                    <TextBox x:Name="WidthBox" DockPanel.Dock="Right" Style="{StaticResource Field}"
+                             PreviewTextInput="OnNumberInput" TextChanged="OnNotifTextChanged"/>
+                    <TextBlock Text="Width (px)" Style="{StaticResource Title}"/>
+                  </DockPanel>
+                  <TextBlock x:Name="WidthError" Style="{StaticResource Err}"
+                             Text="Choose a width from 240 to 800."/>
+                </StackPanel>
 
-          <!-- Clear history -->
-          <TextBlock Text="Clear history" Style="{StaticResource H}"/>
-          <Border Style="{StaticResource Row}">
-            <Grid>
-              <Grid x:Name="ClearIdle">
-                <TextBlock Text="Clipboard history" FontSize="12" VerticalAlignment="Center"/>
-                <Button Content="Clear" Style="{StaticResource BtnGhost}" Padding="10,3"
-                        HorizontalAlignment="Right" Click="OnClearClick"/>
-              </Grid>
-              <StackPanel x:Name="ClearConfirm" Visibility="Collapsed">
-                <TextBlock Text="Delete every saved clip? This cannot be undone."
-                           FontSize="12" Foreground="{StaticResource Muted}" TextWrapping="Wrap"/>
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,6,0,0">
-                  <Button Content="Clear" Style="{StaticResource Btn}" Padding="12,4"
-                          Click="OnConfirmClearClick"/>
-                  <Button Content="Keep" Style="{StaticResource BtnGhost}" Padding="12,4"
-                          Margin="6,0,0,0" Click="OnKeepClick"/>
+                <StackPanel Margin="0,12,0,0">
+                  <DockPanel>
+                    <TextBox x:Name="HeightBox" DockPanel.Dock="Right" Style="{StaticResource Field}"
+                             PreviewTextInput="OnNumberInput" TextChanged="OnNotifTextChanged"/>
+                    <TextBlock Text="Height (px)" Style="{StaticResource Title}"/>
+                  </DockPanel>
+                  <TextBlock x:Name="HeightError" Style="{StaticResource Err}"
+                             Text="Choose a height from 80 to 500."/>
+                </StackPanel>
+
+                <DockPanel Margin="0,12,0,0">
+                  <Border DockPanel.Dock="Right" Style="{StaticResource SegBox}" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal">
+                      <RadioButton x:Name="PosTopLeft" Content="Top left" GroupName="Position" Tag="top-left"
+                                   Style="{StaticResource Seg}" Checked="OnNotifChanged"/>
+                      <RadioButton x:Name="PosTopRight" Content="Top right" GroupName="Position" Tag="top-right"
+                                   Style="{StaticResource Seg}" Checked="OnNotifChanged"/>
+                      <RadioButton x:Name="PosBottomLeft" Content="Bottom left" GroupName="Position" Tag="bottom-left"
+                                   Style="{StaticResource Seg}" Checked="OnNotifChanged"/>
+                      <RadioButton x:Name="PosBottomRight" Content="Bottom right" GroupName="Position" Tag="bottom-right"
+                                   Style="{StaticResource Seg}" Checked="OnNotifChanged"/>
+                      <RadioButton x:Name="PosCenter" Content="Center" GroupName="Position" Tag="center"
+                                   Style="{StaticResource Seg}" Checked="OnNotifChanged"/>
+                    </StackPanel>
+                  </Border>
+                  <TextBlock Text="Position" Style="{StaticResource Title}"/>
+                </DockPanel>
+
+                <StackPanel Margin="0,12,0,0">
+                  <DockPanel>
+                    <TextBox x:Name="OffsetXBox" DockPanel.Dock="Right" Style="{StaticResource Field}"
+                             Tag="signed" PreviewTextInput="OnNumberInput" TextChanged="OnNotifTextChanged"/>
+                    <StackPanel>
+                      <TextBlock Text="Horizontal offset" Style="{StaticResource Title}"/>
+                      <TextBlock Text="Negative values move it left or up." Style="{StaticResource Desc}"/>
+                    </StackPanel>
+                  </DockPanel>
+                  <TextBlock x:Name="OffsetXError" Style="{StaticResource Err}"
+                             Text="Choose a number from -2,000 to 2,000."/>
+                </StackPanel>
+
+                <StackPanel Margin="0,12,0,0">
+                  <DockPanel>
+                    <TextBox x:Name="OffsetYBox" DockPanel.Dock="Right" Style="{StaticResource Field}"
+                             Tag="signed" PreviewTextInput="OnNumberInput" TextChanged="OnNotifTextChanged"/>
+                    <TextBlock Text="Vertical offset" Style="{StaticResource Title}"/>
+                  </DockPanel>
+                  <TextBlock x:Name="OffsetYError" Style="{StaticResource Err}"
+                             Text="Choose a number from -2,000 to 2,000."/>
                 </StackPanel>
               </StackPanel>
-            </Grid>
-          </Border>
+            </Border>
 
+            <TextBlock Text="PREVIEW" Style="{StaticResource Sect}"/>
+            <Border Style="{StaticResource Card}">
+              <DockPanel>
+                <ToggleButton x:Name="PreviewToggle" DockPanel.Dock="Right" Content="Show preview"
+                              Style="{StaticResource Pin}" Checked="OnPreviewToggle"
+                              Unchecked="OnPreviewToggle"/>
+                <StackPanel>
+                  <TextBlock Text="On-screen preview" Style="{StaticResource Title}"/>
+                  <TextBlock Text="Shows where the notification will appear. Drag it to set the offsets."
+                             Style="{StaticResource Desc}"/>
+                </StackPanel>
+              </DockPanel>
+            </Border>
+          </StackPanel>
         </StackPanel>
       </ScrollViewer>
 
-      <Grid Grid.Row="2" Margin="0,6,0,0">
-        <Grid.ColumnDefinitions>
-          <ColumnDefinition Width="*"/>
-          <ColumnDefinition Width="Auto"/>
-          <ColumnDefinition Width="Auto"/>
-        </Grid.ColumnDefinitions>
-        <TextBlock Grid.Column="0" Text="Ctrl+S to save   ·   Esc to close"
-                   Foreground="{StaticResource Muted}" FontSize="11" VerticalAlignment="Center"/>
-        <Button Grid.Column="1" Content="Close" Style="{StaticResource BtnGhost}" Click="OnCloseClick"/>
-        <Button Grid.Column="2" Content="Save" Style="{StaticResource Btn}" Margin="8,0,0,0"
-                Click="OnSaveClick"/>
-      </Grid>
+      <Border Grid.Row="3" BorderBrush="{DynamicResource TokDivider}" BorderThickness="0,1,0,0"
+              Padding="20,12">
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+          <Button Content="Cancel" Style="{StaticResource Ghost}" Click="OnCloseClick"
+                  ToolTip="Cancel (Esc)" AutomationProperties.Name="Cancel (Esc)"/>
+          <Button Content="Save changes" Style="{StaticResource Primary}" Margin="8,0,0,0"
+                  Click="OnSaveClick" ToolTip="Save changes (Ctrl+S)"
+                  AutomationProperties.Name="Save changes (Ctrl+S)"/>
+        </StackPanel>
+      </Border>
     </Grid>
   </Border>
 </Window>
