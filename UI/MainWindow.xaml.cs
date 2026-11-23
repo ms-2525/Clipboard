@@ -35,6 +35,12 @@ namespace Clip.UI
         bool _composing;
         Window _editor;
 
+        // The list is rebuilt only when something actually changed — a fresh full Reload on every
+        // Alt+V re-read every row and its thumb and cost ~19 MB of native render memory per open.
+        bool _dirty = true;
+        long? _loadedTab;
+        bool _loadedImages;
+
         public event Action<ClipboardItem> PasteRequested;
         public event Action<ClipboardItem> PlainPasteRequested;
         public event Action<ClipboardItem> CopyRequested;
@@ -45,7 +51,7 @@ namespace Clip.UI
             _store = store;
             _cfg = cfg;
 
-            SourceInitialized += (s, e) => WindowChrome.Apply(this);
+            SourceInitialized += (s, e) => WindowChrome.Apply(this, topmost: true);
 
             _searchTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(120) };
             _searchTimer.Tick += (s, e) => { _searchTimer.Stop(); ApplyFilter(); };
@@ -65,7 +71,10 @@ namespace Clip.UI
         {
             if (IsVisible)
             {
-                if (_closing) { _closing = false; Shell.BeginAnimation(OpacityProperty, null); Shell.Opacity = 1; Activate(); Search.Focus(); return; }
+                if (_closing) { _closing = false; Shell.BeginAnimation(OpacityProperty, null); Shell.Opacity = 1; WindowChrome.Raise(this); Activate(); Search.Focus(); return; }
+                // A visible-but-inactive popup (another window came forward, or it lost a z-order race)
+                // must come forward, not toggle itself closed: that is what "the hotkey did nothing" was.
+                if (!IsActive) { WindowChrome.Raise(this); Activate(); Search.Focus(); return; }
                 ClosePopup(false);
             }
             else ShowPopup();
@@ -96,24 +105,48 @@ namespace Clip.UI
             Top = Math.Max(wa.Top / sc, wa.Top / sc + (wa.Height / sc - Height) / 2 - 40);
 
             Show();
+            WindowChrome.Raise(this);
             Activate();
-            Reload();
+            if (_dirty || _loadedTab != _tabId || _loadedImages != _images) Reload();
+            else
+            {
+                History.SelectedItem = _visible.FirstOrDefault();
+                History.ScrollIntoView(History.SelectedItem);
+            }
             // One forced pass so the selected row is realised (scroll cue + first paint) before we animate.
             UpdateLayout();
             Search.Focus();
             AnimateIn();
         }
 
-        /// <summary>Paste hands the window straight back: an exit ghost would swallow the click (motion R4).</summary>
-        public void HideForPaste()
+        /// <summary>
+        /// Loads the list and applies the row template once, off screen: no window, no render target and
+        /// no resident surface — only the BAML parse, the row construction and the first text layout,
+        /// which the first Alt+V would otherwise pay while the window is already up.
+        /// </summary>
+        internal void Warm()
         {
+            if (IsVisible) return;
+            Reload();
+
+            var host = new StackPanel { Width = 534 };
+            var template = (DataTemplate)FindResource("ClipRowTemplate");
+            for (int i = 0; i < Math.Min(4, _visible.Count); i++)
+                host.Children.Add(new ContentPresenter { Content = _visible[i], ContentTemplate = template });
+            host.Measure(new Size(534, double.PositiveInfinity));
+            host.Arrange(new Rect(0, 0, 534, host.DesiredSize.Height));
+            host.UpdateLayout();
+        }
+
+        /// <summary>Paste hands the window straight back: an exit ghost would swallow the click (motion R4).</summary>
+        public void HideForPaste()        {
             _closing = false;
             HideCore();
         }
 
         public void OnNewItem(ClipboardItem item)
         {
-            if (!IsVisible) return;
+            if (!IsVisible) { _dirty = true; return; }
             // A capture only belongs to main history; while reading a container just refresh its count.
             ReloadTabs();
             if (_tabId != null) return;
@@ -141,8 +174,17 @@ namespace Clip.UI
         {
             RichRow.Clear();
             _rows = LoadRows();
+            MarkLoaded();
             ReloadTabs();
             ApplyFilter();
+        }
+
+        /// <summary>The list on screen and the current view agree — no reload needed on the next open.</summary>
+        void MarkLoaded()
+        {
+            _loadedTab = _tabId;
+            _loadedImages = _images;
+            _dirty = false;
         }
 
         List<ClipRow> LoadRows()
@@ -185,6 +227,8 @@ namespace Clip.UI
             UpdateStatus();
             UpdateEmptyState();
             UpdatePlaceholder();
+            UpdateSelectionBar();
+            HideRowTip();
         }
 
         static string SectionFor(string stamp)
@@ -226,6 +270,13 @@ namespace Clip.UI
             StatusCount.Text = n == 0 ? "" : n + (_images ? (n == 1 ? " image" : " images") : (n == 1 ? " clip" : " clips"));
         }
 
+        /// <summary>Bottom bar: the selected clip's app · window title · captured time (directive §2 rev 3).</summary>
+        void UpdateSelectionBar()
+        {
+            var row = History.SelectedItem as ClipRow;
+            SelectionBar.Text = row?.Status ?? "";
+        }
+
         // ---- scroll cue ------------------------------------------------------
 
         double _extent, _viewport, _offset;
@@ -237,6 +288,8 @@ namespace Clip.UI
             _viewport = e.ViewportHeight;
             _offset = e.VerticalOffset;
             UpdateScrollCue();
+            // A shown tip belongs to the old position; the dwell timer may keep running (selection scroll).
+            if (_tip is { IsVisible: true }) HideRowTip();
         }
 
         /// <summary>A position signal only: the list scrolls by item, so a part row needs an explanation.</summary>
@@ -287,7 +340,8 @@ namespace Clip.UI
         protected override void OnDeactivated(EventArgs e)
         {
             base.OnDeactivated(e);
-            // The editor and the in-popup overlays are child surfaces, not focus loss.
+            // The editor, the popup's overlays and the outside row tooltip are child surfaces, not focus loss.
+            if (_tip is { IsVisible: true }) return;
             if (IsVisible && _editor == null && !AnyOverlayOpen) ClosePopup(false);
         }
 
@@ -369,6 +423,7 @@ namespace Clip.UI
         void HideCore()
         {
             _searchTimer.Stop();
+            HideRowTip();
             CloseOverlays();
             _undoItem = null;
             _editor = null;

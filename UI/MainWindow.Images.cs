@@ -46,7 +46,7 @@ namespace Clip.UI
             ImagesPane.Visibility = Visibility.Collapsed;
             History.ItemsPanel = (ItemsPanelTemplate)FindResource("ClipListPanel");
             History.ItemTemplate = (DataTemplate)FindResource("ClipRowTemplate");
-            History.Padding = new Thickness(6);
+            History.Padding = new Thickness(2, 6, 2, 6);
             History.Margin = new Thickness(0);
             History.Height = double.NaN;
             History.VerticalAlignment = VerticalAlignment.Stretch;
@@ -58,6 +58,8 @@ namespace Clip.UI
         void OnHistorySelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (_images) ShowPreview(History.SelectedItem as ClipRow);
+            UpdateSelectionBar();
+            QueueRowTip(History.SelectedItem as ClipRow);
         }
 
         /// <summary>Stored 96 px thumb first (no blank frame), then the 1024 px decode when it lands.</summary>
@@ -153,7 +155,7 @@ namespace Clip.UI
             return bmp;
         }
 
-        /// <summary>One image per ←/→; one strip page per ↑/↓ (v2 §3.3).</summary>
+        /// <summary>One image per ↑/↓ (↓ next, ↑ previous); ←/→ switch tabs here too (owner directive 23 Nov).</summary>
         void StepImage(int delta)
         {
             if (_images && _visible.Count > 0) SelectAt(History.SelectedIndex + delta);

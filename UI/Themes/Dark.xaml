@@ -36,8 +36,14 @@
   <SolidColorBrush x:Key="Sky"    Color="#38BDF8"/>
   <SolidColorBrush x:Key="Violet" Color="#A78BFA"/>
 
-  <!-- States: tints capped at 8 % (DESIGN-contrast §5.3) -->
-  <SolidColorBrush x:Key="RowHover"      Color="#121316"/>
+  <!-- Row separation (RESEARCH-clipboardapps\copyq-forest.md §3): the odd-row fill and an alpha hover,
+       so a hover tints the zebra instead of replacing it. 4 % white over App = the old #121316. -->
+  <SolidColorBrush x:Key="RowAlt"        Color="#16181D"/>
+  <SolidColorBrush x:Key="RowHover"      Color="#0AFFFFFF"/>
+
+  <!-- State tints capped at 8 % (DESIGN-contrast §5.3) -->
+  <SolidColorBrush x:Key="StateHover"    Color="#0AFFFFFF"/>
+  <SolidColorBrush x:Key="StatePressed"  Color="#14FFFFFF"/>
   <SolidColorBrush x:Key="RowSelected"   Color="#1C1310"/>
   <SolidColorBrush x:Key="SelectionRing" Color="#3E2517"/>
   <LinearGradientBrush x:Key="SelectionRail" StartPoint="0,0" EndPoint="0,1">

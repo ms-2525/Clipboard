@@ -4,7 +4,6 @@
         WindowStyle="None" Background="{DynamicResource Surface}"
         ShowInTaskbar="False" ShowActivated="False" Topmost="True"
         ResizeMode="NoResize" WindowStartupLocation="Manual"
-        SizeToContent="Height"
         FontFamily="{StaticResource UiFont}"
         UseLayoutRounding="True" SnapsToDevicePixels="True"
         TextOptions.TextFormattingMode="Display">
@@ -32,21 +31,14 @@
                      VerticalAlignment="Center" Margin="8,0,0,0"/>
         </StackPanel>
 
-        <Border x:Name="CloseHit" Grid.Column="1" Background="Transparent"
-                Width="24" Height="24" VerticalAlignment="Center" Cursor="Hand">
-          <TextBlock Text="✕" FontSize="11" HorizontalAlignment="Center" VerticalAlignment="Center">
-            <TextBlock.Style>
-              <Style TargetType="TextBlock">
-                <Setter Property="Foreground" Value="{DynamicResource Muted}"/>
-                <Style.Triggers>
-                  <DataTrigger Binding="{Binding IsMouseOver, ElementName=CloseHit}" Value="True">
-                    <Setter Property="Foreground" Value="{DynamicResource Accent}"/>
-                  </DataTrigger>
-                </Style.Triggers>
-              </Style>
-            </TextBlock.Style>
-          </TextBlock>
-        </Border>
+        <Button x:Name="CloseHit" Grid.Column="1" Style="{StaticResource IconButton}"
+                VerticalAlignment="Center" Foreground="{DynamicResource Fg55}"
+                AutomationProperties.Name="Dismiss notification" ToolTip="Dismiss">
+          <Viewbox Width="10" Height="10">
+            <Path Data="{StaticResource IconClose}" Stroke="{DynamicResource Fg55}" StrokeThickness="2"
+                  StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+          </Viewbox>
+        </Button>
       </Grid>
 
       <Image x:Name="ThumbImg" Grid.Row="1" Stretch="Uniform" StretchDirection="DownOnly"

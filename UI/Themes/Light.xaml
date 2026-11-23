@@ -34,8 +34,13 @@
   <SolidColorBrush x:Key="Sky"    Color="#046C99"/>
   <SolidColorBrush x:Key="Violet" Color="#7347E8"/>
 
+  <!-- Row separation (copyq-forest §3): odd-row fill + alpha hover; ink 4 % over App = #E9EAED. -->
+  <SolidColorBrush x:Key="RowAlt"        Color="#FFFFFF"/>
+  <SolidColorBrush x:Key="RowHover"      Color="#0A111827"/>
+
   <!-- States: ink-alpha overlays, tint capped at 8 % -->
-  <SolidColorBrush x:Key="RowHover"      Color="#E9EAED"/>
+  <SolidColorBrush x:Key="StateHover"    Color="#0A111827"/>
+  <SolidColorBrush x:Key="StatePressed"  Color="#14111827"/>
   <SolidColorBrush x:Key="RowSelected"   Color="#F3EBE6"/>
   <SolidColorBrush x:Key="SelectionRing" Color="#F6D4BE"/>
   <LinearGradientBrush x:Key="SelectionRail" StartPoint="0,0" EndPoint="0,1">

@@ -63,6 +63,7 @@ namespace Clip.UI
             CloseOverlays();
             RichRow.Clear();
             _rows = LoadRows();
+            MarkLoaded();
             ReloadTabs();
             ApplyFilter();
             Search.Focus();

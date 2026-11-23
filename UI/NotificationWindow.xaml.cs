@@ -49,7 +49,7 @@ namespace Clip.UI
             _cfg = cfg;
             Title = Assembly.GetEntryAssembly().GetName().Name;
 
-            CloseHit.MouseLeftButtonUp += (s, e) => { e.Handled = true; DismissNow(); };
+            CloseHit.Click += (s, e) => { e.Handled = true; DismissNow(); };
 
             SourceInitialized += (s, e) =>
             {
@@ -174,8 +174,10 @@ namespace Clip.UI
         void Present()
         {
             var n = _cfg.Notification;
+            // The configured height is the toast's height: no SizeToContent override (ACC-v2 §7.5).
             Width = n.Width;
-            Root.MaxHeight = n.Height;
+            Height = n.Height;
+            Body.MaxHeight = Math.Max(24, n.Height - 76);
 
             var s = WF.Screen.FromPoint(WF.Cursor.Position);
             // "Clip" alone binds to Window.Clip (Geometry), so qualify globally.
@@ -190,18 +192,15 @@ namespace Clip.UI
                 _ => wa.Left / sc + n.OffsetX,
             };
 
-            double TopFor(double h) => pos switch
+            Top = pos switch
             {
-                "bottom-left" or "bottom-right" => (wa.Bottom - n.OffsetY) / sc - h,
-                "center" => wa.Top / sc + (wa.Height / sc - h) / 2,
+                "bottom-left" or "bottom-right" => (wa.Bottom - n.OffsetY) / sc - Height,
+                "center" => wa.Top / sc + (wa.Height / sc - Height) / 2,
                 _ => wa.Top / sc + n.OffsetY,
             };
 
             Root.Opacity = 0;
             Show();
-            UpdateLayout();
-            // SizeToContent: the real height is only known after the first layout pass.
-            Top = TopFor(ActualHeight);
 
             Root.BeginAnimation(OpacityProperty, Motion.Linear(1, 150));
 
@@ -227,6 +226,34 @@ namespace Clip.UI
         {
             _timer?.Stop();
             HideAndReset();
+        }
+
+        /// <summary>
+        /// Pays the process-wide first-show cost once, on this small window and off screen: the WPF
+        /// render thread + D3D device are created when the first window is composited, which cost the
+        /// popup ~430 ms on its first Alt+V. Invisible (0.4 % alpha) and never activated.
+        /// </summary>
+        public void WarmHidden()
+        {
+            if (IsVisible) return;
+            double opacity = Opacity;
+            Opacity = 0.004;
+            Left = -32000;
+            Top = -32000;
+            Width = _cfg.Notification.Width;
+            Height = _cfg.Notification.Height;
+            Root.Opacity = 0;
+            try
+            {
+                Show();
+                UpdateLayout();
+            }
+            finally
+            {
+                Hide();
+                Root.Opacity = 0;
+                Opacity = opacity;
+            }
         }
     }
 }

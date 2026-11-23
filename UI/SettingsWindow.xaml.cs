@@ -87,6 +87,7 @@ namespace Clip.UI
             else
             {
                 PreviewToggle.IsChecked = false;
+                PreviewToggle.Content = "Show preview";
                 NotificationPreviewWindow.Pinned = false;
                 NotificationPreviewWindow.HideGhost();
             }
@@ -114,6 +115,7 @@ namespace Clip.UI
         {
             var key = e.Key == Key.System ? e.SystemKey : e.Key;
             if (key == Key.None) return;
+            if (key == Key.Tab) return; // Tab is focus navigation, never a hotkey
 
             e.Handled = true;
             if (IsModifierKey(key)) return; // wait for the real key
@@ -222,6 +224,8 @@ namespace Clip.UI
             if (_loading) return;
 
             bool pinned = PreviewToggle.IsChecked == true;
+            // A toggle that only says "Show preview" reads as a button; twice-clicked it looked dead.
+            PreviewToggle.Content = pinned ? "Hide preview" : "Show preview";
             NotificationPreviewWindow.Pinned = pinned;
             if (pinned)
             {

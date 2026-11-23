@@ -16,6 +16,11 @@
   <ItemGroup>
     <Compile Remove="_fonttest\**" />
     <Page Remove="_fonttest\**" />
+    <!-- "Ortu Reference" is the owner-requested local clone of the Ortu repo (design reference only — never compiled) -->
+    <Compile Remove="Ortu Reference\**" />
+    <Page Remove="Ortu Reference\**" />
+    <None Remove="Ortu Reference\**" />
+    <Resource Remove="Ortu Reference\**" />
   </ItemGroup>
 
   <!-- Static Manrope faces: WPF cannot drive a variable font's wght axis, so 400/500/600 ship as three files. -->

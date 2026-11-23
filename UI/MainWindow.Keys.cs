@@ -143,8 +143,8 @@ namespace Clip.UI
 
             if (e.Key == Key.Up || e.Key == Key.Down)
             {
-                // Images: one strip page per vertical arrow (DESIGN-v2-ui §3.3).
-                if (_images) { StepImage(e.Key == Key.Down ? 8 : -8); e.Handled = true; return; }
+                // Images: ↑/↓ step one image; text lists: ↑/↓ move one row.
+                if (_images) { StepImage(e.Key == Key.Down ? 1 : -1); e.Handled = true; return; }
                 Navigate(e.Key == Key.Down ? 1 : -1);
                 e.Handled = true;
                 return;
@@ -152,11 +152,11 @@ namespace Clip.UI
 
             if (e.Key == Key.Left || e.Key == Key.Right)
             {
-                // Arrows switch tabs only when the caret is not being used in a non-empty query.
+                // ←/→ switch tabs in EVERY tab, Images included (owner directive 23 Nov).
+                // Arrows stay with the caret only while a non-empty query is being edited.
                 if (Search.Text.Length == 0 || !Search.IsKeyboardFocusWithin)
                 {
-                    if (_images) StepImage(e.Key == Key.Right ? 1 : -1); // ←/→ browse the strip
-                    else SwitchAdjacentTab(e.Key == Key.Right ? 1 : -1);
+                    SwitchAdjacentTab(e.Key == Key.Right ? 1 : -1);
                     e.Handled = true;
                 }
                 return;

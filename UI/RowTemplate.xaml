@@ -28,7 +28,7 @@
         <TranslateTransform/>
       </StackPanel.RenderTransform>
 
-      <Grid x:Name="SectionBand" Margin="12,0,12,8" Visibility="{Binding ShowSection, Converter={StaticResource BoolToVis}}">
+      <Grid x:Name="SectionBand" Margin="8,0,8,8" Visibility="{Binding ShowSection, Converter={StaticResource BoolToVis}}">
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="Auto"/>
           <ColumnDefinition Width="*"/>
@@ -39,15 +39,14 @@
                 Background="{DynamicResource Divider}"/>
       </Grid>
 
-      <Border x:Name="RowRoot" Background="Transparent" CornerRadius="12"
-              Height="{Binding RowHeight}" ToolTipService.InitialShowDelay="600"
-              ToolTipService.IsEnabled="{Binding HasTooltip}">
-        <Border.ToolTip>
-          <TextBlock Text="{Binding Tooltip}" TextWrapping="Wrap" MaxWidth="420"
-                     FontFamily="Segoe UI" FontSize="12" LineHeight="18"/>
-        </Border.ToolTip>
-
+      <!-- Full-bleed zebra band: the rounded 12 radius stays on the state layers, so an odd-row fill
+           never leaves a scalloped notch at the row boundary. -->
+      <Border x:Name="RowRoot" Background="Transparent" CornerRadius="0"
+              Height="{Binding RowHeight}">
         <Grid>
+          <!-- Forest zebra (docs\RESEARCH-clipboardapps\copyq-forest.md §4): fill, hairline, then states over it. -->
+          <Border x:Name="RowDivider" Height="1" VerticalAlignment="Bottom"
+                  Background="{DynamicResource Divider}" IsHitTestVisible="False"/>
           <Border x:Name="HoverLayer" Background="{DynamicResource RowHover}" CornerRadius="12"
                   Opacity="0" IsHitTestVisible="False"/>
           <Border x:Name="SelLayer" Background="{DynamicResource RowSelected}" CornerRadius="12"
@@ -61,7 +60,7 @@
                   BorderBrush="{DynamicResource PulseRing}" BorderThickness="1"
                   CornerRadius="12" Opacity="0" IsHitTestVisible="False"/>
 
-          <Grid Margin="12,8">
+          <Grid Margin="8,8">
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="22"/>
               <ColumnDefinition Width="10"/>
@@ -85,8 +84,7 @@
             <Border x:Name="Badge" Grid.Column="3" Height="18" Padding="6,0" CornerRadius="9"
                     Margin="8,0,0,0" VerticalAlignment="Top"
                     Background="{DynamicResource BadgeBackground}"
-                    Visibility="{Binding MoreVisibility}" ToolTip="{Binding MoreTip}"
-                    ToolTipService.InitialShowDelay="600">
+                    Visibility="{Binding MoreVisibility}">
               <TextBlock Text="{Binding More}" FontSize="11" LineHeight="14" FontWeight="SemiBold"
                          Foreground="{DynamicResource Fg55}" VerticalAlignment="Center"
                          Typography.NumeralAlignment="Tabular"/>
@@ -97,6 +95,13 @@
     </StackPanel>
 
     <DataTemplate.Triggers>
+      <!-- Odd rows take RowAlt. Parity comes from the generator's AlternationIndex, so it survives
+           container recycling and renumbers itself after every filter. -->
+      <DataTrigger Binding="{Binding (ItemsControl.AlternationIndex), RelativeSource={RelativeSource AncestorType=ListBoxItem}}"
+                   Value="1">
+        <Setter TargetName="RowRoot" Property="Background" Value="{DynamicResource RowAlt}"/>
+      </DataTrigger>
+
       <!-- Hover: one 100 ms opacity step, brush only. -->
       <Trigger SourceName="RowRoot" Property="IsMouseOver" Value="True">
         <Trigger.EnterActions>

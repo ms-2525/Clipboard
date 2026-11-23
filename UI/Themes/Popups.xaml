@@ -29,20 +29,25 @@
     </Setter>
   </Style>
 
+  <!-- The tray menu's items: 4 % hover pill (never an Aero2 gutter), 12 DIP inset to match the
+       button grammar's padding, and a height that keeps the menu compact. -->
   <Style TargetType="MenuItem">
     <Setter Property="Foreground" Value="{DynamicResource Fg75}"/>
     <Setter Property="FontSize" Value="12"/>
-    <Setter Property="Padding" Value="10,6"/>
+    <Setter Property="Padding" Value="12,0"/>
+    <Setter Property="MinHeight" Value="28"/>
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="MenuItem">
-          <Border x:Name="ItemPill" Background="Transparent" CornerRadius="6"
-                  Padding="{TemplateBinding Padding}">
-            <ContentPresenter ContentSource="Header" RecognizesAccessKey="True" VerticalAlignment="Center"/>
-          </Border>
+          <Grid>
+            <Border x:Name="ItemPill" Background="Transparent" CornerRadius="8"/>
+            <Border x:Name="State" Background="{DynamicResource StateHover}" CornerRadius="8" Opacity="0"/>
+            <ContentPresenter ContentSource="Header" RecognizesAccessKey="True" VerticalAlignment="Center"
+                              Margin="{TemplateBinding Padding}"/>
+          </Grid>
           <ControlTemplate.Triggers>
             <Trigger Property="IsHighlighted" Value="True">
-              <Setter TargetName="ItemPill" Property="Background" Value="{DynamicResource Raised}"/>
+              <Setter TargetName="State" Property="Opacity" Value="1"/>
               <Setter Property="Foreground" Value="{DynamicResource Fg}"/>
             </Trigger>
             <Trigger Property="IsEnabled" Value="False">
@@ -59,6 +64,30 @@
       <Setter.Value>
         <ControlTemplate TargetType="Separator">
           <Border Height="1" Margin="6,4" Background="{DynamicResource Divider}"/>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- Stock WPF scrollbars are Windows-blue on a dark surface; one themed bar for every scroller. -->
+  <Style TargetType="ScrollBar">
+    <Setter Property="Width" Value="10"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ScrollBar">
+          <Grid Background="Transparent">
+            <Track IsDirectionReversed="True">
+              <Track.Thumb>
+                <Thumb Width="6" Margin="2,0">
+                  <Thumb.Template>
+                    <ControlTemplate TargetType="Thumb">
+                      <Border Background="{DynamicResource ScrollThumb}" CornerRadius="3"/>
+                    </ControlTemplate>
+                  </Thumb.Template>
+                </Thumb>
+              </Track.Thumb>
+            </Track>
+          </Grid>
         </ControlTemplate>
       </Setter.Value>
     </Setter>

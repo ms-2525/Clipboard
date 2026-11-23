@@ -55,7 +55,19 @@ namespace Clip.UI
 
         internal static void ShowGhost(Config cfg, Window owner)
         {
-            if (owner != null) _owner = owner;
+            if (owner != null && !ReferenceEquals(owner, _owner))
+            {
+                _owner = owner;
+                // Settings is recreated per open; a static owner reference would keep the closed
+                // window's whole visual tree alive for the session (the +23 MB Settings leak).
+                owner.Closed += (s, e) =>
+                {
+                    if (!ReferenceEquals(_owner, owner)) return;
+                    _owner = null;
+                    Pinned = false;
+                    HideGhost();
+                };
+            }
             Ensure().Apply(cfg);
         }
 

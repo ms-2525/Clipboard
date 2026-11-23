@@ -12,9 +12,23 @@ The owner: "things are jumping when I scroll through the clipboard items using u
   (65 → 101/119px) is DELETED. ↑/↓ must move the highlight with zero layout jump.
 - Scroll stability contract: scroll-into-view uses the MINIMAL delta (never a page jump), no animated scrolls.
 
-## 2. NO per-row title/meta section
-The owner asked what the "top title type thing" was — it's the meta line (app · time) my density ruling
-pinned to every row. REMOVED. Rows are content-only. (App/time stays stored; surface it nowhere by default.)
+## 2. Provenance lives in the SEPARATE BOTTOM BAR (owner, 23 Nov rev 3 — supersedes the per-row status line)
+The owner: "the initial design of having a separate bottom bar was good and show the app title as well as
+the app name." The bottom bar carries, for the SELECTED clip: **app name · window title · date/time**
+(`AppName · WindowTitle · 23 Nov 15:16`, ClockFormat-aware, updates on every selection/tab change) on its
+left, clip count + key hints on the right. Rows stay content-only — NO per-row status/meta line (rev 2's
+"status below each item" is superseded by this).
+
+## 2b. Preview lines (unchanged from rev 2)
+Multi-line items show their TOP `PreviewLines` lines (setting default **10**, honored DIRECTLY — the
+hardcoded clamp of 6 is deleted); row height = `16 + lines×18`, fewer lines size to fit.
+
+## 2c. ORTU IS THE HEAVY UI/UX REFERENCE (owner, 23 Nov)
+"take very heavy reference from https://github.com/abhijith-p-subash/ortu" — the repo is cloned locally
+at `Ortu Reference\` (excluded from the build and git). Every UI sprint must READ ITS DESIGN SYSTEM FROM
+THE CODE (frontend under `src\`, styles/tokens in its CSS/theme files) and match its craft level:
+modern UI, margins proper but NOT big, end-polish with zero AI slop — the difference between
+"each metric green" and "looks like a real product".
 
 ## 3. Sequential numbers replace the icon tile (Clipboard tab)
 Each row's top-left 22px icon tile is replaced by **1, 2, 3, …** — the number IS the Ctrl+1..9 paste-nth

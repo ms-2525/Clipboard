@@ -43,7 +43,6 @@ namespace Clip.UI
                 FormatNoticeText.Text = _notice;
                 FormatNotice.Visibility = Visibility.Visible;
             }
-
             _originalText = CurrentText();
             _originalRtf = SaveRtf();
 
@@ -52,6 +51,9 @@ namespace Clip.UI
                 Shell.BeginAnimation(OpacityProperty, Motion.Linear(1, 150));
                 RichBox.Focus();
                 RichBox.CaretPosition = RichBox.Document.ContentEnd;
+                // The default 5 DIP page padding would double the 8 DIP content rail; set it last
+                // because the body load and the first template pass re-apply the default.
+                RichBox.Document.PagePadding = new Thickness(0);
                 Reflect();
             };
         }
@@ -114,7 +116,16 @@ namespace Clip.UI
 
         TextRange Body() => new TextRange(RichBox.Document.ContentStart, RichBox.Document.ContentEnd);
 
-        void DocumentText(string text) => Body().Text = text ?? "";
+        /// <summary>
+        /// Plain text arrives as one paragraph per line, and a paragraph's inherited block spacing
+        /// doubles the pitch (~36 DIP for a 13 DIP face). Rich bodies keep their own RTF spacing.
+        /// </summary>
+        void DocumentText(string text)
+        {
+            Body().Text = text ?? "";
+            foreach (var block in RichBox.Document.Blocks)
+                if (block is Paragraph paragraph) paragraph.Margin = new Thickness(0);
+        }
 
         // ---- save -------------------------------------------------------------------------
 

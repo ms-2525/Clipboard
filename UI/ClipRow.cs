@@ -14,10 +14,8 @@ namespace Clip.UI
     /// </summary>
     public sealed class ClipRow : INotifyPropertyChanged
     {
-        // A row renders at most six 18 px lines; 400 chars covers them (docs\DESIGN-v2-ui.md §1.2).
-        const int PreviewCap = 400;
+        // A row's text slot is capped by Config.PreviewLines (1..100, honored directly) — no render clamp.
         const int TooltipCap = 2000;
-        const int MaxLines = 6;
         const int EstimateChars = 20000;
 
         /// <summary>
@@ -32,6 +30,7 @@ namespace Clip.UI
         readonly ClipboardStore _store;
         readonly string _text;
         readonly int _totalLines;
+        readonly int _textCap;
         ClipboardItem _payload;
         bool _payloadRead;
         BitmapSource _thumb;
@@ -45,20 +44,28 @@ namespace Clip.UI
             IsFiles = item.Kind == "files";
             _totalLines = IsImage || IsFiles ? 1 : WrappedLines(_text);
 
-            Preview = IsFiles ? FilePreview(item) : IsImage ? "Image  \u00b7  " + Size() : Truncate(_text, PreviewCap);
+            int lines = Math.Max(1, Math.Min(100, previewLines));
+            int visible = Math.Max(1, Math.Min(lines, _totalLines));
+            _textCap = lines * (int)CharsPerLine + (int)CharsPerLine;
+
+            string preview = IsFiles ? FilePreview(item) : IsImage ? "Image  \u00b7  " + Size() : Truncate(_text, _textCap);
+            Preview = preview;
             Tooltip = IsImage ? null : Truncate(IsFiles ? Paths(item) : _text, TooltipCap);
 
-            int visible = Math.Max(1, Math.Min(Math.Min(previewLines, MaxLines), _totalLines));
             TextHeight = visible * 18;
             RowHeight = TextHeight + 16;
 
             int hidden = _totalLines - visible;
-            if (!IsFiles && !IsImage && _text.Length > PreviewCap && hidden < 1) hidden = 1;
+            if (!IsFiles && !IsImage && preview.Length < _text.Length && hidden < 1) hidden = 1;
             if (!IsFiles && !IsImage && hidden > 0)
             {
                 More = "+" + hidden;
-                MoreTip = hidden + (hidden == 1 ? " more line not shown" : " more lines not shown");
             }
+            Truncated = hidden > 0;
+
+            Source = item.AppName ?? "";
+            Title = item.WindowTitle ?? "";
+            When = Stamp(item.CapturedAt);
         }
 
         public ClipboardItem Item { get; }
@@ -70,6 +77,41 @@ namespace Clip.UI
         /// <summary>Full text (or every file path) — the row tooltip is its only home (directive §2).</summary>
         public string Tooltip { get; }
 
+        /// <summary>Bottom bar provenance for the selected clip: app · window title · captured time.</summary>
+        public string Source { get; }
+        public string Title { get; }
+        public string When { get; }
+
+        public string Status
+        {
+            get
+            {
+                var parts = new List<string>(3);
+                if (!string.IsNullOrWhiteSpace(Source)) parts.Add(Source.Trim());
+                int titleAt = -1;
+                if (!string.IsNullOrWhiteSpace(Title)) { titleAt = parts.Count; parts.Add(Title.Trim()); }
+                if (!string.IsNullOrWhiteSpace(When)) parts.Add(When);
+                if (parts.Count == 0) return "";
+
+                // The bar is one 11 px line beside the count and key hints: a long window title is what
+                // gives way, never the app or the time (they are the part a tail trim would eat).
+                int used = (parts.Count - 1) * StatusSep.Length;
+                foreach (var part in parts) used += part.Length;
+                if (titleAt >= 0 && used > StatusChars)
+                {
+                    int room = Math.Max(8, parts[titleAt].Length - (used - StatusChars));
+                    parts[titleAt] = parts[titleAt].Substring(0, Math.Min(parts[titleAt].Length, room)).TrimEnd() + "\u2026";
+                }
+                return string.Join(StatusSep, parts);
+            }
+        }
+
+        const int StatusChars = 42;
+        const string StatusSep = "  \u00b7  ";
+
+        /// <summary>True when the row shows less than the clip holds — the only rows that get the outside tooltip.</summary>
+        public bool Truncated { get; }
+
         public double TextHeight { get; }
         public double RowHeight { get; }
 
@@ -80,11 +122,7 @@ namespace Clip.UI
         public bool CanBeRich => !IsImage && !IsFiles;
 
         public string More { get; }
-        public string MoreTip { get; }
         public Visibility MoreVisibility => More == null ? Visibility.Collapsed : Visibility.Visible;
-
-        /// <summary>An empty tooltip must not open as an empty box (image rows have none).</summary>
-        public bool HasTooltip => !string.IsNullOrEmpty(Tooltip);
 
         /// <summary>1-based position in the visible list — the Ctrl+1..9 affordance (directive §3).</summary>
         int _number;
@@ -154,6 +192,14 @@ namespace Clip.UI
         public event PropertyChangedEventHandler PropertyChanged;
 
         void Raise(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+
+        /// <summary>"23 Nov 15:16" — the date is fixed English (owner's UI language), the clock follows config.</summary>
+        static string Stamp(string stamp)
+        {
+            if (!DateTime.TryParse(stamp, out var when)) return "";
+            string clock = string.IsNullOrEmpty(ClipboardItem.ClockFormat) ? "HH:mm" : ClipboardItem.ClockFormat;
+            return when.ToString("dd MMM", System.Globalization.CultureInfo.InvariantCulture) + " " + when.ToString(clock);
+        }
 
         string Size()
         {

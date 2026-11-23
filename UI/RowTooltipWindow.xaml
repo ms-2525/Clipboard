@@ -1,0 +1,20 @@
+<Window x:Class="Clip.UI.RowTooltipWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        WindowStyle="None" Background="{DynamicResource Surface}"
+        ShowInTaskbar="False" ShowActivated="False" Topmost="True"
+        ResizeMode="NoResize" WindowStartupLocation="Manual" SizeToContent="Height"
+        FontFamily="{StaticResource UiFont}" FontSize="12"
+        UseLayoutRounding="True" SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Display">
+
+  <!-- The outside-docked full text: only shown for a row that is actually truncated, never over the list. -->
+  <Border Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Hairline}"
+          BorderThickness="1" CornerRadius="8" Padding="12,10">
+    <ScrollViewer x:Name="Scroller" VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Disabled" Focusable="False">
+      <TextBlock x:Name="Body" TextWrapping="Wrap" LineHeight="18"
+                 FontFamily="Segoe UI" FontSize="12" Foreground="{DynamicResource Fg75}"/>
+    </ScrollViewer>
+  </Border>
+</Window>

@@ -44,6 +44,7 @@ namespace Clip
         {
             // RtfPipe needs the legacy code pages on .NET; before any RTF render.
             Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+            LogFatalErrors();
 
             _mutex = new Mutex(true, $"{Product}.SingleInstance", out bool first);
             if (!first)
@@ -77,7 +78,14 @@ namespace Clip
             BuildTray();
 
             // Warm the row renderer off the critical path: the first Alt+V must not pay its JIT.
-            Dispatcher.BeginInvoke(new Action(RichRow.Warm), DispatcherPriority.Background);
+            // (An offscreen pre-show of the whole popup was measured too: it moved no cold-open time
+            // and kept a whole render target resident, so idle RAM paid for nothing.)
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                RichRow.Warm();
+                _main.Warm();
+                _notif.WarmHidden();
+            }), DispatcherPriority.ApplicationIdle);
 
             if (_cfg.WasNew)
                 Dispatcher.BeginInvoke(new Action(() =>
@@ -89,6 +97,29 @@ namespace Clip
         }
 
         // ---- capture ------------------------------------------------------
+
+        /// <summary>
+        /// The process vanishing without a dialog was reported twice. There is no crash handler in a WPF
+        /// tray app by default, so the next unexplained exit leaves a one-line reason in crash.log.
+        /// </summary>
+        void LogFatalErrors()
+        {
+            DispatcherUnhandledException += (s, e) => LogCrash("dispatcher", e.Exception);
+            AppDomain.CurrentDomain.UnhandledException += (s, e) => LogCrash("appdomain", e.ExceptionObject as Exception);
+            System.Threading.Tasks.TaskScheduler.UnobservedTaskException += (s, e) => LogCrash("task", e.Exception);
+        }
+
+        static void LogCrash(string source, Exception ex)
+        {
+            try
+            {
+                Directory.CreateDirectory(Config.DataDir);
+                File.AppendAllText(Path.Combine(Config.DataDir, "crash.log"),
+                    $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} [{source}] {ex}{Environment.NewLine}{Environment.NewLine}");
+            }
+            catch (IOException) { } // a crash log that itself crashes is worse than no crash log
+            catch (UnauthorizedAccessException) { }
+        }
 
         void OnCaptured(ClipboardItem item)
         {
@@ -240,7 +271,7 @@ namespace Clip
             _main.Reload();
         }
 
-        void SetClockFormat() => ClipboardItem.ClockFormat = _cfg.TimeFormat == "12h" ? "hh:mm tt" : "HH:mm";
+        void SetClockFormat() => ClipboardItem.ClockFormat = _cfg.TimeFormat == "12h" ? "h:mm tt" : "HH:mm";
 
         // ---- tray ----------------------------------------------------------
 
