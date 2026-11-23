@@ -186,7 +186,7 @@ noted because it is the reason the popup never needs a detail pane.
 
 - Header 48 px: back button 28 × 28 `radius 8`, gear 15 px, title 13 px semibold
   `fg/0.88 tracking-tight`. `data-tauri-drag-region` (whole header drags the window).
-- Body: **`max-width 512 px` (2xl) centred**, `padding 20`, `space-y-6` (24 px).
+- Body: **`max-width 672 px` (2xl) centred**, `padding 20`, `space-y-6` (24 px). — CORRECTED 23 Nov: Tailwind `2xl` is 672 px, not 512 (docs\DESIGN-layout.md re-extracted this from source; supersede any 512 references).
 - Section = label + one or more cards. Label: **9 px semibold uppercase
   `tracking-[0.1em]`, `fg/0.30`**. (Modal labels use `.section-label` = 10 px,
   `tracking-[0.1em]`, colour `#AEB291/0.80` — sage, for in-dialog grouping.)
@@ -465,7 +465,7 @@ Legend: **MATCH** (keep), **GAP** (change), **ABSENT** (build).
 
 | # | Ortu | Ours (`UI/SettingsWindow.xaml`) | Verdict | Exact change |
 |---|---|---|---|---|
-| 29 | Window bg `app`, cards `surface`, 512 px centred column, 20–24 px section gaps | Window bg `Surface`, everything is a `Raised` row, 440 wide, no section rhythm | **GAP** | Root `Background="{StaticResource App}"`; content `MaxWidth="512"`; section cards `Background="{StaticResource Surface}" BorderBrush="{StaticResource Hairline}" CornerRadius="12" Padding="14"`; gaps 24 px between sections, 12 px between cards in a section. |
+| 29 | Window bg `app`, cards `surface`, 672 px (2xl) centred column (corrected from 512 — see DESIGN-layout.md), 20–24 px section gaps | Window bg `Surface`, everything is a `Raised` row, 440 wide, no section rhythm | **GAP** | Root `Background="{StaticResource App}"`; content `MaxWidth="672"`; section cards `Background="{StaticResource Surface}" BorderBrush="{StaticResource Hairline}" CornerRadius="12" Padding="14"`; gaps 24 px between sections, 12 px between cards in a section. |
 | 30 | Section labels: 9 px semibold uppercase, `tracking 0.1em`, `fg/0.30` | `H` style = 13 px semibold, sentence case, `Fg` | **GAP** | Restyle `H` → `FontSize 9, FontWeight SemiBold, Foreground #5A5B5F, CharacterSpacing 100` (WPF `CharacterSpacing` is 1/1000 em → 100 = 0.1em). WPF has no `text-transform`, so write the labels uppercase in XAML (`HOTKEY`, `NOTIFICATION`). |
 | 31 | Row title 13 medium + 11 px `fg/0.45` description under it | Label 12 px, hint 11 px muted, separate line | **GAP** | Row becomes a two-line stack inside the card: title `Fg70` 13, description `#66676B` 11 with `TextWrapping`. Existing `Hint` style mostly matches; move it inside the card. |
 | 32 | Switch 38 × 22 with 18 px knob | `CheckBox` with ✓ box | **GAP** | Custom `CheckBox` template: 38 × 22 track (`CornerRadius 11`), `#3B3D40` off / `#FF8A3D` on, 18 px white ellipse translated 16 px, 150 ms colour + transform. |

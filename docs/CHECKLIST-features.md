@@ -102,6 +102,7 @@ No item may be marked from a sub-agent's self-report alone.
 - ⬜ `[L]` **S3 must land `Config.PreviewLines`** (S2 shipped against the pinned contract — the full build stays RED until this lands)
 - ⬜ `[L]` **S3 must-fix: HotKeyWindow parser accepts the friendly names Settings emits** — "1" currently parses as `Keys.LButton` (a mouse button) and silently breaks; needs digits "1"→D1 and OEM keys (`` ` `` `=` `[` … ) → VK mapping
 - ⬜ `[L]` Settings wiring: tray Settings menu opens the window (currently disabled placeholder); SettingsSaved applies live (theme swap, hotkey re-register incl. conflict message, ClockFormat, notification); ClearHistoryRequested wipes MAIN HISTORY ONLY (tabs survive per §7)
+- ⬜ `[U]` Notification settings include the **live on-screen preview overlay** (exact placement, live updates, drag-to-set offsets, auto-hide + pin) and the Settings window is reorganized into tabs (General / Notification) — owner requirement 23 Nov; public API unchanged: ctor(Config), SettingsSaved, ClearHistoryRequested
 - 🟡 `[H]` Time format: `config.json "timeFormat"`, footer + notification honor 12h/24h; WasNew excludes from JSON
 - ⬜ `[L]` Settings apply LIVE — no restart
 - ⬜ `[L]` Autostart: HKCU Run value named after the product, EXE path via `Environment.ProcessPath` (NOT Assembly.Location — that's the DLL and won't launch); toggle removes it — real registry round-trip `[H]` already PASS
@@ -141,3 +142,18 @@ No item may be marked from a sub-agent's self-report alone.
 - ⬜ OfficeIMO.Rtf as RtfPipe replacement — only if RTF-only sources (WordPad-era) prove to matter
 - ⬜ Feature landscape + **1000-item scale contract** — docs\RESEARCH-features-and-scale.md (agent in flight; must/should/nice split lands here when it reports)
 - ✅ RtfPipe frozen-2021 status — accepted as fallback-only (owner informed)
+- ⬜ **Feature roadmap (post-MVP, docs\RESEARCH-features-and-scale.md Part A):** M4 musts — paste transforms (Ditto Special Paste), export/backup/restore, sensitive-clip masking, age+size retention, per-app rules. M5 shoulds — paste queue/multi-select, search prefixes (`app:`/`date:`), duplicate-count UX, OCR (behind a TFM spike), per-item hotkeys. NEVER — cloud/LAN sync, AI transforms, scripting, diff, QR, image editor. NOT current scope; nothing here stalls S3.
+
+## 15. Scale — owner: "snappy and lag-free at 1000+ items" (contract: docs\RESEARCH-features-and-scale.md §Part B, 19-row measurable)
+S3/UI items:
+- ⬜ `[L]` `CanContentScroll=True` + `VirtualizationMode=Recycling` preserved through the Ortu flat-row redesign (measured: Recycling ~2× faster to first layout; `False` = 1000 containers, 3.6–4.4 s — a silent kill)
+- ⬜ `[L]` Rows bind a **truncated Preview string** (~400-char cap, line-clamped by `PreviewLines`) — never full `Text` (1 MB body = 64–111 ms per relayout otherwise); preview built once at load, not per keystroke
+- ⬜ `[L]` Search: 120 ms debounce + **swap the collection instance** (Clear+Add of 1000 = 38–59 ms per keystroke; filter itself is 0.2 ms)
+- ⬜ `[L]` Row growth uses fixed `Height` per state (never `MaxHeight`), scroll-follows-selection
+Core items (scale sprint, queued behind the CA audits so Core stays stable while it is being audited):
+- ⬜ `[H]` WAL + `synchronous=NORMAL`, capture writes in ONE transaction (100 autocommit inserts measured 450 ms → 10–15 ms)
+- ⬜ `[H]` `GetRecent` drops `html`/`rtf` from the list query (search/preview reads them on demand)
+- ⬜ `[H]` Image dedupe via a stored **hash column** (BLOB scans: 10–13 ms @1000, 54–61 ms @5000)
+- ⬜ `[H]` `EnforceCap` gated (periodic/batched, not per-capture)
+- ⬜ `[H]` Image decode/encode moved off the UI thread
+Acceptance at 1000 items: scroll jank-free, search <50 ms end-to-end, cold start → popup <300 ms, idle RAM unchanged vs 200, `GetRecent(1000)` ≤10 ms

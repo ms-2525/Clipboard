@@ -27,6 +27,8 @@ namespace Clip.Core
         public string Hotkey { get; set; } = "Alt+V";
         public string HotkeyPlain { get; set; } = "Ctrl+Shift+V";
         public int MaxItems { get; set; } = 200;
+        // Lines of text shown per card in the popup list.
+        public int PreviewLines { get; set; } = 10;
         public string Theme { get; set; } = "dark";
         // "12h" or "24h"; any other value behaves as 24h (normalised on load).
         public string TimeFormat { get; set; } = "24h";
@@ -77,7 +79,7 @@ namespace Clip.Core
                     }
                 }
             }
-            catch { }
+            catch { } // unreadable or corrupt config: fresh defaults below, the old file is overwritten by Save()
 
             var fresh = new Config();
             fresh.WasNew = true;

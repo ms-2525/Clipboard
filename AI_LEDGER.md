@@ -6,8 +6,8 @@
 |---|---|
 | `Interop\HtmlFragment.Extract(string cfHtml)` | The ONLY correct CF_HTML splitter — offsets are UTF-8 byte offsets, never slice the string |
 | `Core\ImageCache.Write/Cleanup` | F2 cache: `%APPDATA%\<Product>\cache\images\clip-<id>.png`, write-if-changed, startup cleanup >7d / newest 100 |
-| `Interop\ClipboardFormats.Snapshot/Restore` | All-format fidelity; standard ids → canonical names; FileDrop decoded to paths; DIB raw bytes |
-| `Interop\PasteInjector` | 5-attempt/30ms clipboard-busy retry; modifier key-UPs before Ctrl+V; image branch BEFORE formats branch; CopyAndPastePlain strips formats |
+| `Interop\ClipboardFormats.Snapshot/Restore` | All-format fidelity; standard ids → canonical names; FileDrop decoded to paths; DIB raw bytes; `WithClipboardRetry` = the ONE 5-attempt/30ms clipboard-busy policy (read + write) |
+| `Interop\PasteInjector` | 5-attempt/30ms clipboard-busy retry lives in `ClipboardFormats.WithClipboardRetry`; modifier key-UPs before Ctrl+V; image branch BEFORE formats branch; CopyAndPastePlain strips formats |
 | `Interop\ScreenDpi.Scale(Screen)` | px→DIP for any monitor placement math |
 | `Core\Config` | camelCase JSON, `%APPDATA%\<AssemblyName>\config.json`; `WasNew` is [JsonIgnore] |
 | `UI\Themes\Dark|Light.xaml` | UiFont, App, Surface, Raised, Fg, Muted, Accent, Hairline (+ sage/amber/sky/violet to land with S3 per Ortu). No other color homes. |

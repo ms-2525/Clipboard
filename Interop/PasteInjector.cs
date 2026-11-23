@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
-using System.Threading;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Clip.Core;
@@ -23,7 +22,7 @@ namespace Clip.Interop
         /// <summary>Places text on the clipboard, sends Ctrl+V, returns the sequence number so the caller can suppress self-capture.</summary>
         public static uint CopyAndPaste(string text)
         {
-            SetClipboardRetry(() => System.Windows.Clipboard.SetDataObject(text, true));
+            ClipboardFormats.WithClipboardRetry(() => System.Windows.Clipboard.SetDataObject(text, true));
             return SendPaste();
         }
 
@@ -50,11 +49,11 @@ namespace Clip.Interop
                 data.SetData(System.Windows.DataFormats.UnicodeText, item.Text ?? string.Empty);
                 if (!string.IsNullOrEmpty(item.Rtf)) data.SetData(System.Windows.DataFormats.Rtf, item.Rtf);
                 if (!string.IsNullOrEmpty(item.Html)) data.SetData(System.Windows.DataFormats.Html, item.Html);
-                SetClipboardRetry(() => System.Windows.Clipboard.SetDataObject(data, true));
+                ClipboardFormats.WithClipboardRetry(() => System.Windows.Clipboard.SetDataObject(data, true));
             }
             else
             {
-                SetClipboardRetry(() => System.Windows.Clipboard.SetDataObject(item?.Text ?? string.Empty, true));
+                ClipboardFormats.WithClipboardRetry(() => System.Windows.Clipboard.SetDataObject(item?.Text ?? string.Empty, true));
             }
             return SendPaste();
         }
@@ -62,7 +61,7 @@ namespace Clip.Interop
         /// <summary>Pastes only the raw text: strips colours, tables and fonts (Ctrl+Shift+V).</summary>
         public static uint CopyAndPastePlain(ClipboardItem item)
         {
-            SetClipboardRetry(() => System.Windows.Clipboard.SetDataObject(item?.Text ?? string.Empty, true));
+            ClipboardFormats.WithClipboardRetry(() => System.Windows.Clipboard.SetDataObject(item?.Text ?? string.Empty, true));
             return SendPaste();
         }
 
@@ -76,7 +75,7 @@ namespace Clip.Interop
             var data = new System.Windows.DataObject();
             if (dib != null) data.SetData(System.Windows.DataFormats.Dib, new MemoryStream(dib));
             data.SetData("PNG", new MemoryStream(png));
-            SetClipboardRetry(() => System.Windows.Clipboard.SetDataObject(data, true));
+            ClipboardFormats.WithClipboardRetry(() => System.Windows.Clipboard.SetDataObject(data, true));
         }
 
         /// <summary>BITMAPINFOHEADER(40) + 24-bpp BGR rows, 4-byte stride, bottom-up, alpha composited over white.</summary>
@@ -130,20 +129,6 @@ namespace Clip.Interop
 
         /// <summary>One channel composited over white: opaque keeps its colour, fully transparent becomes white.</summary>
         static byte Flatten(byte channel, int alpha) => (byte)((channel * alpha + 255 * (255 - alpha) + 127) / 255);
-
-        /// <summary>Clipboard writes fail while another process owns it; 5 quick attempts covers the usual handover.</summary>
-        static void SetClipboardRetry(Action set)
-        {
-            for (int attempt = 0; attempt < 5; attempt++)
-            {
-                try
-                {
-                    set();
-                    return;
-                }
-                catch (COMException) { Thread.Sleep(30); }
-            }
-        }
 
         /// <summary>The exact key sequence for Ctrl+V: modifier key-ups first, then the chord.</summary>
         internal static List<(ushort vk, uint flags)> PasteInputSequence() => new List<(ushort vk, uint flags)>

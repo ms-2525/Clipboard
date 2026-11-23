@@ -87,14 +87,23 @@ namespace Clip.Interop
                 }
             }
 
+            WithClipboardRetry(() => System.Windows.Clipboard.SetDataObject(data, true));
+        }
+
+        /// <summary>
+        /// The one home for the clipboard-busy policy: another process owning the clipboard rejects a write for a few
+        /// ms. Gives up silently after the window, leaving the previous clipboard content in place.
+        /// </summary>
+        internal static void WithClipboardRetry(Action set)
+        {
             for (int attempt = 0; attempt < 5; attempt++)
             {
                 try
                 {
-                    System.Windows.Clipboard.SetDataObject(data, true);
+                    set();
                     return;
                 }
-                catch (COMException) { Thread.Sleep(30); } // clipboard locked by another process
+                catch (COMException) { Thread.Sleep(30); }
             }
         }
 
