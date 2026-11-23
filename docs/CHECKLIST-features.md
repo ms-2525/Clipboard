@@ -61,6 +61,7 @@ No item may be marked from a sub-agent's self-report alone.
 - ⬜ `[L]` Same shortcut with popup open = selected item as plain text
 
 ## 5. Rich text (render like rich text)
+- ✅ `[H]` **S0 converters landed** — `Core\RtfText.cs` (RTF-as-bytes: Latin-1 envelope, 256/256 round-trip, 8-bit WordPad RTF loads clean) + `Core\HtmlToRtf.cs` (400 lines, 38/38 harness assertions incl. Devanagari/emoji lossless, tables→tabs, 32 KB in 2.12 ms); S1-critical findings frozen in docs\S0-HANDOFF.md (Span-wrapped underline/highlight; rows render foreground only)
 - 🟡 `[U]` Selected card expands into a rich preview: tables, colors, font sizes, line breaks via HtmlRenderer.WPF; ONLY the selected card renders (list stays fast, one panel alive) -- **S3 AUDIT: FAIL** (it is an appended 150 DIP block below the meta in unstyled serif, not a content swap -- zoom-nav2-richpreview.png; DESIGN-v2 section 4 wants the swap)
 - ⬜ `[H]` CF_HTML byte-offset fragment extraction (Unicode-safe; non-ASCII torture test) — `Interop\HtmlFragment.cs`
 - ⬜ `[U]` Remote images blocked in preview (data: URIs allowed) — no network fetch on open -- **S3 AUDIT: UNTESTED-BY-AUTOMATION** (no HTML clip containing a remote img was available and I will not fabricate one)
