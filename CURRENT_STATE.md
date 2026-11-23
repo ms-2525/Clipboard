@@ -2,22 +2,21 @@
 
 LANE: feature
 
-## Position (as of this write — full detail in docs\HANDOFF-orchestrator.md)
-**IN FLIGHT: S3 integration** (the assembly sprint: themes/tokens → flat-row popup rebuild → F2 editor → App wiring → live acceptance). Everything else is DONE and verified — see the ✅ rows in docs\CHECKLIST-features.md / docs\CHECKLIST-uiux.md.
+## Position (post-S3 — full detail in docs\HANDOFF-orchestrator.md)
+**S3 integration has LANDED and passed its live acceptance** (build 0/0; popup/keyboard/editor/tabs/plain-paste live-verified with measured evidence; 7 runtime defects found and fixed during its own run). Acceptance results are folded into docs\CHECKLIST-features.md's 🟡/✅ rows.
 
-## After S3: checkpoint commit → walk acceptance → fresh-eyes visual audit (#high, fresh session, screenshots) → fix sprint → ca-milestone-audit release report → leave the app running + the owner's return report (owner is away ~5h; wants everything complete, audited, bug-fixed).
+**Known opens for the FIX SPRINT (next):**
+- RAM hard ceiling FAIL: peak 253.7 MB over 25 rich previews (limit 250; idle 111–113 passes) — close ~4 MB rich-preview retention, re-measure full protocol
+- Settings window + tray menu + tray icon: NEVER opened live (UIA can't reach Win11 overflow) — fresh-audit attempt, else owner-verifies
+- Not yet tested live: Excel→Excel fidelity, first-run hint, IME gate, Shift+Enter, Ctrl+1..9, Home/End/PageUp, context menu, focus-loss hide, notification ✕, autostart round-trip, hotkey→popup latency measure
+- File budgets: MainWindow.xaml 482 lines, SettingsWindow.xaml 505 (split = row DataTemplate to its own dictionary / partial class)
+- Tracked: image decode + SHA-256 off the UI thread; stale doc claims (Axis-2 list)
 
-## Done (all evidence-based; harness values in the checklist rows)
-- Core: capture (text/rich/files/image, alpha, pixel guard, 100ms debounce, Skipped, self-attribution) · all-formats fidelity · dedupe byte-exact incl. SAME-SECOND (ms stamps, red-first) · tabs (views vs containers, 75 asserts) · pinned RETIRED into tab_id · store split 3 partials + transactions + WAL (mutation-proven load-bearing) + SHA-256 image dedupe + cap gating + corrupt-db recovery + Restore undo primitive.
-- UI: settings rework (tabs, truthful copy, live ghost preview, 69) · font statics 400/500/600 (ink-proven fix of the ExtraLight root cause).
-- Audits: Axis-1 (146 asserts, 4 mutations RED) · Axis-2 (build green, retry consolidated to one home) · visual audit (12/20 incumbent) · impeccable critique (20/40; keep-list + density ruling).
-- Design specs: Ortu authority, typography, contrast (computed token fixes), layout (rails), anti-slop, motion, keyboard-ux (IME gate!), features+scale roadmap.
-
-## Known gate gaps (checked per review; tooling tickets welcome)
-- Mechanical stages (hygiene/duplication/architecture/stale-refs) have no standing automation in this dotnet-only repo — audit agents perform them each milestone (findings in docs\AUDIT-*.md).
-
-## Not done / deliberately deferred
-docs\CHECKLIST-features.md §14 + §15's one open item (image decode off the UI thread) + the S3/fresh-audit/fix/milestone pipeline above.
+## Sequence from here
+1. **IN FLIGHT: fresh-eyes visual audit** (#high, built nothing, own screenshots, walks BOTH checklists, marks [U] items).
+2. Fix sprint (closes every audit FAIL + the opens above). Re-verify.
+3. ca-milestone-audit release pass → release certificate + 3-minute owner sign-off.
+4. Leave app running + the owner's return report (contents pinned in HANDOFF §"Owner's return report").
 
 ## Open owner decisions (defaults stand)
-Cap counts unpinned only · binary size untargeted · RtfPipe kept · density 65px meta-always. Rejected deviations listed in docs\HANDOFF-orchestrator.md — do not re-propose.
+Cap counts unpinned only · binary size untargeted · RtfPipe kept · density 65px meta-always. Rejected deviations in HANDOFF — do not re-propose.

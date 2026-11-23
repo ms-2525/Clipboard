@@ -10,16 +10,6 @@ namespace Clip.UI
 {
     public partial class SettingsWindow : Window
     {
-        /// <summary>Light column of docs\DESIGN-contrast.md §4/§7; the dark column is the XAML default.</summary>
-        static readonly (string Key, byte R, byte G, byte B)[] LightTokens =
-        {
-            ("TokMuted", 0x58, 0x60, 0x70), ("TokTitle", 0x4A, 0x51, 0x5B),
-            ("TokLabel", 0x66, 0x6E, 0x7B), ("TokError", 0xCC, 0x2E, 0x33),
-            ("TokControlLine", 0x7F, 0x86, 0x91), ("TokOnAccent", 0xFF, 0xFF, 0xFF),
-            ("TokAccentText", 0xB8, 0x49, 0x00), ("TokDivider", 0xE2, 0xE5, 0xEA),
-            ("TokField", 0xF3, 0xF4, 0xF6),
-        };
-
         readonly Config _cfg;
         bool _loading = true;
         bool _notifTouched;
@@ -33,7 +23,6 @@ namespace Clip.UI
         public SettingsWindow(Config cfg)
         {
             InitializeComponent();
-            ApplyTokens();
 
             _cfg = cfg ?? new Config();
             Title = "Settings";
@@ -70,17 +59,6 @@ namespace Clip.UI
             ShowTab(false);
         }
 
-        // ---- theme tokens --------------------------------------------------
-
-        void ApplyTokens()
-        {
-            var app = FindResource("App") as SolidColorBrush;
-            if (app == null || app.Color != Color.FromRgb(0xF2, 0xF3, 0xF5)) return; // dark is the default
-
-            foreach (var t in LightTokens)
-                Resources[t.Key] = new SolidColorBrush(Color.FromRgb(t.R, t.G, t.B));
-        }
-
         // ---- tabs ----------------------------------------------------------
 
         void OnGeneralTab(object sender, MouseButtonEventArgs e) => ShowTab(false);
@@ -93,10 +71,10 @@ namespace Clip.UI
             PanelNotification.Visibility = notification ? Visibility.Visible : Visibility.Collapsed;
 
             TabGeneralText.FontWeight = notification ? FontWeights.Normal : FontWeights.SemiBold;
-            TabGeneralText.Foreground = (Brush)FindResource(notification ? "TokMuted" : "Fg");
+            TabGeneralText.Foreground = (Brush)FindResource(notification ? "Muted" : "Fg");
             TabGeneralBar.Visibility = notification ? Visibility.Collapsed : Visibility.Visible;
             TabNotificationText.FontWeight = notification ? FontWeights.SemiBold : FontWeights.Normal;
-            TabNotificationText.Foreground = (Brush)FindResource(notification ? "Fg" : "TokMuted");
+            TabNotificationText.Foreground = (Brush)FindResource(notification ? "Fg" : "Muted");
             TabNotificationBar.Visibility = notification ? Visibility.Visible : Visibility.Collapsed;
 
             if (notification)

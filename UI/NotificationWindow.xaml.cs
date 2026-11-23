@@ -90,6 +90,7 @@ namespace Clip.UI
         public void ShowFor(ClipboardItem item)
         {
             var n = _cfg.Notification;
+            _timer?.Stop();
 
             AppName.Text = item.AppName;
             AppName.Visibility = n.ShowApp ? Visibility.Visible : Visibility.Collapsed;
@@ -148,6 +149,29 @@ namespace Clip.UI
                 Body.Text = body.ToString().TrimEnd();
             }
 
+            Present();
+        }
+
+        /// <summary>A plain message (first run, skipped capture, hotkey conflict) in the same reused toast.</summary>
+        public void ShowMessage(string message)
+        {
+            var n = _cfg.Notification;
+            _timer?.Stop();
+            AppName.Text = Assembly.GetEntryAssembly().GetName().Name;
+            AppName.Visibility = n.ShowApp ? Visibility.Visible : Visibility.Collapsed;
+            Time.Visibility = Visibility.Collapsed;
+            ThumbImg.Source = null;
+            ThumbImg.Visibility = Visibility.Collapsed;
+            Body.Text = message ?? "";
+            Body.Foreground = (Brush)FindResource("Fg75");
+            Body.Visibility = Visibility.Visible;
+            Present();
+        }
+
+        /// <summary>Shared placement + fade + auto-dismiss. The window instance lives for the session (S0 leak fix).</summary>
+        void Present()
+        {
+            var n = _cfg.Notification;
             Width = n.Width;
             Root.MaxHeight = n.Height;
 
@@ -171,30 +195,36 @@ namespace Clip.UI
                 _ => wa.Top / sc + n.OffsetY,
             };
 
-            Top = TopFor(ActualHeight);
-
+            Root.Opacity = 0;
             Show();
             UpdateLayout();
             // SizeToContent: the real height is only known after the first layout pass.
             Top = TopFor(ActualHeight);
 
-            Root.BeginAnimation(OpacityProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(150)));
+            Root.BeginAnimation(OpacityProperty, Motion.Linear(1, 150));
 
             _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(n.DurationMs) };
             _timer.Tick += (o, e) =>
             {
                 _timer.Stop();
-                var fade = new DoubleAnimation(0, TimeSpan.FromMilliseconds(150));
-                fade.Completed += (a, b) => { if (IsVisible) Close(); };
+                var fade = Motion.Linear(0, 150);
+                fade.Completed += (a, b) => HideAndReset();
                 Root.BeginAnimation(OpacityProperty, fade);
             };
             _timer.Start();
         }
 
+        void HideAndReset()
+        {
+            Root.BeginAnimation(OpacityProperty, null);
+            Root.Opacity = 0;
+            if (IsVisible) Hide();
+        }
+
         public void DismissNow()
         {
             _timer?.Stop();
-            if (IsVisible) Close();
+            HideAndReset();
         }
     }
 }

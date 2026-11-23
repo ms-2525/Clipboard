@@ -3,12 +3,52 @@
 
   <FontFamily x:Key="UiFont">pack://application:,,,/Assets/Fonts/#Manrope</FontFamily>
 
+  <!-- Surfaces (docs\DESIGN-contrast.md §0.3) -->
   <SolidColorBrush x:Key="App"      Color="#F2F3F5"/>
   <SolidColorBrush x:Key="Surface"  Color="#FFFFFF"/>
   <SolidColorBrush x:Key="Raised"   Color="#ECEEF1"/>
+  <SolidColorBrush x:Key="Field"    Color="#F3F4F6"/>
+
+  <!-- Text levels; light column re-solved for the worst surface (Raised) -->
   <SolidColorBrush x:Key="Fg"       Color="#15171C"/>
-  <SolidColorBrush x:Key="Muted"    Color="#68707E"/>
-  <SolidColorBrush x:Key="Accent"   Color="#FF8A3D"/>
+  <SolidColorBrush x:Key="Fg75"     Color="#4A515B"/>
+  <SolidColorBrush x:Key="Fg55"     Color="#5F6673"/>
+  <SolidColorBrush x:Key="Fg48"     Color="#666E7B"/>
+  <SolidColorBrush x:Key="Fg40"     Color="#6B7280"/>
+  <SolidColorBrush x:Key="Fg35"     Color="#8A9099"/>
+  <SolidColorBrush x:Key="Muted"    Color="#586070"/>
+  <SolidColorBrush x:Key="Placeholder" Color="#69696E"/>
+
   <SolidColorBrush x:Key="Hairline" Color="#E2E5EA"/>
+  <SolidColorBrush x:Key="Divider"  Color="#E2E5EA"/>
+
+  <!-- Accent stays #FF8A3D for fills; AccentText carries accent-coloured type/rails -->
+  <SolidColorBrush x:Key="Accent"     Color="#FF8A3D"/>
+  <SolidColorBrush x:Key="AccentText" Color="#B84900"/>
+  <SolidColorBrush x:Key="OnAccent"   Color="#FFFFFF"/>
+  <SolidColorBrush x:Key="ControlLine" Color="#7F8691"/>
+  <SolidColorBrush x:Key="Error"      Color="#CC2E33"/>
+
+  <SolidColorBrush x:Key="Sage"   Color="#686C47"/>
+  <SolidColorBrush x:Key="Amber"  Color="#826000"/>
+  <SolidColorBrush x:Key="Sky"    Color="#046C99"/>
+  <SolidColorBrush x:Key="Violet" Color="#7347E8"/>
+
+  <!-- States: ink-alpha overlays, tint capped at 8 % -->
+  <SolidColorBrush x:Key="RowHover"      Color="#E9EAED"/>
+  <SolidColorBrush x:Key="RowSelected"   Color="#F3EBE6"/>
+  <SolidColorBrush x:Key="SelectionRing" Color="#F6D4BE"/>
+  <LinearGradientBrush x:Key="SelectionRail" StartPoint="0,0" EndPoint="0,1">
+    <GradientStop Offset="0" Color="#B84900"/>
+    <GradientStop Offset="1" Color="#8F3A00"/>
+  </LinearGradientBrush>
+  <SolidColorBrush x:Key="PulseFill" Color="#E8EAE9"/>
+  <SolidColorBrush x:Key="PulseRing" Color="#C9CAC1"/>
+
+  <SolidColorBrush x:Key="KeycapBackground" Color="#E6E8EC"/>
+  <SolidColorBrush x:Key="KeycapLine"       Color="#C4C8CF"/>
+  <SolidColorBrush x:Key="BadgeBackground"  Color="#EDEFF2"/>
+  <SolidColorBrush x:Key="TileBackground"   Color="#F0F2F5"/>
+  <SolidColorBrush x:Key="ScrollThumb"      Color="#B7BCC6"/>
 
 </ResourceDictionary>

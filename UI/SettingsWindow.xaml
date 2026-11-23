@@ -9,30 +9,16 @@
         TextOptions.TextFormattingMode="Display" TextOptions.TextRenderingMode="Grayscale">
 
   <Window.Resources>
-    <!-- Corrected tokens from docs\DESIGN-contrast.md §4/§7. The theme dictionaries do not ship
-         them yet and this sprint may not edit them, so the window carries one table (dark values)
-         and ApplyTokens() replaces it with the light column. DynamicResource because WPF freezes
-         brushes it parses. -->
-    <SolidColorBrush x:Key="TokMuted"       Color="#9BA1AC"/>
-    <SolidColorBrush x:Key="TokTitle"       Color="#C4C5C6"/>
-    <SolidColorBrush x:Key="TokLabel"       Color="#848588"/>
-    <SolidColorBrush x:Key="TokError"       Color="#FF6B6B"/>
-    <SolidColorBrush x:Key="TokControlLine" Color="#666C7C"/>
-    <SolidColorBrush x:Key="TokOnAccent"    Color="#08090C"/>
-    <SolidColorBrush x:Key="TokAccentText"  Color="#FF8A3D"/>
-    <SolidColorBrush x:Key="TokDivider"     Color="#212329"/>
-    <SolidColorBrush x:Key="TokField"       Color="#1F2126"/>
-
     <Style x:Key="Sect" TargetType="TextBlock">
       <Setter Property="FontSize" Value="10"/><Setter Property="LineHeight" Value="14"/>
       <Setter Property="FontWeight" Value="SemiBold"/>
-      <Setter Property="Foreground" Value="{DynamicResource TokLabel}"/>
+      <Setter Property="Foreground" Value="{DynamicResource Fg48}"/>
       <Setter Property="Margin" Value="0,12,0,12"/>
     </Style>
 
     <Style x:Key="Card" TargetType="Border">
-      <Setter Property="Background" Value="{StaticResource Surface}"/>
-      <Setter Property="BorderBrush" Value="{StaticResource Hairline}"/>
+      <Setter Property="Background" Value="{DynamicResource Surface}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource Hairline}"/>
       <Setter Property="BorderThickness" Value="1"/>
       <Setter Property="CornerRadius" Value="12"/>
       <Setter Property="Padding" Value="14"/>
@@ -41,20 +27,20 @@
     <Style x:Key="Title" TargetType="TextBlock">
       <Setter Property="FontSize" Value="13"/><Setter Property="LineHeight" Value="18"/>
       <Setter Property="FontWeight" Value="Medium"/>
-      <Setter Property="Foreground" Value="{DynamicResource TokTitle}"/>
+      <Setter Property="Foreground" Value="{DynamicResource Fg75}"/>
       <Setter Property="VerticalAlignment" Value="Center"/>
     </Style>
 
     <Style x:Key="Desc" TargetType="TextBlock">
       <Setter Property="FontSize" Value="11"/><Setter Property="LineHeight" Value="16"/>
-      <Setter Property="Foreground" Value="{DynamicResource TokMuted}"/>
+      <Setter Property="Foreground" Value="{DynamicResource Muted}"/>
       <Setter Property="TextWrapping" Value="Wrap"/>
       <Setter Property="Margin" Value="0,2,0,0"/>
     </Style>
 
     <Style x:Key="Err" TargetType="TextBlock">
       <Setter Property="FontSize" Value="11"/><Setter Property="LineHeight" Value="16"/>
-      <Setter Property="Foreground" Value="{DynamicResource TokError}"/>
+      <Setter Property="Foreground" Value="{DynamicResource Error}"/>
       <Setter Property="TextWrapping" Value="Wrap"/>
       <Setter Property="Margin" Value="0,4,0,0"/>
       <Setter Property="Visibility" Value="Collapsed"/>
@@ -62,22 +48,22 @@
 
     <Style x:Key="Note" TargetType="TextBlock">
       <Setter Property="FontSize" Value="13"/><Setter Property="LineHeight" Value="18"/>
-      <Setter Property="Foreground" Value="{StaticResource Fg}"/>
+      <Setter Property="Foreground" Value="{DynamicResource Fg}"/>
       <Setter Property="TextWrapping" Value="Wrap"/>
     </Style>
 
     <Style x:Key="Field" TargetType="TextBox">
       <Setter Property="Width" Value="90"/><Setter Property="Height" Value="28"/>
       <Setter Property="FontSize" Value="12"/><Setter Property="FontWeight" Value="Medium"/>
-      <Setter Property="Foreground" Value="{StaticResource Fg}"/>
-      <Setter Property="Background" Value="{DynamicResource TokField}"/>
-      <Setter Property="BorderBrush" Value="{DynamicResource TokControlLine}"/>
+      <Setter Property="Foreground" Value="{DynamicResource Fg}"/>
+      <Setter Property="Background" Value="{DynamicResource Field}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource ControlLine}"/>
       <Setter Property="BorderThickness" Value="1"/>
       <Setter Property="Padding" Value="8,0"/><Setter Property="TextAlignment" Value="Right"/>
       <Setter Property="VerticalContentAlignment" Value="Center"/>
       <Setter Property="VerticalAlignment" Value="Center"/>
-      <Setter Property="CaretBrush" Value="{DynamicResource TokAccentText}"/>
-      <Setter Property="SelectionBrush" Value="{StaticResource Accent}"/>
+      <Setter Property="CaretBrush" Value="{DynamicResource AccentText}"/>
+      <Setter Property="SelectionBrush" Value="{DynamicResource Accent}"/>
       <Setter Property="Typography.NumeralAlignment" Value="Tabular"/>
       <Setter Property="Template">
         <Setter.Value>
@@ -91,7 +77,7 @@
             </Border>
             <ControlTemplate.Triggers>
               <Trigger Property="IsKeyboardFocused" Value="True">
-                <Setter TargetName="B" Property="BorderBrush" Value="{DynamicResource TokAccentText}"/>
+                <Setter TargetName="B" Property="BorderBrush" Value="{DynamicResource AccentText}"/>
               </Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
@@ -102,8 +88,8 @@
     <Style x:Key="Primary" TargetType="Button">
       <Setter Property="Height" Value="32"/><Setter Property="Padding" Value="12,0"/>
       <Setter Property="FontSize" Value="12"/><Setter Property="FontWeight" Value="SemiBold"/>
-      <Setter Property="Foreground" Value="{DynamicResource TokOnAccent}"/>
-      <Setter Property="Background" Value="{DynamicResource TokAccentText}"/>
+      <Setter Property="Foreground" Value="{DynamicResource OnAccent}"/>
+      <Setter Property="Background" Value="{DynamicResource AccentText}"/>
       <Setter Property="Cursor" Value="Hand"/>
       <Setter Property="Template">
         <Setter.Value>
@@ -121,7 +107,7 @@
                 <Setter TargetName="B" Property="Opacity" Value="0.8"/>
               </Trigger>
               <Trigger Property="IsKeyboardFocused" Value="True">
-                <Setter TargetName="B" Property="BorderBrush" Value="{DynamicResource TokOnAccent}"/>
+                <Setter TargetName="B" Property="BorderBrush" Value="{DynamicResource OnAccent}"/>
               </Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
@@ -132,7 +118,7 @@
     <Style x:Key="Ghost" TargetType="Button">
       <Setter Property="Height" Value="32"/><Setter Property="Padding" Value="12,0"/>
       <Setter Property="FontSize" Value="12"/>
-      <Setter Property="Foreground" Value="{DynamicResource TokMuted}"/>
+      <Setter Property="Foreground" Value="{DynamicResource Muted}"/>
       <Setter Property="Background" Value="Transparent"/>
       <Setter Property="Cursor" Value="Hand"/>
       <Setter Property="Template">
@@ -145,11 +131,11 @@
             </Border>
             <ControlTemplate.Triggers>
               <Trigger Property="IsMouseOver" Value="True">
-                <Setter TargetName="B" Property="Background" Value="{StaticResource Raised}"/>
-                <Setter Property="Foreground" Value="{StaticResource Fg}"/>
+                <Setter TargetName="B" Property="Background" Value="{DynamicResource Raised}"/>
+                <Setter Property="Foreground" Value="{DynamicResource Fg}"/>
               </Trigger>
               <Trigger Property="IsKeyboardFocused" Value="True">
-                <Setter TargetName="B" Property="BorderBrush" Value="{DynamicResource TokControlLine}"/>
+                <Setter TargetName="B" Property="BorderBrush" Value="{DynamicResource ControlLine}"/>
               </Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
@@ -172,22 +158,22 @@
         <Setter.Value>
           <ControlTemplate TargetType="CheckBox">
             <Border x:Name="Track" Width="38" Height="22" CornerRadius="11"
-                    Background="{DynamicResource TokField}"
-                    BorderBrush="{DynamicResource TokControlLine}" BorderThickness="1">
+                    Background="{DynamicResource Field}"
+                    BorderBrush="{DynamicResource ControlLine}" BorderThickness="1">
               <Border x:Name="Knob" Width="16" Height="16" CornerRadius="8"
-                      Background="{DynamicResource TokMuted}" Margin="2,0,0,0"
+                      Background="{DynamicResource Muted}" Margin="2,0,0,0"
                       HorizontalAlignment="Left"/>
             </Border>
             <ControlTemplate.Triggers>
               <Trigger Property="IsChecked" Value="True">
-                <Setter TargetName="Track" Property="Background" Value="{DynamicResource TokAccentText}"/>
-                <Setter TargetName="Track" Property="BorderBrush" Value="{DynamicResource TokAccentText}"/>
-                <Setter TargetName="Knob" Property="Background" Value="{DynamicResource TokOnAccent}"/>
+                <Setter TargetName="Track" Property="Background" Value="{DynamicResource AccentText}"/>
+                <Setter TargetName="Track" Property="BorderBrush" Value="{DynamicResource AccentText}"/>
+                <Setter TargetName="Knob" Property="Background" Value="{DynamicResource OnAccent}"/>
                 <Setter TargetName="Knob" Property="HorizontalAlignment" Value="Right"/>
                 <Setter TargetName="Knob" Property="Margin" Value="0,0,2,0"/>
               </Trigger>
               <Trigger Property="IsKeyboardFocused" Value="True">
-                <Setter TargetName="Track" Property="BorderBrush" Value="{DynamicResource TokAccentText}"/>
+                <Setter TargetName="Track" Property="BorderBrush" Value="{DynamicResource AccentText}"/>
               </Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
@@ -197,7 +183,7 @@
 
     <Style x:Key="Seg" TargetType="RadioButton">
       <Setter Property="FontSize" Value="11"/>
-      <Setter Property="Foreground" Value="{DynamicResource TokMuted}"/>
+      <Setter Property="Foreground" Value="{DynamicResource Muted}"/>
       <Setter Property="Cursor" Value="Hand"/>
       <Setter Property="Template">
         <Setter.Value>
@@ -208,15 +194,15 @@
             </Border>
             <ControlTemplate.Triggers>
               <Trigger Property="IsMouseOver" Value="True">
-                <Setter TargetName="P" Property="Background" Value="{StaticResource Raised}"/>
+                <Setter TargetName="P" Property="Background" Value="{DynamicResource Raised}"/>
               </Trigger>
               <Trigger Property="IsChecked" Value="True">
-                <Setter TargetName="P" Property="Background" Value="{DynamicResource TokAccentText}"/>
-                <Setter Property="Foreground" Value="{DynamicResource TokOnAccent}"/>
+                <Setter TargetName="P" Property="Background" Value="{DynamicResource AccentText}"/>
+                <Setter Property="Foreground" Value="{DynamicResource OnAccent}"/>
                 <Setter Property="FontWeight" Value="SemiBold"/>
               </Trigger>
               <Trigger Property="IsKeyboardFocused" Value="True">
-                <Setter TargetName="P" Property="BorderBrush" Value="{DynamicResource TokOnAccent}"/>
+                <Setter TargetName="P" Property="BorderBrush" Value="{DynamicResource OnAccent}"/>
               </Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
@@ -225,8 +211,8 @@
     </Style>
 
     <Style x:Key="SegBox" TargetType="Border">
-      <Setter Property="Background" Value="{DynamicResource TokField}"/>
-      <Setter Property="BorderBrush" Value="{DynamicResource TokControlLine}"/>
+      <Setter Property="Background" Value="{DynamicResource Field}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource ControlLine}"/>
       <Setter Property="BorderThickness" Value="1"/>
       <Setter Property="CornerRadius" Value="8"/>
       <Setter Property="Padding" Value="2"/>
@@ -235,7 +221,7 @@
     <Style x:Key="Pin" TargetType="ToggleButton">
       <Setter Property="Height" Value="28"/><Setter Property="Padding" Value="10,0"/>
       <Setter Property="FontSize" Value="12"/>
-      <Setter Property="Foreground" Value="{DynamicResource TokMuted}"/>
+      <Setter Property="Foreground" Value="{DynamicResource Muted}"/>
       <Setter Property="Background" Value="Transparent"/>
       <Setter Property="Cursor" Value="Hand"/>
       <Setter Property="VerticalAlignment" Value="Center"/>
@@ -243,18 +229,18 @@
         <Setter.Value>
           <ControlTemplate TargetType="ToggleButton">
             <Border x:Name="B" Background="{TemplateBinding Background}" CornerRadius="8"
-                    BorderBrush="{DynamicResource TokControlLine}" BorderThickness="1"
+                    BorderBrush="{DynamicResource ControlLine}" BorderThickness="1"
                     Padding="{TemplateBinding Padding}">
               <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Border>
             <ControlTemplate.Triggers>
               <Trigger Property="IsMouseOver" Value="True">
-                <Setter TargetName="B" Property="Background" Value="{StaticResource Raised}"/>
+                <Setter TargetName="B" Property="Background" Value="{DynamicResource Raised}"/>
               </Trigger>
               <Trigger Property="IsChecked" Value="True">
-                <Setter TargetName="B" Property="Background" Value="{DynamicResource TokAccentText}"/>
-                <Setter TargetName="B" Property="BorderBrush" Value="{DynamicResource TokAccentText}"/>
-                <Setter Property="Foreground" Value="{DynamicResource TokOnAccent}"/>
+                <Setter TargetName="B" Property="Background" Value="{DynamicResource AccentText}"/>
+                <Setter TargetName="B" Property="BorderBrush" Value="{DynamicResource AccentText}"/>
+                <Setter Property="Foreground" Value="{DynamicResource OnAccent}"/>
                 <Setter Property="FontWeight" Value="SemiBold"/>
               </Trigger>
             </ControlTemplate.Triggers>
@@ -264,8 +250,8 @@
     </Style>
   </Window.Resources>
 
-  <Border Background="{StaticResource App}" CornerRadius="14"
-          BorderBrush="{StaticResource Hairline}" BorderThickness="1">
+  <Border Background="{DynamicResource App}" CornerRadius="14"
+          BorderBrush="{DynamicResource Hairline}" BorderThickness="1">
     <Border.Effect>
       <DropShadowEffect BlurRadius="28" ShadowDepth="6" Opacity="0.55" Color="#000000"/>
     </Border.Effect>
@@ -280,31 +266,31 @@
 
       <!-- Header band, also the drag handle. -->
       <Border Grid.Row="0" Height="48" Padding="20,0" Background="Transparent"
-              BorderBrush="{DynamicResource TokDivider}" BorderThickness="0,0,0,1"
+              BorderBrush="{DynamicResource Divider}" BorderThickness="0,0,0,1"
               MouseLeftButtonDown="OnDrag">
         <StackPanel VerticalAlignment="Center">
           <TextBlock Text="Settings" FontSize="13" LineHeight="18" FontWeight="SemiBold"
-                     Foreground="{StaticResource Fg}"/>
+                     Foreground="{DynamicResource Fg}"/>
           <TextBlock Text="Changes apply when you save." FontSize="11" LineHeight="16"
-                     Foreground="{DynamicResource TokMuted}"/>
+                     Foreground="{DynamicResource Muted}"/>
         </StackPanel>
       </Border>
 
       <!-- Flat tabs: text + 2px accent underline, no TabControl chrome. -->
       <Border Grid.Row="1" Height="45" Padding="20,10"
-              BorderBrush="{DynamicResource TokDivider}" BorderThickness="0,0,0,1">
+              BorderBrush="{DynamicResource Divider}" BorderThickness="0,0,0,1">
         <StackPanel Orientation="Horizontal">
           <StackPanel x:Name="TabGeneral" Background="Transparent" Cursor="Hand"
                       MouseLeftButtonUp="OnGeneralTab">
             <TextBlock x:Name="TabGeneralText" Text="General" FontSize="13" LineHeight="18"/>
             <Rectangle x:Name="TabGeneralBar" Height="2" Margin="0,4,0,0"
-                       Fill="{DynamicResource TokAccentText}"/>
+                       Fill="{DynamicResource AccentText}"/>
           </StackPanel>
           <StackPanel x:Name="TabNotification" Background="Transparent" Cursor="Hand"
                       Margin="18,0,0,0" MouseLeftButtonUp="OnNotificationTab">
             <TextBlock x:Name="TabNotificationText" Text="Notification" FontSize="13" LineHeight="18"/>
             <Rectangle x:Name="TabNotificationBar" Height="2" Margin="0,4,0,0"
-                       Fill="{DynamicResource TokAccentText}" Visibility="Collapsed"/>
+                       Fill="{DynamicResource AccentText}" Visibility="Collapsed"/>
           </StackPanel>
         </StackPanel>
       </Border>
@@ -318,13 +304,13 @@
             <Border Style="{StaticResource Card}">
               <StackPanel>
                 <DockPanel>
-                  <TextBox x:Name="HotkeyBox" DockPanel.Dock="Right" Style="{StaticResource Field}"
+                  <TextBox x:Name="HotkeyBox" DockPanel.Dock="Right" Style="{DynamicResource Field}"
                            Width="150" IsReadOnly="True" IsReadOnlyCaretVisible="False"
                            PreviewKeyDown="OnHotkeyKeyDown"/>
                   <TextBlock Text="Open the list" Style="{StaticResource Title}"/>
                 </DockPanel>
                 <DockPanel Margin="0,12,0,0">
-                  <TextBox x:Name="PlainHotkeyBox" DockPanel.Dock="Right" Style="{StaticResource Field}"
+                  <TextBox x:Name="PlainHotkeyBox" DockPanel.Dock="Right" Style="{DynamicResource Field}"
                            Width="150" IsReadOnly="True" IsReadOnlyCaretVisible="False"
                            PreviewKeyDown="OnHotkeyKeyDown"/>
                   <TextBlock Text="Paste as plain text" Style="{StaticResource Title}"/>
@@ -340,7 +326,7 @@
               <StackPanel>
                 <StackPanel>
                   <DockPanel>
-                    <TextBox x:Name="MaxItemsBox" DockPanel.Dock="Right" Style="{StaticResource Field}"
+                    <TextBox x:Name="MaxItemsBox" DockPanel.Dock="Right" Style="{DynamicResource Field}"
                              PreviewTextInput="OnNumberInput"/>
                     <StackPanel>
                       <TextBlock Text="Clips kept" Style="{StaticResource Title}"/>
@@ -354,7 +340,7 @@
 
                 <StackPanel Margin="0,12,0,0">
                   <DockPanel>
-                    <TextBox x:Name="PreviewLinesBox" DockPanel.Dock="Right" Style="{StaticResource Field}"
+                    <TextBox x:Name="PreviewLinesBox" DockPanel.Dock="Right" Style="{DynamicResource Field}"
                              PreviewTextInput="OnNumberInput"/>
                     <StackPanel>
                       <TextBlock Text="Lines per clip" Style="{StaticResource Title}"/>
@@ -441,7 +427,7 @@
 
                 <StackPanel Margin="0,12,0,0">
                   <DockPanel>
-                    <TextBox x:Name="DurationBox" DockPanel.Dock="Right" Style="{StaticResource Field}"
+                    <TextBox x:Name="DurationBox" DockPanel.Dock="Right" Style="{DynamicResource Field}"
                              PreviewTextInput="OnNumberInput" TextChanged="OnNotifTextChanged"/>
                     <TextBlock Text="Time on screen (ms)" Style="{StaticResource Title}"/>
                   </DockPanel>
@@ -451,7 +437,7 @@
 
                 <StackPanel Margin="0,12,0,0">
                   <DockPanel>
-                    <TextBox x:Name="MaxLinesBox" DockPanel.Dock="Right" Style="{StaticResource Field}"
+                    <TextBox x:Name="MaxLinesBox" DockPanel.Dock="Right" Style="{DynamicResource Field}"
                              PreviewTextInput="OnNumberInput" TextChanged="OnNotifTextChanged"/>
                     <TextBlock Text="Lines shown" Style="{StaticResource Title}"/>
                   </DockPanel>
@@ -461,7 +447,7 @@
 
                 <StackPanel Margin="0,12,0,0">
                   <DockPanel>
-                    <TextBox x:Name="WidthBox" DockPanel.Dock="Right" Style="{StaticResource Field}"
+                    <TextBox x:Name="WidthBox" DockPanel.Dock="Right" Style="{DynamicResource Field}"
                              PreviewTextInput="OnNumberInput" TextChanged="OnNotifTextChanged"/>
                     <TextBlock Text="Width (px)" Style="{StaticResource Title}"/>
                   </DockPanel>
@@ -471,7 +457,7 @@
 
                 <StackPanel Margin="0,12,0,0">
                   <DockPanel>
-                    <TextBox x:Name="HeightBox" DockPanel.Dock="Right" Style="{StaticResource Field}"
+                    <TextBox x:Name="HeightBox" DockPanel.Dock="Right" Style="{DynamicResource Field}"
                              PreviewTextInput="OnNumberInput" TextChanged="OnNotifTextChanged"/>
                     <TextBlock Text="Height (px)" Style="{StaticResource Title}"/>
                   </DockPanel>
@@ -499,7 +485,7 @@
 
                 <StackPanel Margin="0,12,0,0">
                   <DockPanel>
-                    <TextBox x:Name="OffsetXBox" DockPanel.Dock="Right" Style="{StaticResource Field}"
+                    <TextBox x:Name="OffsetXBox" DockPanel.Dock="Right" Style="{DynamicResource Field}"
                              Tag="signed" PreviewTextInput="OnNumberInput" TextChanged="OnNotifTextChanged"/>
                     <StackPanel>
                       <TextBlock Text="Horizontal offset" Style="{StaticResource Title}"/>
@@ -512,7 +498,7 @@
 
                 <StackPanel Margin="0,12,0,0">
                   <DockPanel>
-                    <TextBox x:Name="OffsetYBox" DockPanel.Dock="Right" Style="{StaticResource Field}"
+                    <TextBox x:Name="OffsetYBox" DockPanel.Dock="Right" Style="{DynamicResource Field}"
                              Tag="signed" PreviewTextInput="OnNumberInput" TextChanged="OnNotifTextChanged"/>
                     <TextBlock Text="Vertical offset" Style="{StaticResource Title}"/>
                   </DockPanel>
@@ -539,7 +525,7 @@
         </StackPanel>
       </ScrollViewer>
 
-      <Border Grid.Row="3" BorderBrush="{DynamicResource TokDivider}" BorderThickness="0,1,0,0"
+      <Border Grid.Row="3" BorderBrush="{DynamicResource Divider}" BorderThickness="0,1,0,0"
               Padding="20,12">
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
           <Button Content="Cancel" Style="{StaticResource Ghost}" Click="OnCloseClick"

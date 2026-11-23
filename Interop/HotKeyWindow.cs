@@ -1,11 +1,10 @@
 using System;
-using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Windows.Interop;
 
 namespace Clip.Interop
 {
-    /// <summary>Global hotkey on a message-only window.</summary>
+    /// <summary>Global hotkey on a message-only window. Parsing is explicit: Keys' friendly names would map "1" to a mouse button.</summary>
     internal sealed class HotKeyWindow : IDisposable
     {
         const int WM_HOTKEY = 0x0312;
@@ -14,14 +13,31 @@ namespace Clip.Interop
         readonly HwndSource _src;
         readonly Action _pressed;
 
+        public bool Registered { get; }
+        public string Combo { get; }
+
         public HotKeyWindow(string combo, Action pressed)
         {
             _pressed = pressed;
+            Combo = combo ?? "";
             var p = new HwndSourceParameters("ClipHotkey") { ParentWindow = (IntPtr)(-3) }; // -3 == HWND_MESSAGE
             _src = new HwndSource(p);
 
-            uint mods = 0;
-            uint vk = 0;
+            Parse(Combo, out uint mods, out uint vk);
+            // A modifier-less or key-less binding is a settings error, not something to silently register.
+            if (mods != 0 && vk != 0)
+                Registered = RegisterHotKey(_src.Handle, 1, mods, vk);
+
+            _src.AddHook(Hook);
+        }
+
+        /// <summary>Friendly names Settings emits: A–Z, 0–9, F1–F24 and the OEM key rows (` - = [ ] ; ' , . / \).</summary>
+        static void Parse(string combo, out uint mods, out uint vk)
+        {
+            mods = 0;
+            vk = 0;
+            if (string.IsNullOrWhiteSpace(combo)) return;
+
             foreach (var raw in combo.Split('+'))
             {
                 var part = raw.Trim().ToLowerInvariant();
@@ -33,24 +49,68 @@ namespace Clip.Interop
                     case "shift": mods |= MOD_SHIFT; break;
                     case "win": mods |= MOD_WIN; break;
                     default:
-                        if (Enum.TryParse<System.Windows.Forms.Keys>(part, true, out var k) && k != System.Windows.Forms.Keys.None)
-                            vk = (uint)k;
+                        if (part.Length > 0)
+                        {
+                            uint mapped = VirtualKey(part);
+                            if (mapped != 0) vk = mapped;
+                        }
                         break;
                 }
             }
-            if (vk == 0) { mods = MOD_ALT; vk = 0x56; } // Alt+V
+        }
 
-            if (!RegisterHotKey(_src.Handle, 1, mods, vk))
+        static uint VirtualKey(string part)
+        {
+            if (part.Length == 1)
             {
-                var product = Assembly.GetEntryAssembly().GetName().Name;
-                // Deferred: a modal box here would block OnStartup, so the tray would never be built.
-                System.Windows.Application.Current.Dispatcher.BeginInvoke(() =>
-                    System.Windows.MessageBox.Show(
-                        $"Could not register the hotkey '{combo}' — another app may own it. {product} will run without it.",
-                        product));
+                char c = part[0];
+                if (c >= 'a' && c <= 'z') return (uint)(0x41 + (c - 'a'));
+                if (c >= '0' && c <= '9') return (uint)(0x30 + (c - '0'));
+                switch (c)
+                {
+                    case '`': return 0xC0;  // VK_OEM_3
+                    case '-': return 0xBD;  // VK_OEM_MINUS
+                    case '=': return 0xBB;  // VK_OEM_PLUS
+                    case '[': return 0xDB;  // VK_OEM_4
+                    case ']': return 0xDD;  // VK_OEM_6
+                    case ';': return 0xBA;  // VK_OEM_1
+                    case '\'': return 0xDE; // VK_OEM_7
+                    case ',': return 0xBC;  // VK_OEM_COMMA
+                    case '.': return 0xBE;  // VK_OEM_PERIOD
+                    case '/': return 0xBF;  // VK_OEM_2
+                    case '\\': return 0xDC; // VK_OEM_5
+                }
+                return 0;
             }
 
-            _src.AddHook(Hook);
+            if (part[0] == 'f' && int.TryParse(part.Substring(1), out int fn) && fn >= 1 && fn <= 24)
+                return (uint)(0x70 + fn - 1);
+
+            switch (part)
+            {
+                case "space": return 0x20;
+                case "enter":
+                case "return": return 0x0D;
+                case "tab": return 0x09;
+                case "escape":
+                case "esc": return 0x1B;
+                case "backspace": return 0x08;
+                case "insert": return 0x2D;
+                case "delete": return 0x2E;
+                case "home": return 0x24;
+                case "end": return 0x23;
+                case "pageup": return 0x21;
+                case "pagedown": return 0x22;
+                case "left": return 0x25;
+                case "up": return 0x26;
+                case "right": return 0x27;
+                case "down": return 0x28;
+                case "printscreen": return 0x2C;
+                case "pause": return 0x13;
+                case "numlock": return 0x90;
+                case "capslock": return 0x14;
+            }
+            return 0;
         }
 
         IntPtr Hook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
@@ -65,7 +125,7 @@ namespace Clip.Interop
 
         public void Dispose()
         {
-            UnregisterHotKey(_src.Handle, 1);
+            if (Registered) UnregisterHotKey(_src.Handle, 1);
             _src.Dispose();
         }
 

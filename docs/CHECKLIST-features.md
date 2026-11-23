@@ -23,7 +23,7 @@ No item may be marked from a sub-agent's self-report alone.
 - ✅ `[H]` SQLite `%APPDATA%\Clip\clip.db`, spec §5 schema + `rtf` column + `item_formats` table; idempotent migration on existing DBs
 - ✅ `[H]` 200-item cap (config `maxItems`): oldest evicted, format blobs purged, zero orphans — **eviction never removes pinned rows** (core-fix verified; cap semantics: bounds UNPINNED items, pinned are extra — owner confirmation pending, flip to cap-on-total if wanted)
 - ✅ `[H]` Zero idle CPU (event-driven, no polling); hotkey→popup < 150 ms; measured live in S3 acceptance
-- ⬜ `[L]` **RAM (owner-approved 23 Nov 2026): idle ≤ 150 MB Release, hard ceiling 250 MB at ANY time** — floor reality: bare WPF measures ~111 MB on this machine. Protocol: idle sample at startup + worst-case sample after heavy use (scroll 200 items, open several rich previews incl. a big table, images grid). Only one HtmlPanel alive at a time (by design) is the primary containment; no artificial working-set trimming.
+- 🟡 `[L]` **RAM (owner-approved): idle ≤ 150 MB ✅ PASS (S3 live: 111–113 MB) · hard ceiling 250 MB ❌ FAIL (S3 live: peak 253.7 MB across 25 rich previews, 238–240 MB retained after hide; panel-drop fix already saved 5 MB)** — fix sprint closes the last ~4 MB of rich-preview retention and re-measures under the full protocol
 
 ## 2. Popup & keyboard contract (owner-frozen)
 - ✅ `[L]` Alt+V global hotkey, rebindable via config/settings; hotkey conflict shows a clear message
@@ -33,7 +33,7 @@ No item may be marked from a sub-agent's self-report alone.
 - ⬜ `[L]` **Esc #1 clears search** (list returns, caret stays in search); **Esc #2 hides popup**
 - ⬜ `[L]` Focus-loss (clicking away) hides popup
 - ⬜ `[L]` ↑/↓ navigate items, selected item scrolls into view
-- ⬜ `[L]` Enter pastes selected; Ctrl+1..9 pastes nth visible item
+- 🟡 `[L]` **Enter pastes selected — VERIFIED live in S3** (sentinel text landed in Notepad, focus returned); Ctrl+1..9 pastes nth visible item ⬜ (not yet tested live)
 - ⬜ `[L]` **Delete in list context = delete the item** (CRUD); in **edit mode = character right-delete**, never the item
 - ⬜ `[L]` Popup is **draggable** (drag anywhere on the background)
 - ⬜ `[L]` Search placeholder text visible when empty
@@ -43,8 +43,8 @@ No item may be marked from a sub-agent's self-report alone.
 - ⬜ `[L]` **IME composition gate**: while a Hindi/Chinese/Japanese composition is open, Esc cancels the composition (NOT the popup) and Enter commits it (never pastes) — docs\RESEARCH-keyboard-ux.md; protects real input work
 - ⬜ `[L]` **Type-to-search from anywhere**: a printable key while focus is on the list redirects into the search box (closes the dead state after F2 closes); **Tab/Shift+Tab = no-op** in the popup
 - ⬜ `[L]` Aliases: **Ctrl+Tab / Ctrl+Shift+Tab** also switch tabs; **Ctrl+↑/↓** jump between time sections (Today/Yesterday…)
-- ⬜ `[L]` **Shift+Enter = paste selected as PLAIN text** (fixes the latent bug where it pastes formatted); **Ctrl+C = copy-without-paste** (guarded: only when no text is selected in the query; self-paste suppression applies)
-- ⬜ `[L]` **Ctrl+Z = one-level undo of item deletion** — Core `Restore(item)` per docs\RESEARCH-keyboard-ux.md §9 (queued Core polish sprint; depends on `ClipboardItem.TabId`, which S3 adds)
+- 🟡 `[L]` **Shift+Enter = paste selected as PLAIN text** ⬜ (not yet tested live); **Ctrl+C = copy-without-paste — VERIFIED live in S3** (clipboard read back `COPY-BACK-ONE 1`, no paste fired)
+- ✅ `[L]` **Ctrl+Z = one-level undo of item deletion — VERIFIED live in S3** (Delete removes the row, Ctrl+Z restores it; Core `Restore(item)` round-trip already proven `[H]`)
 - ⬜ `[L]` **Context menu on rows** (right-click / Menu key / Shift+F10) — one surface exposing the seven existing commands (paste, paste-plain, edit/pin/move-to-tab, delete, open-image)
 - ⬜ `[L]` **Esc cascade, one ordered function**: IME → editor discard prompt → tab-delete confirm → tab-name editor → Ctrl+M picker → F2 editor → clear search → hide popup
 - ⬜ `[U]` Selection stays stable when a live capture arrives while the popup is open
@@ -57,7 +57,7 @@ No item may be marked from a sub-agent's self-report alone.
 - ✅ `[H]` Self-paste suppression via clipboard sequence number (our own pastes never re-enter history)
 
 ## 4. Plain-text paste (CopyQ-style)
-- 🟡 `[L]` Global **Ctrl+Shift+V** (rebindable, config `hotkeyPlain`): newest item pasted as raw text, formatting stripped — proven `[H]`: RTF/HTML absent from clipboard after
+- ✅ `[L]` Global **Ctrl+Shift+V** (rebindable, config `hotkeyPlain`): newest item pasted as raw text — VERIFIED live in S3 (clipboard formats before `…, HTML Format` → after `String, UnicodeText, Text`)
 - ⬜ `[L]` Same shortcut with popup open = selected item as plain text
 
 ## 5. Rich text (render like rich text)
@@ -87,7 +87,7 @@ No item may be marked from a sub-agent's self-report alone.
 - ✅ `[H]` **Never deleted, structurally**: EnforceCap AND Clear are `tab_id IS NULL`-scoped; pinned/tab rows AND their formats survive; startup orphan sweep kept
 - ✅ `[H]` **Dedupe scoped per tab**: a pinned copy never swallows a fresh history copy (verified head-to-head)
 - ✅ `[H]` Tab CRUD: create/rename (blank/duplicate → `ArgumentException`/`false`); **delete purges items+formats and returns the count**; Pinned rejects delete/rename (`-1`/`false`) — the macOS keep-clips model is explicitly rejected
-- ⬜ `[L]` Keyboard: **Ctrl+M tab-picker** (primary move command, Ditto-proven), **Ctrl+Shift+←/→** adjacent-move fallback, Ctrl+T/Ctrl+W tab CRUD; Ctrl+1..9 stays paste-nth
+- 🟡 `[L]` Keyboard: **Ctrl+M tab-picker — VERIFIED live in S3** (opens, Esc closes); **Ctrl+T/Ctrl+W tab CRUD — VERIFIED live in S3** (created `work`, duplicate shows the red error, empty tab deletes, built-ins refuse); **Ctrl+Shift+←/→ adjacent-move ⬜** (not yet tested live); Ctrl+1..9 stays paste-nth ⬜
 - ✅ `[H]` **Same-second re-copy moves to top** — FIXED red-first (millisecond stamps `yyyy-MM-ddTHH:mm:ss.fff`, still lexically sortable; pre-fix observed `B,A` → post-fix `A,B`; mixed old/new format sort verified; Update/F2 also emits ms)
 - ✅ `[H]` **Pinned flag RETIRED** — single source of pin state is `tab_id`; migration adopts legacy pins then clears the column; nothing reads it again (mutation-verified)
 - ⬜ `[U]` Tab strip: flat text + 2px accent underline (no TabControl pills), per-tab counts ("Pinned · 4")
@@ -95,7 +95,7 @@ No item may be marked from a sub-agent's self-report alone.
 
 ## 8. F2 editor (owner-frozen)
 - ⬜ `[U]` F2 opens editor for selected text/rich item; caret in content
-- ⬜ `[L]` **Ctrl+S saves & closes**, list refreshed in place
+- ✅ `[L]` **Ctrl+S saves & closes, list refreshed in place — VERIFIED live in S3** (typed edit, row updated in place with fresh timestamp)
 - ⬜ `[L]` **Esc or F2 with unsaved changes asks "Discard changes?"** (Yes=close without saving, No=keep editing); no changes → closes silently
 - ⬜ `[L]` Rich items edit with formatting preserved (RichTextBox); plain items in multiline TextBox
 - ⬜ `[L]` On close, focus returns to the list at the same item
@@ -112,7 +112,7 @@ No item may be marked from a sub-agent's self-report alone.
 ## 10. Settings & autostart (owner-frozen)
 - 🟡 `[U]` Settings window: hotkey, plain-hotkey, max items, preview lines, notification (enabled/duration/width/height/position/offsets/maxLines), theme (dark/light/system), **time format 12h/24h**, start-on-login, clear history (with inline confirm) — S2 built + verified 69/69
 - ✅ `[H]` **Config.PreviewLines landed** (=10, JSON `previewLines`) — Axis-2; full build 0 errors / 0 warnings (forced recompile via OutDir redirect)
-- ⬜ `[L]` **S3 must-fix: HotKeyWindow parser accepts the friendly names Settings emits** — "1" currently parses as `Keys.LButton` (a mouse button) and silently breaks; needs digits "1"→D1 and OEM keys (`` ` `` `=` `[` … ) → VK mapping
+- 🟡 `[L]` **HotKeyWindow parser — FIXED in S3** (explicit friendly-name → VK map: digits, F-keys, OEM row; no silent fallback; exposes registration result) — live rebind test pending (Settings window not yet opened at runtime)
 - ⬜ `[L]` Settings wiring: tray Settings menu opens the window (currently disabled placeholder); SettingsSaved applies live (theme swap, hotkey re-register incl. conflict message, ClockFormat, notification); ClearHistoryRequested wipes MAIN HISTORY ONLY (tabs survive per §7)
 - ⬜ `[U]` Notification settings include the **live on-screen preview overlay** (exact placement, live updates, drag-to-set offsets, auto-hide + pin) and the Settings window is reorganized into tabs (General / Notification) — owner requirement 23 Nov; public API unchanged: ctor(Config), SettingsSaved, ClearHistoryRequested
 - 🟡 `[H]` Time format: `config.json "timeFormat"`, footer + notification honor 12h/24h; WasNew excludes from JSON
@@ -128,7 +128,7 @@ No item may be marked from a sub-agent's self-report alone.
 - ✅ `[H]` **Self-attribution leak fixed** — own-process copies attribute app=product, title="" (`ForegroundApp.Attribute` pure function, tested: internal title + own pid → `(ProcessName, "")`); Skipped-event toast wiring remains S3
 - ✅ `[L]` Position: top-left / top-right / bottom-left / bottom-right / center + pixel offsets, on the monitor of the **active window at capture time** (same multi-monitor rule as the popup; bottom-right verified at 150% DPI) (bottom-right verified at 150% DPI)
 - 🟡 `[U]` Width/height/duration/enabled all honored from config
-- ⬜ `[L]` **Toast window REUSED — one NotificationWindow instance for the whole session** (App currently creates a new one per capture; S0 measured +35–40 MB per toast, 116→252 MB). S3 must-fix; re-measured under the 150/250 MB protocol
+- 🟡 `[L]` **Toast window REUSED — wired in S3** (one NotificationWindow for the session: Hide-not-Close, timer reset, `ShowMessage`) — final RAM re-measure pending; peak still 253.7 MB → fix sprint
 - ✅ `[L]` Capture→toast latency ~400–600 ms after the 100 ms debounce — accepted trade-off (veteran debounce pattern; correctness over instant)
 - ⬜ `[L]` Skipped-capture notifications wired via CaptureService.Skipped (oversized images etc. — no more silent vanishing)
 
@@ -140,8 +140,8 @@ No item may be marked from a sub-agent's self-report alone.
 - 🔬 docs\RESEARCH-logic-best-practices.md ADOPT list (Ditto/CopyQ/PowerToys techniques; GPL = technique reference only)
 
 ## 13. Dependencies (library research, adopted)
-- ⬜ Packages resolve + app builds: HtmlRenderer.WPF 1.6.1, H.NotifyIcon.Wpf 2.4.1, RtfPipe (fallback-only), System.Text.Encoding.CodePages (required for RtfPipe on net10), Microsoft.Data.Sqlite — all restore-verified in spike
-- ⬜ `[L]` `Encoding.RegisterProvider(CodePagesEncodingProvider.Instance)` runs once at startup — WITHOUT it the first RTF fallback render crashes (TypeInitializationException, verified)
+- ✅ Packages resolve + app builds 0 errors / 0 warnings (S3 full Release build): HtmlRenderer.WPF 1.6.1, H.NotifyIcon.Wpf 2.4.1, RtfPipe (fallback-only), System.Text.Encoding.CodePages, Microsoft.Data.Sqlite
+- ✅ `[L]` `Encoding.RegisterProvider(CodePagesEncodingProvider.Instance)` runs at startup (S3 App wiring); rich previews rendered live with no TypeInitializationException (the crash-without-it was proven in the spike)
 - ⬜ Remote images in preview answered with a transparent 1×1 image (not a broken-image glyph) while http(s) loads stay cancelled
 - ⬜ Tray swapped to H.NotifyIcon (vector/themed) — menu must NOT rely on `ShowContextMenu` (routing failed in Win11 overflow; opening the same ContextMenu directly works — use positioned manual open or a click handler, and verify live with the icon pinned outside the overflow)
 - ⬜ No other dependencies added (keep-as-is list honored)
