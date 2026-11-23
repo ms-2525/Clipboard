@@ -94,13 +94,14 @@ No item may be marked from a sub-agent's self-report alone.
 - ⬜ `[U]` Tab strip: flat text + 2px accent underline (no TabControl pills), per-tab counts ("Pinned · 4") -- **S3 AUDIT: PASS** (counts present, no middle-dot separator, underline floats ~5 DIP above the strip rule -- zoom-tabstrip.png, P3)
 - ⬜ `[U]` ←/→ walks all tabs: Clipboard → Images → Pinned → custom… -- **S3 AUDIT: PASS** (tab-images.png, tab-pinned.png -- Clipboard -> Images -> Pinned by arrow key)
 
-## 8. F2 editor (owner-frozen)
-- ⬜ `[U]` F2 opens editor for selected text/rich item; caret in content -- **S3 AUDIT: PASS** (editor-pre.png, editor-rich-full.png -- caret in content; plain TextBox even for rich clips, see P2-2)
-- ✅ `[L]` **Ctrl+S saves & closes, list refreshed in place — VERIFIED live in S3** (typed edit, row updated in place with fresh timestamp)
-- ⬜ `[L]` **Esc or F2 with unsaved changes asks "Discard changes?"** (Yes=close without saving, No=keep editing); no changes → closes silently
-- ⬜ `[L]` Rich items edit with formatting preserved (RichTextBox); plain items in multiline TextBox
-- ⬜ `[L]` On close, focus returns to the list at the same item
-- ⬜ `[H]` Edits update text/html/rtf + timestamp and REPLACE the stored format blobs (never restores pre-edit Excel data) — already proven `[H]` in S1
+## 8. F2 editor (owner-frozen) — v2: ONE rich editor for everything
+- ⬜ `[L]` F2 opens the editor for selected text/rich item; caret in content (live popup pass = acceptance run; v2 scratch host already proves formatting loads)
+- ✅ `[L]` **Ctrl+S saves & closes** (v2: real Win32 Ctrl+S keystroke observed; save contract verified — text+RTF replaced, format blobs 1→0, reopen keeps formatting); list refreshed in place = live pass
+- ✅ `[H]` **Esc or F2 with unsaved changes → "Discard changes?"** (Yes=close without saving, No=keep editing); no changes → silent close — scratch-host asserted (g1–g3)
+- ✅ `[H]` **ONE rich editor for EVERY text clip** (owner directive §5): plain clips open in the same RichTextBox (no separate plain mode; failures show a VISIBLE notice bar, never silent); HTML-only clips convert via HtmlToRtf; >2 MB refused with a notice; malformed RTF → plain + notice. 52/52 harness assertions incl. Devanagari load + real Ctrl+B/Ctrl+S keystrokes
+- ✅ `[H]` **Formatting toolbar** (owner directive): B/I/U/S · size (points) · text colour · highlight · clear-formatting; toggles apply to the selection and reflect the caret state (reads the Span chain — naive Run reading can't see underline/strike); theme tokens only; keyboard-walkable (Shift+Tab path asserted)
+- ⬜ `[L]` On close, focus returns to the list at the same item (live pass = acceptance run)
+- ✅ `[H]` Edits update text/rtf + timestamp and REPLACE the stored format blobs (c1–c4: blobs 1→0, GetRich returns the new RTF; html regenerated only if the clip had html)
 
 ## 9. Dedupe (owner-frozen: EXACT = case-sensitive, space-sensitive, byte-exact)
 - ✅ `[H]` Re-copy existing text → exactly ONE entry, moved to top, fresh timestamp/app/formats; old entry gone
