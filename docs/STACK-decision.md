@@ -182,9 +182,14 @@ is directionally right but not a fair 8×.
 If the owner later chooses Tauri, it must pass the same feature checklist and clipboard matrix before
 cutover. The 11.7 MB, cross-platform build is the reason to revisit it — not RAM alone.
 
+**Owner decision (25 Nov): ship on the WPF host.** Both spikes were measured side by side; the owner
+kept the tested clipboard engine over the smaller Rust build. Rust + MSVC stay installed and harmless;
+Tauri remains a documented fallback only. The UI and the `Clip.Host` protocol are host-agnostic, so the
+React work is portable either way — the C# clipboard engine is the only one-way cost.
+
 ## Open risks
 
-1. Warm show may exceed 150 ms on the 2-vCPU VM; measure before committing the UI rewrite.
+1. Warm show: **measured 28.7 ms median — risk closed.**
 2. WebView2 airspace: no WPF overlay over the page; use in-page dialogs or native windows.
 3. IME composition and the Esc cascade move page-side; the existing matrix must be re-proven.
 4. HTML sanitization is new attack surface; strict allow-list, no network, CSP.
