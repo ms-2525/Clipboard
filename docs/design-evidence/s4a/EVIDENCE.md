@@ -48,9 +48,10 @@ at the top, the new row became row 01 and scrollTop stayed 0.
 
 Re-copy of an existing id (the store's dedupe bump, sent as `captured` with the same id): clip 10 moved
 from index 4 to index 0, its time changed 01:38 → 03:30 and its provenance title became
-`Recaptured · …`; `shown` stayed 497, selection stayed on id 1, scrollTop stayed 0. While scrolled to
-420 px, re-copying clip 11 (below the fold) moved scrollTop to 521 px (the moved row's 101 px) and the
-anchor row id 5 stayed at −110 px with selection on id 1: the data moved, the viewport did not.
+`Recaptured · …`; `shown` stayed 497, selection stayed on id 1, scrollTop stayed 0. A bare `{id}`
+reorder keeps the existing row's fields and only moves it. While scrolled to 420 px, re-copying clip 11
+(below the fold) moved scrollTop to 521 px (the moved row's 101 px) and the anchor row id 5 stayed at
+−110 px with selection on id 1: the data moved, the viewport did not.
 
 `skipped` shows `Skipped` + the host's reason (`Image skipped: 18.4 MB over the 12 MB limit`).
 `hotkeyFailed` shows `Hotkey unavailable` + `Alt+V is already used by another app.` Both are quiet

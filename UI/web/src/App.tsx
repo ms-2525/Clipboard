@@ -42,9 +42,12 @@ const isNotReady = (error: unknown) => /unknown method|not wired|not ready|phase
 /** A re-copied clip keeps its id; the store moves it to the top, so the row must move too. */
 function moveToTop(rows: ClipItem[], item: ClipItem): ClipItem[] {
   const at = rows.findIndex((row) => row.id === item.id)
-  if (at < 0) return [item, ...rows]
-  if (at === 0) return [item, ...rows.slice(1)]
-  return [item, ...rows.slice(0, at), ...rows.slice(at + 1)]
+  // A reorder notification may carry only the id; a full row carries a time and every field.
+  const merged = at >= 0 ? (item.time ? { ...rows[at], ...item } : rows[at]) : item.time ? item : null
+  if (!merged) return rows
+  if (at < 0) return [merged, ...rows]
+  if (at === 0) return [merged, ...rows.slice(1)]
+  return [merged, ...rows.slice(0, at), ...rows.slice(at + 1)]
 }
 
 export default function App() {
@@ -219,6 +222,8 @@ export default function App() {
   const visible = found?.items ?? items
   const visibleRef = useRef(visible)
   visibleRef.current = visible
+  const itemsRef = useRef(items)
+  itemsRef.current = items
 
   useEffect(() => {
     if (selectedId != null && visible.some((clip) => clip.id === selectedId)) return
@@ -365,7 +370,8 @@ export default function App() {
         if (event === 'captured') {
           const item = data as ClipItem | undefined
           if (!item || typeof item.id !== 'number') return
-          const belongs = tab === null ? item.tabId == null : item.tabId === tab
+          const known = itemsRef.current.some((row) => row.id === item.id)
+          const belongs = known || (tab === null ? item.tabId == null : item.tabId === tab)
           if (!belongs) return
           // A copy that already exists is reordered by the store; move that row and refresh its
           // fields instead of ignoring it. Selection is a separate id, so it does not move.
