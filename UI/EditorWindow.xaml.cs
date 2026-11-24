@@ -290,23 +290,6 @@ namespace Clip.UI
 
         static string Normalize(string text) => (text ?? "").TrimEnd('\r', '\n');
 
-        /// <summary>
-        /// The stored body is a Windows "HTML Format" payload with UTF-8 byte offsets, because every
-        /// paste-back consumer (Word, Chrome, Excel) reads that envelope and the captured clips already
-        /// carry the same one — Interop\HtmlFragment.Extract is its reader.
-        /// </summary>
-        static string CfHtml(string fragment)
-        {
-            const string header = "Version:0.9\r\nStartHTML:{0:D10}\r\nEndHTML:{1:D10}\r\nStartFragment:{2:D10}\r\nEndFragment:{3:D10}\r\n";
-            const string open = "<html><body><!--StartFragment-->";
-            const string close = "<!--EndFragment--></body></html>";
-            int headerLength = Encoding.UTF8.GetByteCount(string.Format(header, 0, 0, 0, 0));
-            int startFragment = headerLength + Encoding.UTF8.GetByteCount(open);
-            int endFragment = startFragment + Encoding.UTF8.GetByteCount(fragment);
-            int endHtml = endFragment + Encoding.UTF8.GetByteCount(close);
-            return string.Format(header, headerLength, endHtml, startFragment, endFragment) + open + fragment + close;
-        }
-
         async void SaveAndClose()
         {
             if (_saving) return;
@@ -329,7 +312,7 @@ namespace Clip.UI
                 }
 
                 _item.Text = Normalize(text);
-                _item.Html = CfHtml(html);
+                _item.Html = HtmlFragment.Wrap(html);
                 _item.Rtf = null;
                 if (!_store.Update(_item))
                 {

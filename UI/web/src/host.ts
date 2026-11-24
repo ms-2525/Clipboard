@@ -7,6 +7,7 @@
  * All clipboard writes go through the host; the page never touches payload data.
  */
 import { createMockHost } from './mock'
+import { toSettings, type HostConfig, type HostSettings, type SaveConfigResult, type SettingsPatch } from './settings'
 
 export type ClipKind = 'text' | 'rich' | 'image' | 'files'
 
@@ -49,20 +50,21 @@ export interface Counts {
   today?: number
 }
 
-export interface HostConfig {
-  theme?: 'light' | 'dark'
-  /** "24h" (default) or "12h"; the page formats list timestamps. */
-  timeFormat?: string
-  [key: string]: unknown
+export type { HostConfig, HostSettings, SettingsPatch, SaveConfigResult } from './settings'
+export { toSettings } from './settings'
+
+export interface EditorSaveResult {
+  saved: boolean
+  htmlLength?: number
+  error?: string
 }
 
 export interface InitResult {
   counts: Counts
   tabs: HostTab[]
-  config: HostConfig
+  config: HostSettings
   items: ClipItem[]
 }
-
 export interface ItemsQuery {
   tabId?: number | null
   offset?: number
@@ -112,6 +114,9 @@ export interface Host {
   moveToTab(params: { id: number; tabId: number | null }): Promise<void>
   hide(): Promise<void>
   exportClip(params: { id: number; format: string }): Promise<void>
+  saveConfig(patch: SettingsPatch): Promise<SaveConfigResult>
+  saveEditor(params: { id: number; html: string; text: string }): Promise<EditorSaveResult>
+  clearHistory(): Promise<void>
   onEvent(listener: (event: HostEvent) => void): () => void
 }
 
@@ -192,7 +197,7 @@ class WebViewHost implements Host {
       // A captured row is the same DTO as a list row; normalize it once here so the page
       // can prepend it without a second shape to defend against.
       const data =
-        message.event === 'captured' && message.data && typeof message.data === 'object'
+        message.event === 'captured' || message.event === 'edited'
           ? normalizeItem(message.data as ClipItem)
           : message.data
       for (const listener of this.listeners) listener({ event: message.event, data })
@@ -221,12 +226,12 @@ class WebViewHost implements Host {
   }
 
   init = async (): Promise<InitResult> => {
-    const result = await this.send<InitResult>('init')
+    const result = await this.send<{ counts?: Counts; tabs?: HostTab[]; config?: HostConfig; items?: ClipItem[] }>('init')
     return {
-      counts: result.counts ?? {},
-      tabs: result.tabs ?? [],
-      config: result.config ?? {},
-      items: (result.items ?? []).map(normalizeItem),
+      counts: result?.counts ?? {},
+      tabs: result?.tabs ?? [],
+      config: toSettings(result?.config),
+      items: (result?.items ?? []).map(normalizeItem),
     }
   }
 
@@ -312,6 +317,21 @@ class WebViewHost implements Host {
 
   exportClip = async (params: { id: number; format: string }) => {
     await this.send('export', { id: params.id, format: params.format })
+  }
+
+  saveConfig = async (patch: SettingsPatch): Promise<SaveConfigResult> => {
+    const result = await this.send<{ config?: HostConfig; hotkeyError?: string | null }>('saveConfig', { patch })
+    return { config: toSettings(result?.config), hotkeyError: result?.hotkeyError ?? null }
+  }
+
+  saveEditor = async (params: { id: number; html: string; text: string }): Promise<EditorSaveResult> => {
+    const result = await this.send<EditorSaveResult | null>('saveEditor', params)
+    // A host that answers without the flag did not save; never claim a write the host did not confirm.
+    return { saved: result?.saved === true, htmlLength: result?.htmlLength, error: result?.error }
+  }
+
+  clearHistory = async () => {
+    await this.send('clearHistory')
   }
 
   onEvent = (listener: (event: HostEvent) => void) => {

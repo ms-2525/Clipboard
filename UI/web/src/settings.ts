@@ -1,0 +1,64 @@
+/** The settings shape the host persists in %APPDATA%\Clip\config.json, and the patch the page sends. */
+
+export interface HostConfig {
+  theme?: 'light' | 'dark'
+  /** "24h" (default) or "12h"; the page formats list timestamps. */
+  timeFormat?: string
+  [key: string]: unknown
+}
+
+export interface HostSettings {
+  /** Resolved light|dark: the page only ever renders these two. */
+  theme: 'light' | 'dark'
+  /** What the user chose, including "system". */
+  themeChoice: 'light' | 'dark' | 'system'
+  timeFormat: '12h' | '24h'
+  maxItems: number
+  previewLines: number
+  uiZoom: number
+  hotkey: string
+  hotkeyPlain: string
+  startOnLogin: boolean
+  notification: { width: number; height: number; maxLines: number; position: string }
+}
+
+/** Only the fields the dialog edits; the host clamps and validates them. */
+export interface SettingsPatch {
+  theme?: 'light' | 'dark' | 'system'
+  timeFormat?: '12h' | '24h'
+  maxItems?: number
+  uiZoom?: number
+  hotkey?: string
+  startOnLogin?: boolean
+  notification?: Partial<HostSettings['notification']>
+}
+
+export interface SaveConfigResult {
+  config: HostSettings
+  /** A readable conflict message when the hotkey could not be rebound; the old binding is still live. */
+  hotkeyError?: string | null
+}
+
+/** Host config → a complete settings object; fields a build does not send keep their defaults. */
+export function toSettings(config: HostConfig | null | undefined): HostSettings {
+  const n = (config?.notification ?? {}) as Partial<HostSettings['notification']>
+  const theme = config?.theme === 'dark' ? 'dark' : 'light'
+  const choice = config?.themeChoice
+  return {
+    theme,
+    themeChoice: choice === 'dark' || choice === 'system' || choice === 'light' ? choice : theme,
+    timeFormat: config?.timeFormat === '12h' ? '12h' : '24h',
+    maxItems: typeof config?.maxItems === 'number' ? config.maxItems : 200,
+    previewLines: typeof config?.previewLines === 'number' ? config.previewLines : 10,
+    uiZoom: typeof config?.uiZoom === 'number' ? config.uiZoom : 100,
+    hotkey: typeof config?.hotkey === 'string' ? config.hotkey : 'Alt+V',
+    hotkeyPlain: typeof config?.hotkeyPlain === 'string' ? config.hotkeyPlain : 'Ctrl+Shift+V',
+    startOnLogin: config?.startOnLogin !== false,
+    notification: {
+      width: typeof n.width === 'number' ? n.width : 420,
+      height: typeof n.height === 'number' ? n.height : 160,
+      maxLines: typeof n.maxLines === 'number' ? n.maxLines : 3,
+      position: typeof n.position === 'string' ? n.position : 'bottom-right',
+    },
+  }
+}

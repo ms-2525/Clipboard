@@ -5,7 +5,7 @@ import { ClipList, type ClipListHandle } from './ClipList'
 import { DeleteConfirm } from './DeleteConfirm'
 import { EditorOverlay } from './EditorOverlay'
 import { SettingsDialog } from './SettingsDialog'
-import { createHost, type ClipItem, type InitResult, type SearchResult } from './host'
+import { createHost, toSettings, type ClipItem, type HostConfig, type HostSettings, type InitResult, type SaveConfigResult, type SearchResult, type SettingsPatch } from './host'
 import { useClipboardKeys } from './useClipboardKeys'
 import type { TimeFormat } from './format'
 import {
@@ -55,6 +55,9 @@ export default function App() {
   const previewUi = host.mode === 'mock'
 
   const [theme, setTheme] = useState<'light' | 'dark'>(() => (previewUi && params.get('theme') === 'dark' ? 'dark' : 'light'))
+  const [settings, setSettings] = useState<HostSettings>(() =>
+    toSettings({ theme: previewUi && params.get('theme') === 'dark' ? 'dark' : 'light' }),
+  )
   const [tab, setTab] = useState<number | null>(null)
   const [search, setSearch] = useState('')
   const [query, setQuery] = useState('')
@@ -89,6 +92,12 @@ export default function App() {
     window.setTimeout(() => setToasts((current) => current.filter((toast) => toast.id !== id)), 2600)
   }, [])
 
+  /** One place where a host config becomes live page state: theme, time format, list cap, zoom. */
+  const applySettings = useCallback((next: HostSettings) => {
+    setSettings(next)
+    setTheme(next.theme)
+  }, [])
+
   const load = useCallback(() => {
     const seq = ++tabSeq.current
     setStatus('loading')
@@ -100,7 +109,7 @@ export default function App() {
         setInit(result)
         setItems(rows)
         setSelectedId((current) => (current != null && rows.some((row) => row.id === current) ? current : rows[0]?.id ?? null))
-        if (result.config?.theme === 'dark' || result.config?.theme === 'light') setTheme(result.config.theme)
+        applySettings(result.config)
         setStatus('ready')
 
         // init carries the newest page (the host caps it); deepen the All list to 1,000.
@@ -120,7 +129,7 @@ export default function App() {
         setLoadError(messageOf(error))
         setStatus('error')
       })
-  }, [host])
+  }, [applySettings, host])
 
   useEffect(() => {
     load()
@@ -234,7 +243,7 @@ export default function App() {
   const tabLabel = tabs.find((entry) => entry.id === tab)?.label ?? 'All'
   const tabCount = tabs.find((entry) => entry.id === tab)?.count ?? visible.length
   const today = init?.counts?.today
-  const timeFormat: TimeFormat = init?.config?.timeFormat === '12h' ? '12h' : '24h'
+  const timeFormat: TimeFormat = settings.timeFormat === '12h' ? '12h' : '24h'
   const searchActive = query !== ''
   const activeSearch = found?.query === query ? found : null
 
@@ -321,6 +330,68 @@ export default function App() {
     }
   }, [host, showToast])
 
+  const zoomRef = useRef(settings.uiZoom)
+  zoomRef.current = settings.uiZoom
+  const zoomSeq = useRef(0)
+
+  /** Zoom is a host setting (WebView2 ZoomFactor): apply, persist, and step through the presets. */
+  const applyZoom = useCallback(
+    (zoom: number) => {
+      const next = Math.min(150, Math.max(80, Math.round(zoom)))
+      if (next === zoomRef.current) return
+      zoomRef.current = next
+      setSettings((current) => ({ ...current, uiZoom: next }))
+      const seq = ++zoomSeq.current
+      host
+        .saveConfig({ uiZoom: next })
+        .then((result) => {
+          // Only the zoom is live here: applying the whole config would undo a theme the dialog is previewing.
+          if (seq === zoomSeq.current) setSettings((current) => ({ ...current, uiZoom: result.config.uiZoom }))
+        })
+        .catch((error) => showToast('Zoom not saved', messageOf(error), true))
+    },
+    [host, showToast],
+  )
+
+  useEffect(() => {
+    const steps = [80, 100, 125, 150]
+    const onKey = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || event.altKey) return
+      let next: number | null = null
+      if (event.key === '0') next = 100
+      else if (event.key === '+' || event.key === '=') next = steps.find((value) => value > zoomRef.current) ?? 150
+      else if (event.key === '-') next = [...steps].reverse().find((value) => value < zoomRef.current) ?? 80
+      if (next == null) return
+      event.preventDefault()
+      applyZoom(next)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [applyZoom])
+
+  const saveSettings = useCallback(
+    async (patch: SettingsPatch): Promise<SaveConfigResult> => {
+      const result = await host.saveConfig(patch)
+      applySettings(result.config)
+      if (!result.hotkeyError) {
+        // The cap, the theme and the time format can all change what the list shows.
+        await reload()
+        showToast('Settings saved', 'Clip uses them right away.')
+      }
+      return result
+    },
+    [applySettings, host, reload, showToast],
+  )
+
+  const clearHistory = useCallback(async () => {
+    try {
+      // The host emits `cleared`; the event below reloads and reports, so the tray path stays identical.
+      await host.clearHistory()
+    } catch (error) {
+      showToast('Clear failed', messageOf(error), true)
+    }
+  }, [host, showToast])
+
   const confirmDelete = useCallback(async () => {
     const clip = confirm
     if (!clip) return
@@ -397,6 +468,21 @@ export default function App() {
           )
           return
         }
+        if (event === 'settingsSaved') {
+          applySettings(toSettings(data as HostConfig))
+          return
+        }
+        if (event === 'themeChanged') {
+          const next = (data as { theme?: string } | undefined)?.theme
+          if (next === 'dark' || next === 'light') setTheme(next)
+          return
+        }
+        if (event === 'cleared') {
+          // Counts and tabs live in init, not in a list page: reload the surface, not just the rows.
+          void load()
+          showToast('History cleared', 'Pinned clips and tabs stay.')
+          return
+        }
         if (event === 'deleted') {
           const id = (data as { id?: number } | undefined)?.id
           if (typeof id !== 'number') return
@@ -411,7 +497,7 @@ export default function App() {
           )
         }
       }),
-    [host, tab, showToast],
+    [applySettings, host, load, reload, tab, showToast],
   )
 
   return (
@@ -636,7 +722,15 @@ export default function App() {
         </main>
       </div>
 
-      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} theme={theme} setTheme={setTheme} />
+      <SettingsDialog
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
+        settings={settings}
+        onPreviewTheme={setTheme}
+        onZoom={applyZoom}
+        onSave={saveSettings}
+        onClearHistory={() => void clearHistory()}
+      />
 
       <DeleteConfirm clip={confirm} onCancel={() => setConfirm(null)} onConfirm={() => void confirmDelete()} />
 
@@ -644,7 +738,12 @@ export default function App() {
         <EditorOverlay
           clip={selected}
           timeFormat={timeFormat}
-          initialDirty={previewUi && params.get('dirty') === '1'}
+          getItem={host.getItem}
+          onSave={(html, text) => host.saveEditor({ id: selected.id, html, text })}
+          onSaved={() => {
+            void reload()
+            showToast('Clip saved', `${selected.app} · ${selected.title}`)
+          }}
           onClose={() => setEditorOpen(false)}
         />
       )}

@@ -11,6 +11,23 @@ namespace Clip.Interop
     /// </summary>
     internal static class HtmlFragment
     {
+        /// <summary>
+        /// The writer half: wraps a fragment in the "HTML Format" envelope every paste-back consumer
+        /// (Word, Chrome, Excel) reads. Offsets stay UTF-8 byte counts, matching <see cref="Extract"/>.
+        /// </summary>
+        public static string Wrap(string fragment)
+        {
+            const string header = "Version:0.9\r\nStartHTML:{0:D10}\r\nEndHTML:{1:D10}\r\nStartFragment:{2:D10}\r\nEndFragment:{3:D10}\r\n";
+            const string open = "<html><body><!--StartFragment-->";
+            const string close = "<!--EndFragment--></body></html>";
+            int headerLength = Encoding.UTF8.GetByteCount(string.Format(header, 0, 0, 0, 0));
+            int startFragment = headerLength + Encoding.UTF8.GetByteCount(open);
+            int endFragment = startFragment + Encoding.UTF8.GetByteCount(fragment ?? "");
+            int endHtml = endFragment + Encoding.UTF8.GetByteCount(close);
+            return string.Format(header, headerLength, endHtml, startFragment, endFragment)
+                   + open + fragment + close;
+        }
+
         public static string Extract(string cfHtml)
         {
             if (string.IsNullOrEmpty(cfHtml)) return string.Empty;

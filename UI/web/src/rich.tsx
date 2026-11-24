@@ -119,7 +119,7 @@ function cleanStyle(el: Element): void {
 }
 
 /** Windows puts a CF_HTML header in front of copied HTML; its offsets are UTF-8 byte offsets. */
-function stripClipboardHeader(raw: string): string {
+export function cfHtmlFragment(raw: string): string {
   if (!/^Version:\d+(\.\d+)?\r?\n/.test(raw)) return raw
   const offset = (name: string) => {
     const match = new RegExp(`^${name}:(\\d+)\\s*$`, 'm').exec(raw)
@@ -145,7 +145,7 @@ let hooked = false
 /** Sanitise one clip body into row HTML. Safe to call on every render; callers memoise it. */
 export function toRichHtml(raw: string): string {
   if (!raw || raw.length < 2) return ''
-  const doc = new DOMParser().parseFromString(stripClipboardHeader(raw), 'text/html')
+  const doc = new DOMParser().parseFromString(cfHtmlFragment(raw), 'text/html')
 
   doc.body.querySelectorAll(BLOCKED).forEach((el) => el.remove())
   const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_COMMENT)

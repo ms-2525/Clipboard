@@ -1,42 +1,51 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { EditorContent, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import { Color, FontFamily, TextStyle } from '@tiptap/extension-text-style'
 import Highlight from '@tiptap/extension-highlight'
-import { RICH_EDITOR_CONTENT } from './data'
-import type { ClipItem } from './host'
+import { TableKit } from '@tiptap/extension-table'
+import TaskList from '@tiptap/extension-task-list'
+import TaskItem from '@tiptap/extension-task-item'
+import { EditorToolbar, type EditorPop } from './EditorToolbar'
+import { cfHtmlFragment } from './rich'
+import type { ClipBody, ClipItem } from './host'
 import { formatTime, type TimeFormat } from './format'
-import {
-  IconBold,
-  IconChevron,
-  IconClose,
-  IconHighlight,
-  IconItalic,
-  IconMinus,
-  IconPalette,
-  IconPlus,
-  IconStrike,
-  IconUnderline,
-  IconWarning,
-} from './icons'
+import { IconClose, IconWarning } from './icons'
 
 interface Props {
   clip: ClipItem
   timeFormat: TimeFormat
-  initialDirty?: boolean
+  getItem: (id: number) => Promise<ClipBody | null>
+  onSave: (html: string, text: string) => Promise<{ saved: boolean; error?: string }>
   onClose: () => void
+  onSaved: () => void
 }
 
 const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
+/** Plain text becomes paragraphs, exactly what a text clip's body is. */
+const textToHtml = (text: string) =>
+  (text || '')
+    .split(/\r?\n/)
+    .map((line) => (line.trim() ? `<p>${escapeHtml(line)}</p>` : '<p></p>'))
+    .join('')
+
 const kindLabel = (kind: ClipItem['kind']) =>
   kind === 'rich' ? 'Rich text' : kind === 'image' ? 'Image' : kind === 'files' ? 'Files' : 'Text'
 
-export function EditorOverlay({ clip, timeFormat, initialDirty = false, onClose }: Props) {
-  const [dirty, setDirty] = useState(initialDirty)
+/** The host refuses these too; the page refuses first so a bad body never leaves the browser. */
+const MAX_HTML = 2_000_000
+
+export function EditorOverlay({ clip, timeFormat, getItem, onSave, onClose, onSaved }: Props) {
+  const [dirty, setDirty] = useState(false)
+  const [confirmDiscard, setConfirmDiscard] = useState(false)
   const [size, setSize] = useState(15)
-  const [pop, setPop] = useState<'colour' | 'font' | null>(null)
-  const popRef = useRef<HTMLDivElement>(null)
+  const [pop, setPop] = useState<EditorPop>(null)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [formats, setFormats] = useState<string[]>(clip.formats)
+  const baseline = useRef('')
 
   const editor = useEditor({
     extensions: [
@@ -45,195 +54,178 @@ export function EditorOverlay({ clip, timeFormat, initialDirty = false, onClose 
       Color,
       FontFamily,
       Highlight.configure({ multicolor: true }),
+      TableKit.configure({ table: { resizable: false } }),
+      TaskList,
+      TaskItem.configure({ nested: true }),
     ],
-    content: RICH_EDITOR_CONTENT,
-    autofocus: 'start',
-    onUpdate: () => setDirty(true),
+    content: '',
+    autofocus: false,
+    onUpdate: ({ editor: instance }) => setDirty(instance.getHTML() !== baseline.current),
   })
 
   useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault()
-        if (pop) setPop(null)
-        else onClose()
+    if (!editor) return
+    let cancelled = false
+    setLoading(true)
+    setError('')
+    void (async () => {
+      let body: ClipBody | null = null
+      try {
+        body = await getItem(clip.id)
+      } catch {
+        // A body the host cannot read still opens: the list preview is the best text there is.
       }
+      if (cancelled) return
+      // getItem carries the whole stored body (never the list preview), so a truncated clip edits in full.
+      const html = body?.html ? cfHtmlFragment(body.html) : textToHtml(body?.text ?? clip.text ?? '')
+      editor.commands.setContent(html || '<p></p>', { emitUpdate: false })
+      baseline.current = editor.getHTML()
+      setFormats(body?.formats?.length ? body.formats : clip.formats)
+      setDirty(false)
+      setLoading(false)
+      requestAnimationFrame(() => editor.commands.focus('start'))
+    })()
+    return () => {
+      cancelled = true
     }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose, pop])
+  }, [clip.formats, clip.id, clip.text, editor, getItem])
 
+  const requestClose = useCallback(() => {
+    if (saving) return
+    if (!dirty) {
+      onClose()
+      return
+    }
+    setConfirmDiscard(true)
+  }, [dirty, onClose, saving])
+
+  // Esc cascade: popover → discard prompt → close. The third press is the discard itself.
   useEffect(() => {
-    if (!pop) return
-    const onDown = (event: MouseEvent) => {
-      if (!popRef.current?.contains(event.target as Node)) setPop(null)
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      event.preventDefault()
+      event.stopPropagation()
+      if (pop) setPop(null)
+      else if (confirmDiscard) {
+        setConfirmDiscard(false)
+        onClose()
+      } else if (dirty) setConfirmDiscard(true)
+      else onClose()
     }
-    window.addEventListener('mousedown', onDown)
-    return () => window.removeEventListener('mousedown', onDown)
-  }, [pop])
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [confirmDiscard, dirty, onClose, pop])
 
-  if (!editor) return null
-
-  const ink = 'var(--fg)'
-  const highlight = 'var(--highlight)'
+  const save = useCallback(async () => {
+    if (!editor || saving || loading) return
+    const html = editor.getHTML()
+    const text = editor.getText({ blockSeparator: '\n' })
+    if (!text.trim()) {
+      setError('The editor has no text, so nothing was saved.')
+      return
+    }
+    if (html.length > MAX_HTML) {
+      setError('The clip is over 2 MB of HTML, so it was not saved.')
+      return
+    }
+    if (/<script/i.test(html)) {
+      setError('The clip contains a script, so it was not saved.')
+      return
+    }
+    setSaving(true)
+    setError('')
+    try {
+      const result = await onSave(html, text)
+      if (!result.saved) {
+        setError(result.error || 'The clip could not be saved.')
+        setSaving(false)
+        return
+      }
+      onSaved()
+      onClose()
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : String(failure))
+      setSaving(false)
+    }
+  }, [editor, loading, onClose, onSave, onSaved, saving])
 
   const singleLine = () => {
+    if (!editor) return
     const text = editor.getText().replace(/\s*\n+\s*/g, ' ').trim()
     editor.commands.setContent(`<p>${escapeHtml(text)}</p>`)
-    setDirty(true)
+    setDirty(editor.getHTML() !== baseline.current)
   }
 
+  const characterCount = useMemo(() => editor?.getText().length ?? 0, [editor, dirty, loading])
+  if (!editor) return null
+  const highlight = 'var(--highlight)'
+
   return (
-    <div className="editor-overlay" role="dialog" aria-modal="true" aria-label="Clip editor preview">
+    <div className="editor-overlay" role="dialog" aria-modal="true" aria-label="Clip editor">
       <div className="editor-head">
-        <button className="icon-btn ghost" onClick={onClose} aria-label="Close editor" title="Close (Esc)">
+        <button className="icon-btn ghost" onClick={requestClose} aria-label="Close editor" title="Close (Esc)">
           <IconClose />
         </button>
         <div className="grow">
           <div className="editor-title">
             Editing clip
             {dirty && <span className="dirty-dot" title="Unsaved changes" />}
-            <span className="chip editor-chip">Preview</span>
             <span className="chip editor-chip">{kindLabel(clip.kind)}</span>
-            {clip.formats.length > 1 && <span className="chip editor-chip">+{clip.formats.length - 1} formats</span>}
+            {formats.length > 1 && <span className="chip editor-chip">+{formats.length - 1} formats</span>}
           </div>
           <div className="t-meta editor-sub">
             {clip.app || 'Unknown'} · {clip.title} · {formatTime(clip.time, timeFormat)}
           </div>
         </div>
-        <button className="btn ghost" onClick={onClose}>
+        <button className="btn ghost" onClick={requestClose}>
           Cancel
         </button>
-        <button className="btn" disabled title="Editing is not wired yet — this is a preview">
-          Save clip
+        <button className="btn" onClick={() => void save()} disabled={saving || loading} title="Save to this clip">
+          {saving ? 'Saving…' : 'Save clip'}
         </button>
       </div>
 
-      {dirty && (
+      {error && (
+        <div className="discard-banner error-banner" role="alert">
+          <IconWarning />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {confirmDiscard ? (
         <div className="discard-banner">
           <IconWarning />
           <span style={{ fontWeight: 600 }}>Discard changes?</span>
           <span className="banner-sub">You have unsaved edits in this clip.</span>
           <span className="grow" />
-          <button
-            className="btn ghost sm"
-            onClick={() => {
-              editor.commands.setContent(RICH_EDITOR_CONTENT)
-              setDirty(false)
-            }}
-          >
-            Discard edits
+          <button className="btn ghost sm" onClick={() => setConfirmDiscard(false)}>
+            Keep editing
+          </button>
+          <button className="btn danger sm" onClick={onClose}>
+            Discard and close
           </button>
         </div>
+      ) : (
+        dirty && (
+          <div className="discard-banner">
+            <IconWarning />
+            <span style={{ fontWeight: 600 }}>Unsaved changes</span>
+            <span className="banner-sub">Save the clip, or discard and keep the stored version.</span>
+            <span className="grow" />
+            <button
+              className="btn ghost sm"
+              onClick={() => {
+                editor.commands.setContent(baseline.current, { emitUpdate: false })
+                setDirty(false)
+              }}
+            >
+              Revert edits
+            </button>
+          </div>
+        )
       )}
 
-      <div className="toolbar">
-        <button className="tool" data-on={editor.isActive('bold')} onClick={() => editor.chain().focus().toggleBold().run()} title="Bold (Ctrl+B)" aria-label="Bold">
-          <IconBold />
-        </button>
-        <button className="tool" data-on={editor.isActive('italic')} onClick={() => editor.chain().focus().toggleItalic().run()} title="Italic (Ctrl+I)" aria-label="Italic">
-          <IconItalic />
-        </button>
-        <button className="tool" data-on={editor.isActive('underline')} onClick={() => editor.chain().focus().toggleUnderline().run()} title="Underline (Ctrl+U)" aria-label="Underline">
-          <IconUnderline />
-        </button>
-        <button className="tool" data-on={editor.isActive('strike')} onClick={() => editor.chain().focus().toggleStrike().run()} title="Strikethrough" aria-label="Strikethrough">
-          <IconStrike />
-        </button>
-
-        <span className="tool-sep" />
-
-        <button className="tool" onClick={() => setSize((s) => Math.max(11, s - 1))} title="Smaller text" aria-label="Decrease text size" disabled={size <= 11}>
-          <IconMinus />
-        </button>
-        <span className="size-readout">{size}</span>
-        <button className="tool" onClick={() => setSize((s) => Math.min(24, s + 1))} title="Larger text" aria-label="Increase text size" disabled={size >= 24}>
-          <IconPlus />
-        </button>
-
-        <span className="tool-sep" />
-
-        <div className="tool-wrap">
-          <button className="tool" data-on={pop === 'colour'} onClick={() => setPop((p) => (p === 'colour' ? null : 'colour'))} title="Text colour" aria-label="Text colour">
-            <IconPalette />
-            <IconChevron />
-          </button>
-          {pop === 'colour' && (
-            <div className="popover" style={{ top: 32, left: 0 }} ref={popRef}>
-              <div className="t-micro" style={{ padding: '2px 4px 6px' }}>
-                Text colour
-              </div>
-              <div className="colours">
-                {[ink, '#C2410C', '#2F8A5B', '#3B82C4', '#C23B3B', '#8A92A1'].map((colour) => (
-                  <button
-                    key={colour}
-                    className="colour"
-                    style={{ background: colour }}
-                    aria-label={`Colour ${colour}`}
-                    onClick={() => {
-                      editor.chain().focus().setColor(colour).run()
-                      setPop(null)
-                    }}
-                  />
-                ))}
-              </div>
-              <button
-                className="pop-item"
-                onClick={() => {
-                  editor.chain().focus().unsetColor().run()
-                  setPop(null)
-                }}
-              >
-                Clear colour
-              </button>
-            </div>
-          )}
-        </div>
-
-        <button className="tool" data-on={editor.isActive('highlight')} onClick={() => editor.chain().focus().toggleHighlight({ color: highlight }).run()} title="Highlight" aria-label="Highlight">
-          <IconHighlight />
-        </button>
-
-        <div className="tool-wrap">
-          <button className="tool text" onClick={() => setPop((p) => (p === 'font' ? null : 'font'))} title="Font family" aria-label="Font family">
-            Aa
-            <IconChevron />
-          </button>
-          {pop === 'font' && (
-            <div className="popover" style={{ top: 32, left: 0 }} ref={popRef}>
-              <div className="t-micro" style={{ padding: '2px 4px 6px' }}>
-                Font
-              </div>
-              {[
-                { label: 'Sans', value: null },
-                { label: 'Serif', value: 'Georgia, serif' },
-                { label: 'Mono', value: "'Cascadia Code', Consolas, monospace" },
-              ].map((font) => (
-                <button
-                  key={font.label}
-                  className="pop-item"
-                  onClick={() => {
-                    if (font.value) editor.chain().focus().setFontFamily(font.value).run()
-                    else editor.chain().focus().unsetFontFamily().run()
-                    setPop(null)
-                  }}
-                >
-                  {font.label}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <span className="tool-sep" />
-
-        <button className="tool text" onClick={() => editor.chain().focus().unsetAllMarks().clearNodes().run()} title="Clear formatting">
-          Clear
-        </button>
-        <button className="tool text" onClick={singleLine} title="Collapse to one paragraph">
-          Single line
-        </button>
-      </div>
+      <EditorToolbar editor={editor} pop={pop} setPop={setPop} size={size} onSize={setSize} onSingleLine={singleLine} highlight={highlight} />
 
       <div className="editor-scroll">
         <div className="editor-page">
@@ -241,18 +233,23 @@ export function EditorOverlay({ clip, timeFormat, initialDirty = false, onClose 
             <span className="tile" style={{ width: 22, height: 22, borderRadius: 6, display: 'grid', placeItems: 'center', background: 'var(--badge)', color: 'var(--fg55)', fontSize: 11, fontWeight: 600 }}>
               {(clip.app || '?').slice(0, 1)}
             </span>
-            <span className="t-sec">{clip.formats.length ? clip.formats.join(' · ') : 'No extra formats'}</span>
+            <span className="t-sec">{formats.length ? formats.join(' · ') : 'No extra formats'}</span>
             <span className="spacer" />
-            <span className="chip accent">Preview</span>
+            {clip.truncated && <span className="chip">Full body</span>}
+            {dirty && <span className="chip accent">Unsaved</span>}
           </div>
-          <div style={{ fontSize: size, lineHeight: 1.6 }}>
-            <EditorContent editor={editor} />
-          </div>
+          {loading ? (
+            <div className="t-sec">Loading the full clip…</div>
+          ) : (
+            <div style={{ fontSize: size, lineHeight: 1.6 }}>
+              <EditorContent editor={editor} />
+            </div>
+          )}
           <div className="editor-foot">
-            <span className="t-meta">{editor.getText().length.toLocaleString()} characters</span>
-            <span className="chip">{clip.formats.length} formats</span>
+            <span className="t-meta">{characterCount.toLocaleString()} characters</span>
+            <span className="chip">{formats.length} formats</span>
             <span className="spacer" />
-            <span className="t-meta">Editing is not saved yet</span>
+            <span className="t-meta">{dirty ? 'Unsaved changes' : 'Saved to this clip'}</span>
             <span className="hint editor-foot-hint">
               <span className="keycap">Esc</span> Close
             </span>

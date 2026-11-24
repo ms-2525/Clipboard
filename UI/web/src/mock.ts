@@ -1,6 +1,6 @@
 import { makeClips, MOCK_TABS, mockThumb } from './data'
 import { REAL_CLIPS } from './realClips'
-import type { ClipBody, ClipItem, Host, HostEvent, ItemsQuery, SearchResult } from './host'
+import { toSettings, type ClipBody, type ClipItem, type Host, type HostEvent, type ItemsQuery, type SearchResult, type SettingsPatch } from './host'
 
 /**
  * Mock-only tag ids. The real host classifies in Core\ClipTags.cs; the page never
@@ -100,6 +100,8 @@ export function createMockHost(): Host {
 
   const wait = <T,>(value: T) => new Promise<T>((resolve) => window.setTimeout(() => resolve(value), 25))
   const theme = new URLSearchParams(window.location.search).get('theme') === 'dark' ? 'dark' : 'light'
+  // The mock keeps one settings object so the dialog behaves in a browser exactly as it does in WebView2.
+  let settings = toSettings({ theme, themeChoice: theme, timeFormat: '24h', maxItems: 1000, hotkey: 'Alt+V' })
 
   const match = (query: string, tabId: number | null): SearchResult => {
     const tags: string[] = []
@@ -138,8 +140,8 @@ export function createMockHost(): Host {
         images: mainHistory().filter((clip) => clip.kind === 'image').length,
       },
       tabs,
-      config: { theme },
-      items: mainHistory().slice(0, 200),
+      config: settings,
+      items: mainHistory().slice(0, Math.min(200, settings.maxItems)),
     }),
     getItems: async ({ tabId = null, offset = 0, limit = 1000, query = '' }: ItemsQuery = {}) => {
       const needle = query.trim().toLowerCase()
@@ -152,7 +154,7 @@ export function createMockHost(): Host {
           clip.app.toLowerCase().includes(needle)
         )
       })
-      return wait(rows.slice(offset, offset + limit))
+      return wait(rows.slice(offset, offset + Math.min(limit, tabId === null ? settings.maxItems : limit)))
     },
     search: async ({ query, tabId = null, limit = 500 }: ItemsQuery & { query: string }) => {
       const result = match(query, tabId)
@@ -200,6 +202,42 @@ export function createMockHost(): Host {
     hide: async () => wait(undefined),
     exportClip: async () => {
       throw new Error('Export is not wired yet')
+    },
+    saveConfig: async (patch: SettingsPatch) => {
+      const next: typeof settings = {
+        ...settings,
+        ...patch,
+        notification: { ...settings.notification, ...(patch.notification ?? {}) },
+        theme: patch.theme === 'dark' ? 'dark' : patch.theme === 'light' ? 'light' : settings.theme,
+        themeChoice: patch.theme ?? settings.themeChoice,
+        timeFormat: patch.timeFormat ?? settings.timeFormat,
+      }
+      // The one conflict the real host can answer: the plain-paste chord, which the fixture reserves.
+      if (patch.hotkey && patch.hotkey.toUpperCase() === 'CTRL+SHIFT+V') {
+        settings = next
+        emit({ event: 'settingsSaved', data: settings })
+        return wait({ config: settings, hotkeyError: `Could not register ${patch.hotkey}. Another app may own it; kept ${settings.hotkey}.` })
+      }
+      settings = next
+      emit({ event: 'settingsSaved', data: settings })
+      return wait({ config: settings, hotkeyError: null })
+    },
+    saveEditor: async ({ id, html, text }) => {
+      const clip = clips.find((entry) => entry.id === id)
+      if (!clip) return wait({ saved: false, error: 'That clip no longer exists.' })
+      if (!html.trim()) return wait({ saved: false, error: 'The editor is empty, so nothing was saved.' })
+      if (/<script/i.test(html)) return wait({ saved: false, error: 'The clip contains a script, so it was not saved.' })
+      const body = realBodies.get(id)
+      if (body) realBodies.set(id, { ...body, html, text, formats: [] })
+      clips = clips.map((entry) => (entry.id === id ? { ...entry, text: text.slice(0, 1200), hasHtml: true, hasRtf: false, formats: [] } : entry))
+      const dto = clips.find((entry) => entry.id === id)!
+      emit({ event: 'edited', data: dto })
+      return wait({ saved: true, htmlLength: html.length + 200 })
+    },
+    clearHistory: async () => {
+      clips = clips.filter((clip) => clip.tabId !== null)
+      emit({ event: 'cleared', data: {} })
+      return wait(undefined)
     },
     onEvent: (listener) => {
       listeners.add(listener)

@@ -29,6 +29,12 @@ export const IconMoon = () => (
     <path d="M13 9.4A5.2 5.2 0 0 1 6.6 3a5.2 5.2 0 1 0 6.4 6.4Z" />
   </Svg>
 )
+export const IconMonitor = () => (
+  <Svg>
+    <rect x="2" y="3" width="12" height="8.5" rx="1.5" />
+    <path d="M6 14h4M8 11.5V14" />
+  </Svg>
+)
 export const IconSettings = () => (
   <Svg>
     <path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11" />
@@ -128,5 +134,24 @@ export const IconWarning = () => (
   <Svg size={14}>
     <path d="M8 2.5 14 13H2Z" />
     <path d="M8 6.4v3.2M8 11.2v.1" />
+  </Svg>
+)
+export const IconLink = () => (
+  <Svg>
+    <path d="M6.5 9.5 9.5 6.5" />
+    <path d="M7 5.5 8.5 4a2.5 2.5 0 0 1 3.5 3.5L10.5 9" />
+    <path d="M9 10.5 7.5 12A2.5 2.5 0 0 1 4 8.5L5.5 7" />
+  </Svg>
+)
+export const IconUndo = () => (
+  <Svg>
+    <path d="M4 6.5h5.5a3.5 3.5 0 0 1 0 7H6" />
+    <path d="M6.5 4 4 6.5l2.5 2.5" />
+  </Svg>
+)
+export const IconRedo = () => (
+  <Svg>
+    <path d="M12 6.5H6.5a3.5 3.5 0 0 0 0 7H10" />
+    <path d="M9.5 4 12 6.5l-2.5 2.5" />
   </Svg>
 )

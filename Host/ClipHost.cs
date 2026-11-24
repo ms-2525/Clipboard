@@ -6,6 +6,7 @@ using System.Windows.Threading;
 using Clip.Core;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.Wpf;
+using Microsoft.Win32;
 
 namespace Clip.Host
 {
@@ -49,6 +50,7 @@ namespace Clip.Host
             _dispatcher = web.Dispatcher;
             _pinnedTabId = store.PinnedTabId;
             _reads = new ReadQueue();
+            LoadSettings();
             _web.CoreWebView2.WebMessageReceived += OnMessage;
         }
 
@@ -132,6 +134,15 @@ namespace Clip.Host
                 case "export":
                     return Export(p);
 
+                case "saveConfig":
+                    return SaveConfig(p);
+
+                case "saveEditor":
+                    return SaveEditor(p);
+
+                case "clearHistory":
+                    return ClearHistory(p);
+
                 case "delete":
                     return Delete(p);
 
@@ -170,7 +181,7 @@ namespace Clip.Host
                     // Counting and the tab strip are index-only and sub-millisecond; only the page is deferred.
                     var counts = Counts();
                     var tabs = Tabs();
-                    var config = _cfg;
+                    var config = ConfigDto();
                     _reads.Post(() => Finish(id, () => new
                     {
                         counts,
@@ -321,6 +332,7 @@ namespace Clip.Host
         public void Dispose()
         {
             _reads.Dispose();
+            SystemEvents.UserPreferenceChanged -= OnThemePreferenceChanged;
             var core = _web.CoreWebView2;
             if (core != null) core.WebMessageReceived -= OnMessage;
         }

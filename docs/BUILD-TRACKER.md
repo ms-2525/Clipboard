@@ -38,13 +38,13 @@ dual-axis audit (DB logic + UI/UX) is clean; memory inside the ceiling; docs upd
 | S4b | Clip actions in the host: paste, delete, undo, pin, move | `Host\`, `UI\ShellWindow.xaml.cs` | **DONE `99339dc`** | Notepad got all 4 kinds; plain paste drops rich formats; 600-emoji body pasted whole |
 | S8a | Make `--v2` a real app: tray, hotkey, capture, single instance, autostart | `App.V2.cs`, `UI\ShellWindow*` | **DONE `5d56b53`** | Warm show 17.2 ms median; 6 live captures; second launch focuses first |
 | S8b | Native toast auto-fit, Ctrl+Shift+V hotkey, Clear history, elevation guard | `App.V2.cs`, `NotificationWindow*`, `Host\ClipHost.Actions.cs` | **DONE `7a65194`** | Toast 77→160 px by content; plain paste proven; elevated target refused with a message |
-| S8c | Audit blockers: copy self-capture, theme polarity, silent clipboard failure, OCR overwrite | `Host\`, `App.xaml.cs`, `Core\*` (narrow) | IN PROGRESS | copy → 0 captured events; theme table; failed write never injects |
+| S8c | Audit blockers: copy self-capture, theme polarity, silent clipboard failure, OCR overwrite | `Host\`, `App.xaml.cs`, `Core\*` (narrow) | **DONE `4f99e5c`** | copy → 0 captured events; theme table 6/6; failed write → 0 chords injected |
 | S3c | **P0** truncation guard, corrupt-DB recovery, one search rule | `Core\`, `Host\`, `UI\ClipRow.cs`, `UI\EditorWindow*` | **DONE `5a7a285`** | 600-emoji fixture, write guard refuses preview save, corrupt DB recovers once |
 | S3d | Bridge off the UI thread, tab restore, id ordering, `_meta` reopen | `Host\`, `Core\ClipboardStore.Items.cs` | **DONE `552e648`** | 35/35; UI gap 192 → 41.5 ms; 9.5k scope fixed |
 | S3g | Monotonic sort key: re-copy returns to top; recovery race | `Core\ClipboardStore*.cs` | **DONE `8dcdff0`** | 45/45; A,B → copy A → A,B after reload; 38-row migration lossless |
 | S6a | Export core + host Save dialog | `Core\ClipExport.cs`, `Host\ClipHost.Export.cs` | **DONE `8cda936`** | CSV/PNG byte-identical; 24 name cases |
 | S6b | Export in the UI: menu item, saved/cancelled feedback, open folder | `UI\web\src\*` | QUEUED | Export a clip from the page; toast names the file |
-| S7 | Settings wired + real editor overlay | `UI\web\src\*`, `Host\ClipHost.Settings.cs` | IN PROGRESS | config persists; CF_HTML round-trip valid; discard leaves body intact |
+| S7 | Settings wired + real editor overlay | `UI\web\src\*`, `Host\ClipHost.Settings.cs` | **DONE** (evidence `docs\design-evidence\s7`) | config persists; CF_HTML round-trip valid; discard leaves body intact |
 | S9a | OCR: retarget TFM, `Core\OcrService.cs`, store into the clip text | `Clip.csproj`, `Core\` | **DONE `a3dee2b`** | 93.7 % chars on clip 356; search finds it; plain paste still the picture; +25.5 MB exe |
 | S9b | OCR in the UI: show extracted text, language notice, money caveat | `UI\web\src\*`, `Host\` | QUEUED | Image row shows its text; search reveals it |
 | S10 | Packaging + cutover: embed `dist`, flip the default launch, checklists, release audit | `Clip.csproj`, `build-release.cmd`, `App.xaml.cs`, docs | QUEUED | One exe runs the new UI on a clean profile; checklists pass |
@@ -66,6 +66,10 @@ dual-axis audit (DB logic + UI/UX) is clean; memory inside the ceiling; docs upd
 - `docs\AUDIT-search-tags.md` (25 Nov): prose tagged as TS/Python/JS (S3f), truncated previews minting
   tags (S3f), two search rules (S3f), `Meta()` losing formats at 32k ids (S3d), a second client-side
   classifier `UI\web\src\tags.ts` (S3b, deleting it).
+- **S7 (25 Nov):** `ClipHost.RebindHotkey` reaches `RegisterV2Hotkeys` by reflection until
+  `App.V2.cs` is free for a typed hook. Toast width/height/position are persisted by `saveConfig`
+  but have no dialog row yet. Editor alignment was not added (no text-align extension installed or
+  cached).
 - `USER_GUIDE.md` must state: OCR cannot be trusted for **amounts** (₹ is unreadable by both engines,
   Indian grouping is lost); CSV opens correctly but Excel reinterprets `007` and `=1+1` on open.
 - `UI\EditorWindow.xaml.cs` is 414 lines, over the 400 budget (pre-existing, +7 for the save guard).
