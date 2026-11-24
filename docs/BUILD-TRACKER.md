@@ -48,7 +48,7 @@ dual-axis audit (DB logic + UI/UX) is clean; memory inside the ceiling; docs upd
 | S7 | Settings + TipTap editor overlay | `UI\web\src\*`, `Host\` | QUEUED | Save round-trip keeps CF_HTML; zoom persists |
 | S8 | Native edges + cutover: tray, hotkey, toast, paste, single instance, autostart, DPI | `UI\ShellWindow*`, `App.xaml.cs`, `Core\Config.cs` | QUEUED | Alt+V 150 ms; toast auto-fits; reboot autostart |
 | S8b | Native toast auto-fit, Ctrl+Shift+V hotkey, Clear history, elevation guard | `App.V2.cs`, `NotificationWindow*`, `Host\ClipHost.Actions.cs` | **DONE `7a65194`** | Toast 77→160 px by content; plain paste proven; elevated target refused with a message |
-| S9a | OCR: retarget TFM, `Core\OcrService.cs`, store into the clip text | `Clip.csproj`, `Core\` | IN PROGRESS | Real clip 356 readable; search finds it; plain paste still pastes the picture |
+| S9a | OCR: retarget TFM, `Core\OcrService.cs`, store into the clip text | `Clip.csproj`, `Core\` | **DONE `a3dee2b`** | 93.7 % chars on clip 356; search finds it; plain paste still the picture; +25.5 MB exe |
 | S9b | OCR in the UI: show extracted text, language notice, money caveat | `UI\web\src\*`, `Host\` | QUEUED | Image row shows its text; plain paste still pastes the picture |
 | S10 | Packaging + release audit | `Clip.csproj`, `build-release.cmd`, docs | QUEUED | One exe runs on a clean profile; checklists pass |
 
