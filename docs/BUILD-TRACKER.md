@@ -43,10 +43,10 @@ dual-axis audit (DB logic + UI/UX) is clean; memory inside the ceiling; docs upd
 | S3d | Bridge off the UI thread, tab restore, id ordering, `_meta` reopen | `Host\`, `Core\ClipboardStore.Items.cs` | **DONE `552e648`** | 35/35; UI gap 192 → 41.5 ms; 9.5k scope fixed |
 | S3g | Monotonic sort key: re-copy returns to top; recovery race | `Core\ClipboardStore*.cs` | **DONE `8dcdff0`** | 45/45; A,B → copy A → A,B after reload; 38-row migration lossless |
 | S6a | Export core + host Save dialog | `Core\ClipExport.cs`, `Host\ClipHost.Export.cs` | **DONE `8cda936`** | CSV/PNG byte-identical; 24 name cases |
-| S6b | Export in the UI: menu item, saved/cancelled feedback, open folder | `UI\web\src\*` | QUEUED | Export a clip from the page; toast names the file |
+| S6b | Export in the UI: menu item, saved/cancelled feedback | `UI\web\src\*` | IN PROGRESS (with S9b) | Export from the page; toast names the file |
 | S7 | Settings wired + real editor overlay | `UI\web\src\*`, `Host\ClipHost.Settings.cs` | **DONE** (evidence `docs\design-evidence\s7`) | config persists; CF_HTML round-trip valid; discard leaves body intact |
 | S9a | OCR: retarget TFM, `Core\OcrService.cs`, store into the clip text | `Clip.csproj`, `Core\` | **DONE `a3dee2b`** | 93.7 % chars on clip 356; search finds it; plain paste still the picture; +25.5 MB exe |
-| S9b | OCR in the UI: show extracted text, language notice, money caveat | `UI\web\src\*`, `Host\` | QUEUED | Image row shows its text; search reveals it |
+| S9b | OCR in the UI: show extracted text with a marker | `UI\web\src\*` | IN PROGRESS (with S6b) | Image row shows its text; search reveals it |
 | S10 | Packaging + cutover: embed `dist`, flip the default launch, checklists, release audit | `Clip.csproj`, `build-release.cmd`, `App.xaml.cs`, docs | QUEUED | One exe runs the new UI on a clean profile; checklists pass |
 
 ## Open defects / debt
