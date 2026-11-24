@@ -86,12 +86,11 @@ migration**. A tag appears only on a positive test. A heuristic that can be wron
 Never tagged: passwords, tokens, prose, mixed clipboard content, anything ambiguous. A wrong tag is
 worse than a missing one.
 
-## 4. Toast auto-fit (25 Nov)
+### 3.2 Toast auto-fit
 
-The configured `Notification.Height` becomes the **maximum**; the toast height is content-driven up
-to it, so a one-line copy gets a short toast and a long one stops at `MaxLines`. Width, position,
-offset and `MaxLines` stay as configured. This supersedes the fixed-height rule from ACC-v2 §7.5 at
-the owner's request; it must be re-verified for tap-target size and edge clamping.
+The configured `Notification.Height` is the **maximum**; toast height follows content up to it, so a
+one-line copy gets a short toast and a long one stops at `MaxLines`. Width, position, offset and
+`MaxLines` stay as configured. Re-verify tap-target size and edge clamping at 150 % DPI.
 
 ## 4. One grammar per control
 
@@ -138,9 +137,11 @@ notification 150 ms fade. Never a layout animation; selection never moves geomet
 
 | Change | Why | Status |
 |---|---|---|
-| List clamps to 3 lines (`ListLinesMax`) | 10-line rows turned the list into a document | owner to confirm |
+| List clamps to 3 lines (`ListLinesMax`) | 10-line rows turned the list into a document | **reversed by owner 25 Nov — 10 lines, §3** |
 | `previewLines` (1..100) now sizes the outside tooltip | keeps the frozen config range meaningful | owner to confirm |
-| Per-row meta line removed | duplicated the bottom bar, added a 31 px block per row | owner to confirm |
+| Per-row meta line removed | duplicated the bottom bar, added a 31 px block per row | **reversed by owner 25 Nov — provenance returns per row, §3** |
+| Letter tile replaced by a row index | the number is the paste key (`1`–`9`); the app is named on the provenance line | owner 25 Nov |
+| Toast height fixed by `Notification.Height` | ACC-v2 §7.5: a jumpy toast is worse than a cropped one | **reversed by owner 25 Nov — content height up to `Height` (§3.2)** |
 | Dark zebra `#16181D` → `#101319` | 2.1:1 stripes read as a spreadsheet | shipped |
 | Light palette warm-paper → neutral grey | warm Fg48 could not clear 4.5:1 | shipped |
 | Light rail `Accent` → `AccentText` | pure orange is 2.3:1 on the pale selection | shipped |
