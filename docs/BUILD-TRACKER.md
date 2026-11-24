@@ -27,7 +27,7 @@ dual-axis audit (DB logic + UI/UX) is clean; memory inside the ceiling; docs upd
 | # | Slice | Files (owner) | Status | Evidence required |
 |---|---|---|---|---|
 | S1 | `ClipTags` classifier + `tags[]` DTO | `Core\ClipTags.cs`, `Host\ClipHost.Queries.cs` | **DONE `1b57ecd`, then FAILED audit → S3f** | 27/27 fixtures, but prose tagged as TS/Python |
-| S3f | Kill tag false positives, truncation rule, one search rule | `Core\ClipTags.cs`, `Core\SearchService.cs`, `Core\ClipSearch.cs` | IN PROGRESS | Audit's prose list all untagged; parity table |
+| S3f | Kill tag false positives, truncation rule, one search rule | `Core\ClipTags.cs`, `Core\SearchService.cs`, `Core\ClipSearch.cs` | **DONE `d9849ed`** (refining code-on-truncated) | 61/61 + 8/8 + 2/2; prose clean; 20.4 ms at 2k |
 | S2 | Visual audit + contrast tokens | `UI\web\src\styles.css`, `icons.tsx` | **DONE `0d0b666`** | 16/20; 62+62 pairs, 0 failures; lowest 4.62 / 4.82 |
 | R1 | OCR research (engine, cost, storage) | scratch only | **DONE** — Windows.Media.Ocr, +25.4 MB exe, zero schema change | Accuracy table, per-image ms, migration cost |
 | R2 | Export + tag-query research | scratch only | **DONE** — CSV byte-identical, BOM yes, `sep=` never | CSV proof on real clip, 15-query grammar |
