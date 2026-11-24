@@ -120,10 +120,12 @@ namespace Clip.UI
 
             var rich = _store.GetRich(row.Id);
             // The editor writes the body back, so it must start from the whole text, not the row's preview.
-            var source = row.Item.TextLength > (row.Item.Text?.Length ?? 0)
+            // TextLength 0 on the copy marks "this object carries the whole body", which is what lets
+            // ClipboardStore.Update refuse a preview instead of overwriting the clip with 1 200 characters (AUDIT P0).
+            var source = row.Item.IsTruncated
                 ? new ClipboardItem
                 {
-                    Id = row.Item.Id, Kind = row.Item.Kind, TextLength = row.Item.TextLength,
+                    Id = row.Item.Id, Kind = row.Item.Kind,
                     Text = _store.GetText(row.Id) ?? row.Item.Text,
                     AppName = row.Item.AppName, WindowTitle = row.Item.WindowTitle,
                     CapturedAt = row.Item.CapturedAt, SizeBytes = row.Item.SizeBytes, TabId = row.Item.TabId

@@ -10,8 +10,6 @@ namespace Clip.Host
     /// <summary>Read queries and the copy command; protocol/dispatch lives in ClipHost.cs.</summary>
     internal sealed partial class ClipHost
     {
-        const int PreviewChars = ClipboardStore.PreviewChars;
-
         // ---- queries --------------------------------------------------------------------------
 
         PageResult Page(long? tabId, int offset, int limit, string query)
@@ -97,9 +95,6 @@ namespace Clip.Host
 
         ItemDto ToDto(ClipboardItem row, ItemMeta info, string[] tags)
         {
-            // item rows carry only PreviewChars of text; the DTO promises no more.
-            string text = row.Text;
-            if (text != null && text.Length > PreviewChars) text = text.Substring(0, PreviewChars);
             return new ItemDto
             {
                 Id = row.Id,
@@ -109,13 +104,14 @@ namespace Clip.Host
                 Time = row.CapturedAt,
                 Pinned = row.TabId == _store.PinnedTabId,
                 TabId = row.TabId,
-                Text = text,
+                Text = row.Text, // the stored PreviewChars-code-point preview; never re-cut it by Text.Length
                 HasImage = row.Kind == "image",
                 HasHtml = info?.HasHtml ?? false,
                 HasRtf = info?.HasRtf ?? false,
                 Formats = info?.Formats ?? new List<string>(),
                 Tags = tags,
-                MoreCount = (int)Math.Min(int.MaxValue, Math.Max(0, row.TextLength - (row.Text?.Length ?? 0)))
+                Truncated = row.IsTruncated,
+                RemainingChars = (int)Math.Min(int.MaxValue, row.RemainingChars)
             };
         }
 
@@ -290,7 +286,10 @@ FROM items i WHERE i.id IN ({string.Join(",", names)})";
             public bool HasRtf { get; set; }
             public List<string> Formats { get; set; }
             public string[] Tags { get; set; }
-            public int MoreCount { get; set; }
+            /// <summary>True when the body is longer than the preview: the page must load getItem before paste/edit.</summary>
+            public bool Truncated { get; set; }
+            /// <summary>Stored characters (SQLite code points) past the preview; 0 unless <see cref="Truncated"/>.</summary>
+            public int RemainingChars { get; set; }
         }
     }
 }

@@ -203,18 +203,14 @@ namespace Clip.Core
         static bool Contains(ClipboardItem item, ReadOnlySpan<char> value)
         {
             if (item == null) return false;
-            if (item.Text != null &&
-                item.Text.AsSpan().IndexOf(value, StringComparison.OrdinalIgnoreCase) >= 0) return true;
+            if (item.Text != null && SearchService.Contains(item.Text.AsSpan(), value)) return true;
             // AppName is searchable in the existing SearchService.Filter too.
-            if (item.AppName != null &&
-                item.AppName.AsSpan().IndexOf(value, StringComparison.OrdinalIgnoreCase) >= 0) return true;
+            if (item.AppName != null && SearchService.Contains(item.AppName.AsSpan(), value)) return true;
             // An image (or a legacy row) has no text; its file list and window title are what it has.
             if (item.Text == null)
             {
-                if (item.Uris != null &&
-                    item.Uris.AsSpan().IndexOf(value, StringComparison.OrdinalIgnoreCase) >= 0) return true;
-                if (item.WindowTitle != null &&
-                    item.WindowTitle.AsSpan().IndexOf(value, StringComparison.OrdinalIgnoreCase) >= 0) return true;
+                if (item.Uris != null && SearchService.Contains(item.Uris.AsSpan(), value)) return true;
+                if (item.WindowTitle != null && SearchService.Contains(item.WindowTitle.AsSpan(), value)) return true;
             }
             return false;
         }

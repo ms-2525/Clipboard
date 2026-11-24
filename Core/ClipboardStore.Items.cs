@@ -147,9 +147,14 @@ DELETE FROM item_formats WHERE item_id = $id";
             return true;
         }
 
-        /// <summary>F2 editor: rewrites an item's body and moves it to the top of the list, in ONE transaction (A2-22).</summary>
-        public void Update(ClipboardItem it)
+        /// <summary>
+        /// F2 editor: rewrites an item's body and moves it to the top of the list, in ONE transaction (A2-22).
+        /// Refuses (false, nothing written) when the item only carries a list preview: its Text is then the
+        /// first <see cref="PreviewChars"/> code points, and saving it would destroy the stored body (AUDIT P0).
+        /// </summary>
+        public bool Update(ClipboardItem it)
         {
+            if (it.IsTruncated) return false;
             var now = ClipboardItem.Stamp();
             using var tx = _conn.BeginTransaction();
             using var cmd = _conn.CreateCommand();
@@ -166,6 +171,8 @@ DELETE FROM item_formats WHERE item_id = $id";
             cmd.ExecuteNonQuery();
             tx.Commit();
             it.CapturedAt = now;
+            it.TextLength = 0; // this object now carries the whole body it just wrote
+            return true;
         }
 
         public List<ClipboardItem> GetRecent(int max) => GetRecent(max, null);
@@ -270,20 +277,25 @@ ORDER BY captured_at DESC, id DESC LIMIT 1";
         }
 
         /// <summary>
-        /// Exact search, matches the in-memory one except for case folding beyond ASCII. Full text can be
-        /// hundreds of MB, so this belongs on a background thread with its OWN connection and is only needed
-        /// when a row's body is longer than its preview.
+        /// Same match as the in-memory <see cref="SearchService.Filter"/>, because it runs that same predicate:
+        /// SQLite's <c>lower()</c> folds ASCII only, so the comparison is done in C# and must stay one rule.
+        /// Full text can be hundreds of MB, so this belongs on a background thread with its OWN connection
+        /// and is only needed when a row's body is longer than its preview.
         /// </summary>
         public List<long> SearchFull(string query, int max, string kind, long? tabId)
         {
             var ids = new List<long>();
             using var conn = new SqliteConnection($"Data Source={_path}");
             conn.Open();
+            // The C# comparison wins for accented text: SQL lower() folds ASCII only, so CAFÉ was found by
+            // one search path and not the other (AUDIT P1). One predicate, no SQL case folding.
+            conn.CreateFunction("clip_search_match", (string value, string q) =>
+                SearchService.Matches(value, q) ? 1L : 0L);
             using var cmd = conn.CreateCommand();
             cmd.CommandText = @"
 SELECT id FROM items WHERE " + (tabId.HasValue ? "tab_id = $tab" : "tab_id IS NULL")
                 + (kind == null ? "" : " AND kind = $kind") + @"
-  AND (instr(lower(text), lower($q)) > 0 OR instr(lower(app_name), lower($q)) > 0)
+  AND (clip_search_match(text, $q) = 1 OR clip_search_match(app_name, $q) = 1)
 ORDER BY captured_at DESC, id DESC LIMIT $m";
             if (tabId.HasValue) cmd.Parameters.AddWithValue("$tab", tabId.Value);
             if (kind != null) cmd.Parameters.AddWithValue("$kind", kind);

@@ -10,7 +10,7 @@ namespace Clip.Core
     /// </summary>
     public sealed partial class ClipboardStore : IDisposable
     {
-        readonly SqliteConnection _conn;
+        SqliteConnection _conn; // replaced in place by the corruption recovery
         readonly string _path;
 
         /// <summary>Built-in Pinned container. Any item with a tab_id is exempt from cap eviction and Clear.</summary>
@@ -22,26 +22,64 @@ namespace Clip.Core
         /// </summary>
         public bool RecoveredFromCorruption { get; private set; }
 
+        /// <summary>Word-for-word what the App tells the user after a recovery; one home for the sentence.</summary>
+        public const string CorruptionNotice =
+            "Clip history could not be read and was moved aside. A fresh history has started.";
+
+        /// <summary>
+        /// Raised after a MID-SESSION recovery — a capture hit a damaged data page, which the constructor never
+        /// sees because the header still opens. The App shows one notice and reloads; a startup recovery is
+        /// reported by <see cref="RecoveredFromCorruption"/> instead.
+        /// </summary>
+        public event Action CorruptionRecovered;
+
         public ClipboardStore(string dbPath)
         {
             _path = dbPath;
-            SqliteConnection conn = null;
             try
             {
-                conn = Open(dbPath);
-                Migrate(conn);
+                _conn = Open(dbPath);
+                Migrate(_conn);
             }
             catch (SqliteException ex) when (IsCorruption(ex))
             {
                 // Never start with no app: move the unreadable file aside and carry on with a fresh one (A2-05).
-                conn?.Dispose();
-                SqliteConnection.ClearAllPools();
-                MoveAside(dbPath);
-                RecoveredFromCorruption = true;
-                conn = Open(dbPath);
-                Migrate(conn);
+                Recover();
             }
+        }
+
+        /// <summary>
+        /// Runs one capture write. A file that opens but fails to write (SQLITE_CORRUPT on a damaged data page)
+        /// is recovered ONCE and the write retried on the fresh file; a second failure is a real error and
+        /// propagates. Without this the app starts fine, then dies on every copy (AUDIT P1).
+        /// </summary>
+        public void WriteWithRecovery(Action write)
+        {
+            try
+            {
+                write();
+            }
+            catch (SqliteException ex) when (IsCorruption(ex))
+            {
+                Recover();
+                write();
+            }
+        }
+
+        /// <summary>
+        /// The one corruption recovery: a genuinely unreadable file (SQLITE_CORRUPT / SQLITE_NOTADB) is renamed
+        /// aside and a fresh database is created. Startup and a failed capture share this routine.
+        /// </summary>
+        void Recover()
+        {
+            _conn?.Dispose();
+            SqliteConnection.ClearAllPools();
+            MoveAside(_path);
+            var conn = Open(_path);
+            Migrate(conn);
             _conn = conn;
+            RecoveredFromCorruption = true;
+            CorruptionRecovered?.Invoke();
         }
 
         static SqliteConnection Open(string dbPath)

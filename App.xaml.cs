@@ -73,6 +73,12 @@ namespace Clip
             _main.PlainPasteRequested += OnPlainPasteRequested;
             _main.CopyRequested += OnCopyRequested;
             _main.Closing += (s, ev) => { if (!_exiting) { ev.Cancel = true; _main.Hide(); } };
+            // A damaged data page is only found on the first write: tell the user once and drop the stale rows.
+            _store.CorruptionRecovered += () => Dispatcher.BeginInvoke(new Action(() =>
+            {
+                _notif.ShowMessage(ClipboardStore.CorruptionNotice);
+                _main.Reload();
+            }));
 
             string failure = RegisterHotkeys();
             BuildTray();
@@ -91,7 +97,7 @@ namespace Clip
                 Dispatcher.BeginInvoke(new Action(() =>
                     _notif.ShowMessage($"{Product} is running. Press {_cfg.Hotkey} to open the list.")));
             if (_store.RecoveredFromCorruption)
-                _notif.ShowMessage("Clip history could not be read and was moved aside. A fresh history has started.");
+                _notif.ShowMessage(ClipboardStore.CorruptionNotice);
             if (failure != null)
                 _notif.ShowMessage($"Could not register {failure}. Another app may own it.");
         }
@@ -223,7 +229,7 @@ namespace Clip
         void LoadForPaste(ClipboardItem item)
         {
             if (item == null) return;
-            if (item.TextLength > (item.Text?.Length ?? 0))
+            if (item.IsTruncated)
                 item.Text = _store.GetText(item.Id) ?? item.Text;
             if (item.Kind == "image")
             {
@@ -265,7 +271,7 @@ namespace Clip
                 // Nothing on screen: one indexed read, never a scan of the whole history.
                 string latest = _store.LatestText();
                 if (latest == null) return;
-                item = new ClipboardItem { Kind = "text", Text = latest, TextLength = latest.Length };
+                item = new ClipboardItem { Kind = "text", Text = latest }; // whole body, so TextLength stays 0
             }
 
             if (_main.IsVisible) _main.HideForPaste();

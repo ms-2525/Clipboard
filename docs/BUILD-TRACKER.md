@@ -27,11 +27,11 @@ dual-axis audit (DB logic + UI/UX) is clean; memory inside the ceiling; docs upd
 | # | Slice | Files (owner) | Status | Evidence required |
 |---|---|---|---|---|
 | S1 | `ClipTags` classifier + `tags[]` DTO | `Core\ClipTags.cs`, `Host\ClipHost.Queries.cs` | **DONE `1b57ecd`** | 27/27 fixtures, 0 false positives; real rows tagged |
-| S2 | Visual audit + contrast tokens | `UI\web\src\styles.css`, `icons.tsx` | IN PROGRESS | Computed ratio table light+dark, screenshots |
+| S2 | Visual audit + contrast tokens | `UI\web\src\styles.css`, `icons.tsx` | **DONE `0d0b666`** | 16/20; 62+62 pairs, 0 failures; lowest 4.62 / 4.82 |
 | R1 | OCR research (engine, cost, storage) | scratch only | **DONE** — Windows.Media.Ocr, +25.4 MB exe, zero schema change | Accuracy table, per-image ms, migration cost |
-| R2 | Export + tag-query research | scratch only | IN PROGRESS | CSV proof on real clip, 15-query grammar |
+| R2 | Export + tag-query research | scratch only | **DONE** — CSV byte-identical, BOM yes, `sep=` never | CSV proof on real clip, 15-query grammar |
 | S3a | Search parser + tag filter + `search` bridge | `Core\ClipSearch.cs`, `Host\` | **DONE `ffc97aa`** | 15/15 grammar rows; 3–30 ms at 1k/2k, budget 50 ms |
-| S3b | Row contract + keyboard matrix in the UI | `UI\web\src\*` | QUEUED (waits on S2) | 10-line clamp, index `01`, provenance, digits 1–9 |
+| S3b | Row contract + tags + real Inter + focus=selection | `UI\web\src\*` | IN PROGRESS | 10-line clamp, index `01`, provenance, 5 widths, fonts inlined |
 | S4 | Clip actions: paste, delete/undo, pin, move, live capture | `Host\`, `UI\web\src\*` | QUEUED | Paste into Notepad lands; undo restores; capture appears live |
 | S5 | Rich rows: HTML/RTF/images/files, sanitizer, Word normalizer | `UI\web\src\*`, `Core\HtmlSanitize.cs` | QUEUED | Word + Excel + Chrome clips render; no network fetch |
 | S6 | Export clip to file | `Core\ClipExport.cs`, `Host\`, `UI\web\src\*` | QUEUED | CSV opens in Excel; PNG opens; names safe |

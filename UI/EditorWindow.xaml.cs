@@ -28,6 +28,7 @@ namespace Clip.UI
         const string PlainNotice = "This clip's formatting could not be loaded; editing as plain text.";
         const string TooLargeNotice = "This clip's HTML body is larger than 2 MB, so its formatting was not loaded; editing as plain text.";
         const string RuntimeNotice = "Editing needs the free WebView2 runtime (installed with Windows).";
+        const string PreviewNotice = "This clip's full text could not be loaded, so saving would replace it with a partial copy. Nothing was saved.";
 
         readonly ClipboardStore _store;
         readonly ClipboardItem _item;
@@ -330,7 +331,13 @@ namespace Clip.UI
                 _item.Text = Normalize(text);
                 _item.Html = CfHtml(html);
                 _item.Rtf = null;
-                _store.Update(_item);
+                if (!_store.Update(_item))
+                {
+                    // Only a caller that handed the editor a list preview gets here; the stored body is untouched.
+                    ShowNotice(PreviewNotice);
+                    _saving = false;
+                    return;
+                }
                 Close();
             }
             catch

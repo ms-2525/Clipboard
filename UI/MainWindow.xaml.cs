@@ -276,7 +276,7 @@ namespace Clip.UI
             if (query.Length == 0) return;
             bool deeper = false;
             foreach (var row in _rows)
-                if (row.Item.TextLength > (row.Item.Text?.Length ?? 0)) { deeper = true; break; }
+                if (row.Item.IsTruncated) { deeper = true; break; }
             if (!deeper) return;
             // One scan at a time: typing a word must not queue a full-history scan per keystroke.
             if (_deepBusy) { _deepQueued = 1; return; }
@@ -479,7 +479,7 @@ namespace Clip.UI
         internal string FullText(ClipRow row)
         {
             if (row == null) return null;
-            return row.Item.TextLength > (row.Item.Text?.Length ?? 0)
+            return row.Item.IsTruncated
                 ? _store.GetText(row.Id) ?? row.Item.Text
                 : row.Item.Text;
         }

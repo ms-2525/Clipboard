@@ -85,7 +85,7 @@ namespace Clip.UI
                 _tooltipRead = true;
                 if (IsImage) return _tooltip = null;
                 string body = IsFiles ? Paths(Item)
-                    : _textLen > _text.Length && _store != null ? _store.GetText(Item.Id) ?? _text
+                    : Item.IsTruncated && _store != null ? _store.GetText(Item.Id) ?? _text
                     : _text;
                 _tooltip = Truncate(body, TooltipCap);
                 return _tooltip;

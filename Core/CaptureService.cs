@@ -124,9 +124,13 @@ namespace Clip.Core
         {
             // Every original format rides along when it fits the budget: Excel gets Biff12 back, Word RTF/HTML, browsers HTML.
             item.Formats = ClipboardFormats.Snapshot(_cfg.MaxItemBytes);
-            // Exact match already in history: that row takes the fresh snapshot and moves to the top instead of a second copy.
-            if (!_store.TryDedupeMoveToTop(item)) _store.InsertWithFormats(item);
-            _store.EnforceCap(_cfg.MaxItems);
+            // A data page that opens but fails on write recovers once inside the store instead of crash-looping (AUDIT P1).
+            _store.WriteWithRecovery(() =>
+            {
+                // Exact match already in history: that row takes the fresh snapshot and moves to the top instead of a second copy.
+                if (!_store.TryDedupeMoveToTop(item)) _store.InsertWithFormats(item);
+                _store.EnforceCap(_cfg.MaxItems);
+            });
             Captured?.Invoke(item);
         }
 
