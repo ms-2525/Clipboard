@@ -29,8 +29,9 @@ namespace Clip.Core
             using var cmd = _conn.CreateCommand();
             cmd.Transaction = tx;
             cmd.CommandText = @"
-INSERT INTO items (kind, text, html, rtf, image, thumb, uris, app_name, window_title, captured_at, size_bytes, image_hash)
-VALUES ($kind, $text, $html, $rtf, $image, $thumb, $uris, $app, $title, $at, $size, $hash)";
+INSERT INTO items (kind, text, html, rtf, image, thumb, uris, app_name, window_title, captured_at, size_bytes, image_hash, sort_seq)
+VALUES ($kind, $text, $html, $rtf, $image, $thumb, $uris, $app, $title, $at, $size, $hash,
+  (SELECT COALESCE(MAX(sort_seq),0)+1 FROM items))";
             cmd.Parameters.AddWithValue("$kind", it.Kind);
             cmd.Parameters.AddWithValue("$text", (object)it.Text ?? DBNull.Value);
             cmd.Parameters.AddWithValue("$html", (object)it.Html ?? DBNull.Value);
@@ -59,7 +60,8 @@ VALUES ($kind, $text, $html, $rtf, $image, $thumb, $uris, $app, $title, $at, $si
 
         /// <summary>
         /// Undo primitive for a deleted row: same id, tab, formats and captured_at, re-inserted in one transaction.
-        /// No dedupe (an explicit user action) and no eviction — the cap re-applies on the next capture.
+        /// No dedupe (an explicit user action) and no eviction — the cap re-applies on the next capture. A
+        /// restored clip takes the next sort_seq, so undo brings it back at the top where the user is looking.
         /// The retired `pinned` flag is not restored; tab_id carries the pin state.
         /// </summary>
         public long Restore(ClipboardItem it)
@@ -73,8 +75,9 @@ VALUES ($kind, $text, $html, $rtf, $image, $thumb, $uris, $app, $title, $at, $si
             {
                 cmd.Transaction = tx;
                 cmd.CommandText = @"
-INSERT INTO items (id, kind, text, html, rtf, image, thumb, uris, app_name, window_title, captured_at, size_bytes, tab_id, image_hash)
-VALUES ($id, $kind, $text, $html, $rtf, $image, $thumb, $uris, $app, $title, $at, $size, $tab, $hash)";
+INSERT INTO items (id, kind, text, html, rtf, image, thumb, uris, app_name, window_title, captured_at, size_bytes, tab_id, image_hash, sort_seq)
+VALUES ($id, $kind, $text, $html, $rtf, $image, $thumb, $uris, $app, $title, $at, $size, $tab, $hash,
+  (SELECT COALESCE(MAX(sort_seq),0)+1 FROM items))";
                 cmd.Parameters.AddWithValue("$id", it.Id);
                 cmd.Parameters.AddWithValue("$kind", it.Kind);
                 cmd.Parameters.AddWithValue("$text", (object)it.Text ?? DBNull.Value);
@@ -99,11 +102,8 @@ VALUES ($id, $kind, $text, $html, $rtf, $image, $thumb, $uris, $app, $title, $at
         /// <summary>
         /// Exact-match dedupe against main history only: byte-for-byte (case- and space-sensitive; SQLite BINARY
         /// collation, no C# normalisation). A copy in a tab is never matched, so it cannot swallow a fresh history
-        /// copy. On a hit the existing row takes the new metadata, formats and display timestamp.
-        /// The name is the contract: the live list still inserts the re-copied row at index 0. Database order is
-        /// insertion identity (AUDIT wall-clock ordering), so a reload puts the row back where its id sits.
-        /// shortcut: re-copy does not change persisted position, add a monotonic sequence column if the owner
-        /// needs it to jump to the top after a reload.
+        /// copy. On a hit the existing row takes the new metadata, formats and display timestamp AND the next
+        /// sort_seq, so re-copying an old clip returns it to the top of every list and makes it <see cref="LatestText"/>.
         /// </summary>
         public bool TryDedupeMoveToTop(ClipboardItem it)
         {
@@ -118,14 +118,14 @@ VALUES ($id, $kind, $text, $html, $rtf, $image, $thumb, $uris, $app, $title, $at
                 if (hash == null) find.Parameters.AddWithValue("$kind", it.Kind);
                 if (hash != null) find.Parameters.AddWithValue("$h", hash);
                 find.Parameters.AddWithValue("$v", (object)(hash != null ? it.Image : (object)it.Text) ?? DBNull.Value);
-                // The newest duplicate by insertion identity, the same rule every list uses (AUDIT wall-clock ordering).
-                find.CommandText += " ORDER BY id DESC LIMIT 1";
+                // The newest duplicate by the list's own order. sort_seq is what the list shows.
+                find.CommandText += " ORDER BY sort_seq DESC, id DESC LIMIT 1";
                 var hit = find.ExecuteScalar();
                 if (hit == null && hash != null)
                 {
                     // Image stored before image_hash existed: one BLOB scan for that row, which then gets its hash.
                     find.CommandText = "SELECT id FROM items WHERE kind = 'image' AND tab_id IS NULL AND image_hash IS NULL"
-                        + " AND image = $v ORDER BY id DESC LIMIT 1";
+                        + " AND image = $v ORDER BY sort_seq DESC, id DESC LIMIT 1";
                     hit = find.ExecuteScalar();
                 }
                 if (hit == null) return false;
@@ -138,7 +138,8 @@ VALUES ($id, $kind, $text, $html, $rtf, $image, $thumb, $uris, $app, $title, $at
                 upd.Transaction = tx;
                 upd.CommandText = @"
 UPDATE items SET captured_at = $at, app_name = $app, window_title = $title, html = $html, rtf = $rtf,
-  thumb = COALESCE($thumb, thumb), image_hash = COALESCE($hash, image_hash) WHERE id = $id;
+  thumb = COALESCE($thumb, thumb), image_hash = COALESCE($hash, image_hash),
+  sort_seq = (SELECT COALESCE(MAX(sort_seq),0)+1 FROM items) WHERE id = $id;
 DELETE FROM item_formats WHERE item_id = $id";
                 upd.Parameters.AddWithValue("$at", it.CapturedAt);
                 upd.Parameters.AddWithValue("$app", (object)it.AppName ?? DBNull.Value);
@@ -158,10 +159,9 @@ DELETE FROM item_formats WHERE item_id = $id";
 
         /// <summary>
         /// F2 editor: rewrites an item's body in ONE transaction (A2-22). The stored time is bumped for the
-        /// display/grouping stamp; list position follows insertion identity (<see cref="Query"/>), so an edited
-        /// clip keeps its place. Refuses (false, nothing written) when the item only carries a list preview: its
-        /// Text is then the first <see cref="PreviewChars"/> code points, and saving it would destroy the stored
-        /// body (AUDIT P0).
+        /// display/grouping stamp; list position follows sort_seq (<see cref="Query"/>), so an edited clip keeps
+        /// its place. Refuses (false, nothing written) when the item only carries a list preview: its Text is then
+        /// the first <see cref="PreviewChars"/> code points, and saving it would destroy the stored body (AUDIT P0).
         /// </summary>
         public bool Update(ClipboardItem it)
         {
@@ -200,8 +200,8 @@ DELETE FROM item_formats WHERE item_id = $id";
         /// Returns list metadata plus a <see cref="PreviewChars"/>-char preview of the body — never the image,
         /// html, rtf or thumb blobs. Ask <see cref="GetRich"/>, <see cref="GetText"/> or <see cref="GetThumb"/>
         /// for one row (a Word table's CF_HTML is 50-200 KB, and a 10 k-row history would load gigabytes).
-        /// Newest first means newest insertion, not the wall-clock string: a DST fall-back made a new clip sort
-        /// below older ones (AUDIT P1).
+        /// Newest first means highest sort_seq, never the wall-clock string: a DST fall-back made a new clip sort
+        /// below older ones, and id alone left a re-copied clip in place (AUDIT P1).
         /// </summary>
         public List<ClipboardItem> GetRecent(int max, string kind) => Query(_conn, max, kind, null);
 
@@ -226,7 +226,7 @@ DELETE FROM item_formats WHERE item_id = $id";
 SELECT id, kind, substr(text,1,1200), length(text), uris, app_name, window_title, captured_at, tab_id
 FROM items WHERE " + (tabId.HasValue ? "tab_id = $tab" : "tab_id IS NULL")
                 + (kind == null ? "" : " AND kind = $kind") + @"
-ORDER BY id DESC LIMIT $m";
+ORDER BY sort_seq DESC, id DESC LIMIT $m";
             if (tabId.HasValue) cmd.Parameters.AddWithValue("$tab", tabId.Value);
             if (kind != null) cmd.Parameters.AddWithValue("$kind", kind);
             cmd.Parameters.AddWithValue("$m", max);
@@ -287,15 +287,15 @@ ORDER BY id DESC LIMIT $m";
         }
 
         /// <summary>
-        /// The newest main-history body for the plain-paste hotkey: newest by insertion identity, so a DST
-        /// fall-back or a manual clock change cannot make it paste an older clip (AUDIT P1).
+        /// The newest main-history body for the plain-paste hotkey: highest sort_seq, so a DST fall-back or a manual
+        /// clock change cannot make it paste an older clip, and re-copying an old clip makes it the latest again.
         /// </summary>
         public string LatestText()
         {
             using var cmd = _conn.CreateCommand();
             cmd.CommandText = @"
 SELECT text FROM items WHERE tab_id IS NULL AND text IS NOT NULL AND length(trim(text)) > 0
-ORDER BY id DESC LIMIT 1";
+ORDER BY sort_seq DESC, id DESC LIMIT 1";
             return cmd.ExecuteScalar() as string;
         }
 
@@ -319,7 +319,7 @@ ORDER BY id DESC LIMIT 1";
 SELECT id FROM items WHERE " + (tabId.HasValue ? "tab_id = $tab" : "tab_id IS NULL")
                 + (kind == null ? "" : " AND kind = $kind") + @"
   AND (clip_search_match(text, $q) = 1 OR clip_search_match(app_name, $q) = 1)
-ORDER BY id DESC LIMIT $m";
+ORDER BY sort_seq DESC, id DESC LIMIT $m";
             if (tabId.HasValue) cmd.Parameters.AddWithValue("$tab", tabId.Value);
             if (kind != null) cmd.Parameters.AddWithValue("$kind", kind);
             cmd.Parameters.AddWithValue("$q", query.Trim());
@@ -430,11 +430,11 @@ DELETE FROM item_formats WHERE item_id NOT IN (SELECT id FROM items)";
 
             using var cmd = _conn.CreateCommand();
             // Tab items are never evicted. If every row is in a tab the cap is exceeded on purpose; it limits the
-            // main-history budget only, so protection never makes a fresh capture fail. "Newest" is insertion
-            // identity for the same reason the list uses it: a DST fall-back must not evict the clip just copied.
+            // main-history budget only, so protection never makes a fresh capture fail. "Newest" is sort_seq: a
+            // DST fall-back must not evict the clip just copied, and a re-copied clip now counts as newest.
             cmd.CommandText = @"
 DELETE FROM items WHERE tab_id IS NULL AND id IN (
-  SELECT id FROM items WHERE tab_id IS NULL ORDER BY id DESC LIMIT -1 OFFSET $m);
+  SELECT id FROM items WHERE tab_id IS NULL ORDER BY sort_seq DESC, id DESC LIMIT -1 OFFSET $m);
 DELETE FROM item_formats WHERE item_id NOT IN (SELECT id FROM items)";
             cmd.Parameters.AddWithValue("$m", max);
             cmd.ExecuteNonQuery();

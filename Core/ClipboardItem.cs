@@ -43,9 +43,9 @@ namespace Clip.Core
         public static string ClockFormat = "HH:mm";
 
         /// <summary>
-        /// Ordering is lexical (ORDER BY captured_at DESC, id DESC), so every writer must emit exactly this shape.
-        /// Milliseconds keep a re-copy inside the same second above the copy it replaced; older second-resolution
-        /// rows still sort before them ("…:23" &lt; "…:23.500" &lt; "…:24").
+        /// Display/grouping timestamp shape. List order is <c>sort_seq DESC, id DESC</c> (a monotonic key), never
+        /// this string, because a DST fall-back makes wall-clock time go backwards. Milliseconds keep the footer
+        /// truthful when two clips land in the same second.
         /// </summary>
         internal const string StampFormat = "yyyy-MM-ddTHH:mm:ss.fff";
 
