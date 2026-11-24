@@ -68,10 +68,15 @@ namespace Clip.UI
             switch (block)
             {
                 case Paragraph paragraph:
+                {
                     html.Append("<p>");
+                    string style = ParagraphStyle(paragraph);
+                    if (style != null) html.Append("<span style=\"").Append(style).Append("\">");
                     AppendInlines(paragraph.Inlines, html);
+                    if (style != null) html.Append("</span>");
                     html.Append("</p>");
                     break;
+                }
 
                 case Section section:
                     foreach (var child in section.Blocks) AppendBlock(child, html);
@@ -127,6 +132,17 @@ namespace Clip.UI
         static bool IsOrdered(WpfList list) => list.MarkerStyle is TextMarkerStyle.Decimal
             or TextMarkerStyle.LowerLatin or TextMarkerStyle.UpperLatin
             or TextMarkerStyle.LowerRoman or TextMarkerStyle.UpperRoman;
+
+        /// <summary>Word often sets \f and \fs on the paragraph, not on every run, so the paragraph carries them down.</summary>
+        static string ParagraphStyle(Paragraph paragraph)
+        {
+            var css = new List<string>();
+            if (HasLocal(paragraph, TextElement.FontFamilyProperty))
+                css.Add("font-family:'" + paragraph.FontFamily.Source + "'");
+            if (HasLocal(paragraph, TextElement.FontSizeProperty))
+                css.Add("font-size:" + Math.Round(paragraph.FontSize * 0.75) + "pt");
+            return css.Count == 0 ? null : string.Join(";", css);
+        }
 
         // ---- inlines ----------------------------------------------------------------------
 

@@ -13,7 +13,8 @@ gated on `dotnet build -c Release` = 0 errors / 0 warnings:
 | `9c3ada2` | `Assets\editor\` page asset (TipTap **3.35.0** bundle, HTML, CSS), `scripts\build-editor.cmd`, `scripts\editor\` node project, csproj resource wiring + WebView2 package. Nothing consumed yet. |
 | `dcbc1cd` | The port: `EditorWindow.xaml`, `EditorWindow.xaml.cs`, `EditorWindow.Toolbar.cs`, new `EditorRtf.cs`, Syncfusion package removed. |
 | `e8b0e2b` | Audit + the first evidence pass + ledger/state/checklist updates. |
-| this commit | Visual-review fixes (band contrast, scrollbar, selection, focus state, footer keycaps, spacing) + the refreshed evidence they produced. |
+| `53516b5` | First visual review: band contrast, themed scrollbar, selection, focus state, footer keycaps, spacing. |
+| this commit | Second visual pass: `A`/`ab`/`Clear` gaps, the scrolled top inset, RTF paragraph fonts, the one-row banner, and refreshed evidence/docs. |
 
 Syncfusion is gone from the tree (`grep -i syncfusion UI Core Interop` → 0); the package's ~30 MB of
 assemblies no longer ship.
@@ -72,7 +73,9 @@ the page speaks (p / ul / ol / table, spans for local weight, style, decorations
 size, family). 239 lines with documentation; no new dependency.
 
 - `t4-rtf.png`: a seeded Word-style RTF (no HTML on the clip) shows the heading, **bold**, *italic*,
-  underline, accent colour, two bullet levels and two font sizes.
+  underline, accent colour, two bullets in one list and two font sizes. The "Georgia" line is serif:
+  Word puts `\f` and `\fs` on the paragraph, and `EditorRtf.ParagraphStyle` now carries them down to a
+  paragraph-level span instead of dropping them.
 - The two real RTF-only clips in the history (343, 346) also open without the fallback notice.
 - Fidelity ceiling, stated plainly: spacing, tables' column widths, images and Word styles do not
   survive. The old Syncfusion editor had the same ceiling for RTF bodies (it used the same WPF parser
@@ -125,8 +128,8 @@ the WebView2 runtime is 158.0.4370.33):
 
 | | Cold (first open in a process) | Warm (second open, same process) |
 |---|---|---|
-| Browser core ready | 478 ms | 293 ms |
-| Page ready (clip on screen) | **2 923 ms** | **2 706 ms** |
+| Browser core ready | 512 ms | 344 ms |
+| Page ready (clip on screen) | **2 942 ms** | **2 748 ms** |
 
 Memory while one editor is open: **+302 MB across +6 `msedgewebview2` processes**; after closing, back
 to the machine's baseline (362.1 MB / 6 processes belong to other Windows apps that use WebView2).
@@ -156,7 +159,7 @@ No mitigation was shipped in this port.
 A fresh `deepseek-v4.1-flash#high` agent took its own shots plus zoom crops and judged them against
 `docs\DESIGN-language.md` and `docs\CHECKLIST-uiux.md` §0. It rejected the first port: "No — not while
 a band of text on the real ChatGPT clip is 1.1:1 and long clips reveal a stock scrollbar." That
-verdict produced this commit:
+verdict produced the first review commit; the second-pass fixes are in this one:
 
 | Found | Fix |
 |---|---|
@@ -170,8 +173,26 @@ verdict produced this commit:
 | Discard banner radius 10 (card grammar is 12) | 12 |
 | Audit claimed "Single line keeps marks" while the harness cleared every mark before joining | Harness no longer clears; the new shot proves bold/italic/underline/strike/size/colour/highlight survive. The command was already correct. |
 
-Accepted nits, not changed: h2 and h3 differ by 1 px; the discard banner leaves its left half empty;
-the footer Cancel/Save stay live behind the banner; the blockquote rule is faint at 20 % ink.
+Accepted nits, not changed: h2 and h3 differ by 1 px; the footer Cancel/Save stay live behind the
+banner; the blockquote rule is faint at 20 % ink.
+
+### Second pass (after those fixes)
+
+The same protocol on a new agent: 8 of 9 checks passed. The remaining FAIL was the `A` / `ab` /
+`Clear` group, which had no margins while the toggles did. It also found:
+
+| Found | Fix |
+|---|---|
+| `A` / `ab` / `Clear` borders fused at 0 DIP | 4 DIP between them, like the toggles |
+| A scrolled long clip had its first line clipped against the field border | Scrolling moved to an inner container inset by the sheet's 12 px padding, so the clip edge never touches the frame |
+| RTF paragraph fonts were dropped (the Georgia line rendered sans) | `EditorRtf.ParagraphStyle` carries paragraph-level `\f` / `\fs`; the line is serif |
+| Discard banner left half empty | One-row grid: question left, buttons right, vertically centred |
+| "fourLarger" at a wrap in the joined paragraph | The model has a real space (`…</s> <span…`); a space at a line break is invisible by design. No change |
+| WPF text shows ClearType colour fringing, the page does not | Accepted platform seam: the WebView must keep a transparent background so its rectangle cannot square the field's rounded corners, and transparent content disables Chromium's LCD text. Not "fixed" by degrading the chrome |
+| T4 claimed "two bullet levels"; the fixture has two bullets in one list | Claim corrected; nested-list fidelity is not proven |
+
+The only item that agent would still call "not designed" was the fused `A` / `ab` / `Clear` cluster;
+it is fixed. The rest are the accepted nits above or the dark-theme gap.
 
 All 16 shots in `docs\evidence-tiptap\` are from the fixed build. The judgement gap that remains is
 the dark theme: every capture is the light theme.

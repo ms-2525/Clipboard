@@ -134,7 +134,7 @@
 
           <Border Style="{StaticResource ToolSeparator}"/>
 
-          <Button x:Name="ColorButton" Style="{StaticResource ToolButton}" Click="OnColorButtonClick"
+          <Button x:Name="ColorButton" Style="{StaticResource ToolButton}" Click="OnColorButtonClick" Margin="0,0,4,0"
                   ToolTip="Text colour" AutomationProperties.Name="Text colour">
             <!-- One 20 px line block, same as every other glyph, so the letter baseline aligns;
                  the swatch bar parks in the descent zone below it. -->
@@ -145,7 +145,7 @@
                       VerticalAlignment="Bottom" Background="{DynamicResource AccentText}"/>
             </Grid>
           </Button>
-          <Button x:Name="MarkButton" Style="{StaticResource ToolButton}" Click="OnMarkButtonClick"
+          <Button x:Name="MarkButton" Style="{StaticResource ToolButton}" Click="OnMarkButtonClick" Margin="0,0,4,0"
                   ToolTip="Highlight" AutomationProperties.Name="Highlight">
             <Grid Height="20">
               <TextBlock Text="ab" FontSize="14" FontWeight="SemiBold" LineHeight="18"
@@ -221,16 +221,20 @@
       <Border x:Name="DiscardPrompt" Grid.Row="3" Visibility="Collapsed" Margin="8,6,8,0"
               Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Hairline}"
               BorderThickness="1" CornerRadius="12" Padding="14">
-        <StackPanel>
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+          </Grid.ColumnDefinitions>
           <TextBlock x:Name="DiscardText" Text="Discard changes?" FontSize="14" LineHeight="20"
-                     FontWeight="Medium" Foreground="{DynamicResource Fg75}"/>
-          <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
+                     FontWeight="Medium" Foreground="{DynamicResource Fg75}" VerticalAlignment="Center"/>
+          <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
             <Button x:Name="KeepEditing" Content="Keep editing" Style="{StaticResource SecondarySmall}"
                     Click="OnKeepEditingClick"/>
             <Button Content="Discard" Style="{StaticResource DangerSmall}" Margin="8,0,0,0"
                     Click="OnDiscardClick"/>
           </StackPanel>
-        </StackPanel>
+        </Grid>
       </Border>
 
       <Grid Grid.Row="4" Margin="8,6,8,8">

@@ -7,7 +7,8 @@
 
 html,body{margin:0;height:100%;overflow:hidden}
 body{background:transparent}
-#sheet{box-sizing:border-box;height:100%;overflow-y:auto;background:var(--canvas);border-radius:8px;padding:12px 14px}
+#sheet{box-sizing:border-box;height:100%;overflow:hidden;background:var(--canvas);border-radius:8px;padding:12px 14px}
+#editor{height:100%;overflow-y:auto}
 
 /* No stock Chromium scrollbar inside the rounded field: no steppers, no track, a quiet thumb. */
 ::-webkit-scrollbar{width:10px;height:10px}

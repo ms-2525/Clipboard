@@ -1,6 +1,6 @@
 import { Editor, Extension } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
-import { BackgroundColor, Color, FontSize, TextStyle } from '@tiptap/extension-text-style';
+import { BackgroundColor, Color, FontFamily, FontSize, TextStyle } from '@tiptap/extension-text-style';
 import Underline from '@tiptap/extension-underline';
 import Image from '@tiptap/extension-image';
 import Link from '@tiptap/extension-link';
@@ -256,6 +256,7 @@ const editor = new Editor({
         Underline,
         TextStyle,
         Color,
+        FontFamily,
         FontSize,
         BackgroundColor,
         Link.configure({ openOnClick: false, autolink: true, linkOnPaste: true }),
