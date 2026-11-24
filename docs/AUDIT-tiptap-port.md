@@ -29,6 +29,11 @@ Build succeeded.
     0 Error(s)
 ```
 
+Owner build (`dotnet publish Clip.csproj -c Release -r win-x64 --self-contained true
+-p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=none -o dist`):
+one `dist\Clip.exe`, **171.5 MB**, starts and stays up. The WebView2 package's XML doc files are no
+longer copied beside it (`AllowedReferenceRelatedFileExtensions`), so `dist` is literally one file.
+
 ## T2 — Plain clip opens, caret at end, Esc prompt
 
 - `t2-plain.png`: a 5-line plain clip opens as paragraphs, caret at the end (`focus('end')`), toolbar

@@ -6,6 +6,8 @@
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
     <Nullable>disable</Nullable>
+    <!-- The owner build is one exe; reference XML docs are not runtime files. -->
+    <AllowedReferenceRelatedFileExtensions>.pdb</AllowedReferenceRelatedFileExtensions>
     <!-- RENAME THE PRODUCT HERE — everything user-visible (exe name, %APPDATA% folder, tray label, mutex) derives from AssemblyName at runtime; namespaces stay internal and never need changing. -->
     <AssemblyName>Clip</AssemblyName>
     <RootNamespace>Clip</RootNamespace>
