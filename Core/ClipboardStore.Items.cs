@@ -186,6 +186,24 @@ DELETE FROM item_formats WHERE item_id = $id";
             return true;
         }
 
+        /// <summary>
+        /// The OCR write path: the recognised text becomes an image row's body so search finds the picture.
+        /// Deliberately not <see cref="Update"/> — that guard exists to stop a <see cref="PreviewChars"/>-char
+        /// PREVIEW from replacing a body, while OCR text is the whole recognised body and must not bump
+        /// captured_at or drop the image's format blobs. Only an image row is touched, so a late result can
+        /// never overwrite a text clip. Reads derive <see cref="ClipboardItem.TextLength"/> from length(text),
+        /// so the row reports the full recognised length, never the preview.
+        /// </summary>
+        public bool SetOcrText(long id, string text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return false;
+            using var cmd = _conn.CreateCommand();
+            cmd.CommandText = "UPDATE items SET text = $text WHERE id = $id AND kind = 'image'";
+            cmd.Parameters.AddWithValue("$text", text);
+            cmd.Parameters.AddWithValue("$id", id);
+            return cmd.ExecuteNonQuery() == 1;
+        }
+
         public List<ClipboardItem> GetRecent(int max) => GetRecent(max, null);
 
         /// <summary>
@@ -289,12 +307,14 @@ ORDER BY sort_seq DESC, id DESC LIMIT $m";
         /// <summary>
         /// The newest main-history body for the plain-paste hotkey: highest sort_seq, so a DST fall-back or a manual
         /// clock change cannot make it paste an older clip, and re-copying an old clip makes it the latest again.
+        /// An image is skipped even though OCR gives it text: plain paste must paste the picture, not its words.
         /// </summary>
         public string LatestText()
         {
             using var cmd = _conn.CreateCommand();
             cmd.CommandText = @"
-SELECT text FROM items WHERE tab_id IS NULL AND text IS NOT NULL AND length(trim(text)) > 0
+SELECT text FROM items WHERE tab_id IS NULL AND kind <> 'image'
+  AND text IS NOT NULL AND length(trim(text)) > 0
 ORDER BY sort_seq DESC, id DESC LIMIT 1";
             return cmd.ExecuteScalar() as string;
         }

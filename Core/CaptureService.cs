@@ -15,6 +15,10 @@ namespace Clip.Core
         readonly Config _cfg;
         readonly ClipboardListener _listener;
         readonly DispatcherTimer _debounce;
+        // OCR runs after the capture commits, on one below-normal worker; its result lands back on this thread
+        // because the store has a single writer connection (AUDIT-db-logic "never open a second writer").
+        readonly OcrService _ocr = new OcrService();
+        readonly Dispatcher _ui = Dispatcher.CurrentDispatcher;
         uint _suppressed;
 
         public event Action<ClipboardItem> Captured;
@@ -132,6 +136,26 @@ namespace Clip.Core
                 _store.EnforceCap(_cfg.MaxItems);
             });
             Captured?.Invoke(item);
+
+            // After the transaction, never inside it: a skipped capture never reaches Store, and a slow or failed
+            // OCR pass can neither delay the capture nor lose the picture. Dedupe returns the existing row, whose
+            // text is simply rewritten with the same result.
+            if (item.Kind == "image" && item.Image != null)
+                _ocr.Enqueue(item.Id, item.Image, (id, text) => WriteOcr(id, text));
+        }
+
+        /// <summary>Marshals an OCR result to the UI thread, the store's one writer; an optional write never throws.</summary>
+        void WriteOcr(long id, string text)
+        {
+            try
+            {
+                _ui.BeginInvoke(new Action(() =>
+                {
+                    try { _store.SetOcrText(id, text); }
+                    catch (Exception) { } // image stays stored; OCR text is optional enrichment
+                }));
+            }
+            catch (InvalidOperationException) { } // app shutting down: the capture itself is already committed
         }
 
         /// <summary>CF_HTML carries its Version:/StartHTML header; stored verbatim so paste-back round-trips.</summary>
@@ -299,6 +323,7 @@ namespace Clip.Core
             _debounce.Stop();
             _listener.Changed -= OnChanged;
             _listener.Dispose();
+            _ocr.Dispose();
         }
 
         [DllImport("user32.dll")]

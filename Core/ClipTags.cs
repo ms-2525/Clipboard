@@ -154,11 +154,15 @@ namespace Clip.Core
         public static string[] Classify(ClipboardItem item, IReadOnlyList<string> formats)
         {
             if (item == null) return Array.Empty<string>();
-            List<string> tags = null;
 
+            // An image is a picture, whatever its OCR text says. The rules below describe text the user copied;
+            // an incidental word in a screenshot must never mint link/path/number/language, and formats on an
+            // image row (DIB, PNG) prove nothing about its content.
             if (string.Equals(item.Kind, "image", StringComparison.OrdinalIgnoreCase) ||
                 (item.Image != null && item.Image.Length > 0))
-                tags = Add(tags, "image");
+                return new[] { "image" };
+
+            List<string> tags = null;
 
             bool fileDrop = false, spreadsheet = false;
             if (formats != null)
