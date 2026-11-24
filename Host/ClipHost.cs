@@ -87,6 +87,9 @@ namespace Clip.Host
                 case "getItems":
                     return Page(Tab(p), Int(p, "offset", 0), Int(p, "limit", 200), String(p, "query"));
 
+                case "search":
+                    return Search(Tab(p), Int(p, "offset", 0), Int(p, "limit", 200), String(p, "query"));
+
                 case "getItem":
                 {
                     long id = Long(p, "id");

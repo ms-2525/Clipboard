@@ -41,30 +41,82 @@ namespace Clip.Host
             foreach (var row in rows)
             {
                 meta.TryGetValue(row.Id, out var info);
-                items.Add(new ItemDto
+                items.Add(ToDto(row, info, ClipTags.Classify(row, info?.Formats)));
+            }
+            return new PageResult { Total = total, Items = items };
+        }
+
+        // ---- tag search -----------------------------------------------------------------------
+
+        /// <summary>
+        /// Step 1 search over the whole recent set, not just the loaded page. A word query needs no tags
+        /// until the reply page is built; a tag query classifies every candidate once and keeps the tags
+        /// beside the hits so the page is not classified a second time.
+        /// </summary>
+        SearchResult Search(long? tabId, int offset, int limit, string query)
+        {
+            offset = Math.Max(0, offset);
+            limit = Math.Clamp(limit, 1, 500);
+
+            var q = ClipSearch.Parse(query);
+            // Tabs are exempt from the history cap, so a container searches all of its items.
+            var all = tabId.HasValue
+                ? _store.GetTabItems(-1, tabId.Value)
+                : _store.GetRecent(Math.Max(1, _cfg.MaxItems));
+
+            bool byTag = q.Include.Length > 0 || q.Exclude.Length > 0;
+            var meta = byTag ? Meta(all.Select(r => r.Id).ToList()) : null;
+            var hits = new List<ClipboardItem>(Math.Min(all.Count, 64));
+            var hitTags = byTag ? new List<string[]>(hits.Capacity) : null;
+            foreach (var row in all)
+            {
+                string[] tags = null;
+                if (byTag)
                 {
-                    Id = row.Id,
-                    Kind = row.Kind,
-                    App = row.AppName,
-                    Title = row.WindowTitle,
-                    Time = row.CapturedAt,
-                    Pinned = row.TabId == _store.PinnedTabId,
-                    TabId = row.TabId,
-                    Text = row.Text,
-                    HasImage = row.Kind == "image",
-                    HasHtml = info?.HasHtml ?? false,
-                    HasRtf = info?.HasRtf ?? false,
-                    Formats = info?.Formats ?? new List<string>(),
-                    Tags = ClipTags.Classify(row, info?.Formats),
-                    MoreCount = (int)Math.Min(int.MaxValue, Math.Max(0, row.TextLength - (row.Text?.Length ?? 0)))
-                });
+                    meta.TryGetValue(row.Id, out var info);
+                    tags = ClipTags.Classify(row, info?.Formats);
+                }
+                if (!ClipSearch.Matches(row, tags, q)) continue;
+                hits.Add(row);
+                hitTags?.Add(tags);
             }
 
-            // item rows carry only PreviewChars of text; the DTO promises no more.
-            foreach (var item in items)
-                if (item.Text != null && item.Text.Length > PreviewChars) item.Text = item.Text.Substring(0, PreviewChars);
+            // The reply carries only this page, so a word query pays for tags on those rows alone.
+            if (!byTag && hits.Count > 0)
+                meta = Meta(hits.Skip(offset).Take(limit).Select(r => r.Id).ToList());
 
-            return new PageResult { Total = total, Items = items };
+            var items = new List<ItemDto>(Math.Min(limit, hits.Count));
+            for (int i = offset; i < hits.Count && items.Count < limit; i++)
+            {
+                meta.TryGetValue(hits[i].Id, out var info);
+                var tags = byTag ? hitTags[i] : ClipTags.Classify(hits[i], info?.Formats);
+                items.Add(ToDto(hits[i], info, tags));
+            }
+            return new SearchResult { Total = hits.Count, Items = items, UnknownTags = q.UnknownTags };
+        }
+
+        ItemDto ToDto(ClipboardItem row, ItemMeta info, string[] tags)
+        {
+            // item rows carry only PreviewChars of text; the DTO promises no more.
+            string text = row.Text;
+            if (text != null && text.Length > PreviewChars) text = text.Substring(0, PreviewChars);
+            return new ItemDto
+            {
+                Id = row.Id,
+                Kind = row.Kind,
+                App = row.AppName,
+                Title = row.WindowTitle,
+                Time = row.CapturedAt,
+                Pinned = row.TabId == _store.PinnedTabId,
+                TabId = row.TabId,
+                Text = text,
+                HasImage = row.Kind == "image",
+                HasHtml = info?.HasHtml ?? false,
+                HasRtf = info?.HasRtf ?? false,
+                Formats = info?.Formats ?? new List<string>(),
+                Tags = tags,
+                MoreCount = (int)Math.Min(int.MaxValue, Math.Max(0, row.TextLength - (row.Text?.Length ?? 0)))
+            };
         }
 
         int Total(long? tabId)
@@ -213,6 +265,13 @@ FROM items i WHERE i.id IN ({string.Join(",", names)})";
         {
             public int Total { get; set; }
             public List<ItemDto> Items { get; set; }
+        }
+
+        sealed class SearchResult
+        {
+            public int Total { get; set; }
+            public List<ItemDto> Items { get; set; }
+            public string[] UnknownTags { get; set; }
         }
 
         sealed class ItemDto
