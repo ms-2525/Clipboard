@@ -24,8 +24,12 @@ export interface ClipItem {
   hasHtml: boolean
   hasRtf: boolean
   formats: string[]
-  /** Extra formats beyond the primary one; drives the row's +N chip. */
-  moreCount: number
+  /** Canonical tag ids from Core\ClipTags.cs. The page renders these, never derives its own. */
+  tags: string[]
+  /** True when the row's preview is shorter than the stored clip. */
+  truncated: boolean
+  /** Characters the preview omits; 0 when the clip is complete. Drives the +N chip. */
+  remainingChars: number
 }
 
 export interface HostTab {
@@ -131,7 +135,9 @@ function normalizeItem(item: ClipItem): ClipItem {
     tabId: item.tabId ?? null,
     text: item.text || '',
     formats: item.formats ?? [],
-    moreCount: Math.max(0, item.moreCount ?? 0),
+    tags: Array.isArray(item.tags) ? item.tags : [],
+    truncated: Boolean(item.truncated),
+    remainingChars: Math.max(0, item.remainingChars ?? 0),
     pinned: Boolean(item.pinned),
     hasImage: Boolean(item.hasImage),
     hasHtml: Boolean(item.hasHtml),

@@ -38,7 +38,7 @@
   --highlight: #fde68a;
   --shadow: 0 12px 32px rgba(16, 24, 40, 0.14);
   --shadow-sm: 0 2px 6px rgba(16, 24, 40, 0.06);
-  --mono: 'Cascadia Code', 'Cascadia Mono', Consolas, 'Courier New', monospace;
+  --mono: 'IBM Plex Mono', 'Cascadia Code', 'Cascadia Mono', Consolas, 'Courier New', monospace;
   color-scheme: light;
 }
 
@@ -99,7 +99,7 @@ body,
 body {
   background: var(--app);
   color: var(--fg);
-  font-family: 'Segoe UI Variable Text', 'Segoe UI', -apple-system, system-ui, sans-serif;
+  font-family: Inter, 'Segoe UI Variable Text', 'Segoe UI', -apple-system, system-ui, sans-serif;
   font-size: 14px;
   line-height: 20px;
   -webkit-font-smoothing: antialiased;
@@ -481,10 +481,9 @@ a {
   position: absolute;
   left: 0;
   right: 0;
-  height: 96px;
   display: flex;
   gap: 10px;
-  padding: 9px 16px 9px 18px;
+  padding: 10px 16px 10px 18px;
   border-bottom: 1px solid var(--divider);
   background: var(--surface);
   cursor: default;
@@ -507,119 +506,95 @@ a {
   width: 3px;
   background: var(--rail);
 }
-.row .tile {
-  flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  background: var(--badge);
-  border: 1px solid var(--hairline);
-  color: var(--fg55);
-  display: grid;
-  place-items: center;
-  font-size: 11px;
-  font-weight: 600;
-  margin-top: 1px;
+/* Row anatomy, DESIGN-language §3: index, body (1–10 lines), provenance line.
+   The row height is measured by the virtualizer — never fixed here. */
+.row-index {
+  flex: 0 0 2ch;
+  width: 2ch;
+  padding-top: 1px;
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 500;
+  color: var(--fg48);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
 }
-.row-main {
+.row-content {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
 }
-.row-title {
+.row-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+}
+.row-text {
+  flex: 1;
+  min-width: 0;
+  min-height: 20px;
   font-size: 14px;
   line-height: 20px;
-  font-weight: 600;
   color: var(--fg);
-  white-space: nowrap;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 10;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
+}
+.row-prov {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 4px 6px;
+  min-width: 0;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--fg55);
+  font-variant-numeric: tabular-nums;
 }
-.row-title .pin {
+.prov-what {
+  flex: 1 1 0;
+  min-width: 40px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.prov-app {
+  font-weight: 600;
+}
+.prov-what .pin {
   color: var(--accent-text);
   display: inline-flex;
+  vertical-align: -2px;
+  margin-right: 4px;
 }
-.preview {
-  font-size: 12px;
-  line-height: 18px;
-  color: var(--fg55);
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  word-break: break-word;
-}
-.preview p {
-  display: inline;
-  margin: 0;
-}
-.preview strong {
-  font-weight: 600;
-  color: var(--fg75);
-}
-.preview em {
-  font-style: italic;
-}
-.preview a {
-  color: var(--accent-text);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-.band-inline {
-  background: var(--band);
-  color: var(--band-fg);
-  border-radius: 4px;
-  padding: 0 5px;
-  box-decoration-break: clone;
-  -webkit-box-decoration-break: clone;
-  font-size: 11px;
-}
-.file-line {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  height: 18px;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-.file-line span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.file-line svg {
+.prov-time {
   flex-shrink: 0;
   color: var(--fg48);
 }
+.chip.tag {
+  border: 0;
+  cursor: pointer;
+  font-family: inherit;
+  text-transform: capitalize;
+}
+.chip.tag:hover {
+  color: var(--fg);
+  background: color-mix(in srgb, var(--fg) 12%, var(--badge));
+}
 .thumb {
   flex-shrink: 0;
-  width: 58px;
-  height: 44px;
+  width: 96px;
+  height: 60px;
   border-radius: 6px;
   border: 1px solid var(--hairline);
   object-fit: cover;
   background: var(--field);
-  margin-top: 22px;
-}
-.facts {
-  flex-shrink: 0;
-  width: 62px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  justify-content: space-between;
-  padding: 1px 0;
-}
-.facts .chip {
-  height: 18px;
-  padding: 0 6px;
 }
 .empty {
   position: absolute;
@@ -1366,7 +1341,7 @@ a {
   .tabs-hint {
     display: none;
   }
-  .thumb {
+  .facts-chip {
     display: none;
   }
   .editor-chip {
@@ -1375,9 +1350,6 @@ a {
 }
 
 @media (max-width: 560px) {
-  .facts {
-    display: none;
-  }
   .banner-sub {
     display: none;
   }

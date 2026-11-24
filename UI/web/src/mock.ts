@@ -1,9 +1,21 @@
 import { makeClips, MOCK_TABS, mockThumb } from './data'
 import type { Host, ItemsQuery } from './host'
 
+/**
+ * Mock-only tag ids. The real host classifies in Core\ClipTags.cs; the page never
+ * derives a tag from text, so the fixture states them explicitly.
+ */
+const MOCK_TAGS: Record<number, string[]> = {
+  0: ['link'],
+  2: ['spreadsheet'],
+  3: ['files'],
+  4: ['image', 'spreadsheet'],
+  9: ['image', 'files', 'spreadsheet'], // exercises the 2 + "+N" fold
+}
+
 /** Deterministic 1,000-clip fixture for `npm run dev` and screenshots. Never used in WebView2. */
 export function createMockHost(): Host {
-  const clips = makeClips(1000)
+  const clips = makeClips(1000).map((clip, index) => ({ ...clip, tags: MOCK_TAGS[index] ?? [] }))
   const tabs = MOCK_TABS.map((tab) => ({
     ...tab,
     count: clips.filter((clip) => clip.tabId === tab.id).length,

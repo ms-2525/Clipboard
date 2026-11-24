@@ -80,10 +80,9 @@ export function makeClips(count = 1000): ClipItem[] {
     const body =
       kind === 'files'
         ? files.join('\n')
-        : Array.from({ length: 3 + (i % 5) }, () => pick(LOREM)).join(' ')
+        : Array.from({ length: 3 + (i % 5) + (i % 11 === 0 ? 9 : 0) }, () => pick(LOREM)).join(' ')
     const full = body.length > 12 ? body : pick(LOREM)
     const text = full.slice(0, 1200)
-    const moreCount = kind === 'files' ? 0 : full.length - text.length
 
     let formats: string[]
     if (kind === 'rich') formats = ['HTML', 'RTF', 'Text']
@@ -112,15 +111,61 @@ export function makeClips(count = 1000): ClipItem[] {
       hasHtml: kind === 'rich',
       hasRtf: kind === 'rich',
       formats,
-      moreCount,
+      tags: [],
+      truncated: full.length > text.length,
+      remainingChars: full.length - text.length,
     })
   }
+
+  // Deterministic showcase at the top of "All": a one-line link, a clamped long clip,
+  // a spreadsheet, a file drop and an image pasted from Excel (two proven tags).
+  const patch = (index: number, values: Partial<ClipItem>) => {
+    clips[index] = { ...clips[index], ...values }
+  }
+  patch(0, {
+    kind: 'text',
+    app: 'Chrome',
+    title: 'API reference',
+    text: 'https://docs.stripe.com/api/charges',
+    formats: ['Text'],
+    truncated: false,
+    remainingChars: 0,
+  })
+  patch(1, {
+    kind: 'text',
+    app: 'Word',
+    title: 'Policy draft',
+    text: LOREM.concat(LOREM).join('\n'),
+    formats: ['Text'],
+    truncated: true,
+    remainingChars: 1840,
+  })
+  patch(2, {
+    kind: 'rich',
+    app: 'Excel',
+    title: 'Q3 forecast',
+    text: LOREM[2],
+    formats: ['Biff12', 'HTML', 'Text'],
+    hasHtml: true,
+    hasRtf: false,
+    truncated: false,
+    remainingChars: 0,
+  })
+  patch(4, {
+    kind: 'image',
+    app: 'Excel',
+    title: 'Screenshot 2026-11-24 143012.png',
+    formats: ['PNG', 'Biff12'],
+    hasImage: true,
+    truncated: false,
+    remainingChars: 0,
+  })
   return clips
 }
 
 export const RICH_EDITOR_CONTENT = `
 <p><strong>Release notes — Clip 2.4</strong><br><em>Prepared for the Thursday review</em></p>
-<p>This build focuses on the clipboard list: rows now clamp to <strong>three lines</strong>, the list is virtualised, and the selected row shows its provenance in the bottom bar. Read the <a href="#">migration notes</a> before rolling out to the ops machine.</p>
+<p>This build focuses on the clipboard list: rows carry up to <strong>ten lines</strong> of source text, the list is virtualised, and selected rows keep the provenance line visible. Read the <a href="#">migration notes</a> before rolling out to the ops machine.</p>
 <blockquote><p><strong>Dark band</strong> — pasted from the client portal. Light text on a dark surface survives the paste path without a theme wash.</p></blockquote>
 <p>Numbers confirmed with finance:</p>
 <ul>

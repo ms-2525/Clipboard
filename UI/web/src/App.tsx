@@ -142,6 +142,10 @@ export default function App() {
 
   const filtered = useMemo(() => {
     if (!query) return items
+    // The real grammar lives in Core\ClipSearch.cs; here only the canonical `id:` form
+    // the page can emit is matched, against the tags the host already resolved.
+    const tagQuery = /^([a-z0-9-]+):$/.exec(query)
+    if (tagQuery) return items.filter((clip) => clip.tags.includes(tagQuery[1]))
     return items.filter(
       (clip) =>
         clip.title.toLowerCase().includes(query) ||
@@ -391,6 +395,11 @@ export default function App() {
               timeFormat={timeFormat}
               onSelect={setSelectedId}
               onCopy={copyItem}
+              onTag={(id) => {
+                setSearch(`${id}:`)
+                setSearchOpen(true)
+                window.setTimeout(() => searchRef.current?.focus(), 0)
+              }}
               getThumb={host.getThumb}
               emptyTitle={query ? 'No clips match' : tab === null ? 'No clips yet' : 'This tab is empty'}
               emptySub={

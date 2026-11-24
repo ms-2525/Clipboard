@@ -31,3 +31,15 @@ export function formatTime(value: string, timeFormat: TimeFormat = '24h', now = 
   const date = when.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
   return when.getFullYear() === now.getFullYear() ? date : `${date} ${when.getFullYear()}`
 }
+
+/**
+ * Full provenance stamp for a list row: "24 Nov 2026, 21:25". Rows always carry the
+ * date — a bare clock is ambiguous once the list holds more than one day.
+ */
+export function formatStamp(value: string, timeFormat: TimeFormat = '24h'): string {
+  if (!value) return ''
+  const when = new Date(value)
+  if (Number.isNaN(when.getTime())) return value
+  const date = when.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+  return `${date}, ${clock(when, timeFormat)}`
+}
