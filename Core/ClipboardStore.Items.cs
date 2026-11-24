@@ -171,9 +171,17 @@ DELETE FROM item_formats WHERE item_id = $id";
         public List<ClipboardItem> GetRecent(int max) => GetRecent(max, null);
 
         /// <summary>
+        /// How many characters of a body a list row carries. A row can only show PreviewLines × 92 chars
+        /// (ClipRow.CharsPerLine), so anything past this is never drawn. Keep the literal in sync with
+        /// ix_list in <see cref="Migrate"/>: SQLite only uses an expression index for an identical expression.
+        /// </summary>
+        public const int PreviewChars = 1200;
+
+        /// <summary>
         /// Clipboard/Images view = main history only (tab_id IS NULL). kind null = all rows, "text", "image" or "files".
-        /// The image blob and the html/rtf bodies are never loaded here; ask <see cref="GetRich"/> or
-        /// <see cref="GetImage"/> for one row (a Word table's CF_HTML is 50-200 KB per row).
+        /// Returns list metadata plus a <see cref="PreviewChars"/>-char preview of the body — never the image,
+        /// html, rtf or thumb blobs. Ask <see cref="GetRich"/>, <see cref="GetText"/> or <see cref="GetThumb"/>
+        /// for one row (a Word table's CF_HTML is 50-200 KB, and a 10 k-row history would load gigabytes).
         /// </summary>
         public List<ClipboardItem> GetRecent(int max, string kind) => Query(max, kind, null);
 
@@ -185,7 +193,7 @@ DELETE FROM item_formats WHERE item_id = $id";
             var list = new List<ClipboardItem>();
             using var cmd = _conn.CreateCommand();
             cmd.CommandText = @"
-SELECT id, kind, text, thumb, app_name, window_title, captured_at, uris, tab_id
+SELECT id, kind, substr(text,1,1200), length(text), uris, app_name, window_title, captured_at, tab_id
 FROM items WHERE " + (tabId.HasValue ? "tab_id = $tab" : "tab_id IS NULL")
                 + (kind == null ? "" : " AND kind = $kind") + @"
 ORDER BY captured_at DESC, id DESC LIMIT $m";
@@ -200,15 +208,90 @@ ORDER BY captured_at DESC, id DESC LIMIT $m";
                     Id = r.GetInt64(0),
                     Kind = r.IsDBNull(1) ? null : r.GetString(1),
                     Text = r.IsDBNull(2) ? null : r.GetString(2),
-                    Thumb = r.IsDBNull(3) ? null : (byte[])r.GetValue(3),
-                    AppName = r.IsDBNull(4) ? null : r.GetString(4),
-                    WindowTitle = r.IsDBNull(5) ? null : r.GetString(5),
-                    CapturedAt = r.IsDBNull(6) ? null : r.GetString(6),
-                    Uris = r.IsDBNull(7) ? null : r.GetString(7),
+                    TextLength = r.IsDBNull(3) ? 0 : r.GetInt64(3),
+                    Uris = r.IsDBNull(4) ? null : r.GetString(4),
+                    AppName = r.IsDBNull(5) ? null : r.GetString(5),
+                    WindowTitle = r.IsDBNull(6) ? null : r.GetString(6),
+                    CapturedAt = r.IsDBNull(7) ? null : r.GetString(7),
                     TabId = r.IsDBNull(8) ? (long?)null : r.GetInt64(8)
                 });
             }
             return list;
+        }
+
+        /// <summary>The full body for one row — paste, edit, undo and the row tooltip need all of it.</summary>
+        public string GetText(long id)
+        {
+            using var cmd = _conn.CreateCommand();
+            cmd.CommandText = "SELECT text FROM items WHERE id = $id";
+            cmd.Parameters.AddWithValue("$id", id);
+            using var r = cmd.ExecuteReader();
+            return r.Read() && !r.IsDBNull(0) ? r.GetString(0) : null;
+        }
+
+        /// <summary>One stored 96 px preview — the Images strip decodes only the tiles on screen.</summary>
+        public byte[] GetThumb(long id)
+        {
+            using var cmd = _conn.CreateCommand();
+            cmd.CommandText = "SELECT thumb FROM items WHERE id = $id";
+            cmd.Parameters.AddWithValue("$id", id);
+            using var r = cmd.ExecuteReader();
+            return r.Read() && !r.IsDBNull(0) ? (byte[])r.GetValue(0) : null;
+        }
+
+        /// <summary>Tab-strip counts without loading a single row (ix_kind is index-only).</summary>
+        public (int clips, int images) Counts()
+        {
+            int clips = 0, images = 0;
+            using var cmd = _conn.CreateCommand();
+            cmd.CommandText = "SELECT kind, COUNT(*) FROM items WHERE tab_id IS NULL GROUP BY kind";
+            using var r = cmd.ExecuteReader();
+            while (r.Read())
+            {
+                string kind = r.IsDBNull(0) ? null : r.GetString(0);
+                int n = r.GetInt32(1);
+                if (kind == "image") images += n;
+                else clips += n;
+            }
+            return (clips, images);
+        }
+
+        /// <summary>
+        /// The newest main-history body for the plain-paste hotkey. One indexed row instead of scanning
+        /// 10 000 list rows just to keep the first non-blank one.
+        /// </summary>
+        public string LatestText()
+        {
+            using var cmd = _conn.CreateCommand();
+            cmd.CommandText = @"
+SELECT text FROM items WHERE tab_id IS NULL AND text IS NOT NULL AND length(trim(text)) > 0
+ORDER BY captured_at DESC, id DESC LIMIT 1";
+            return cmd.ExecuteScalar() as string;
+        }
+
+        /// <summary>
+        /// Exact search, matches the in-memory one except for case folding beyond ASCII. Full text can be
+        /// hundreds of MB, so this belongs on a background thread with its OWN connection and is only needed
+        /// when a row's body is longer than its preview.
+        /// </summary>
+        public List<long> SearchFull(string query, int max, string kind, long? tabId)
+        {
+            var ids = new List<long>();
+            using var conn = new SqliteConnection($"Data Source={_path}");
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"
+SELECT id FROM items WHERE " + (tabId.HasValue ? "tab_id = $tab" : "tab_id IS NULL")
+                + (kind == null ? "" : " AND kind = $kind") + @"
+  AND (instr(lower(text), lower($q)) > 0 OR instr(lower(app_name), lower($q)) > 0)
+ORDER BY captured_at DESC, id DESC LIMIT $m";
+            if (tabId.HasValue) cmd.Parameters.AddWithValue("$tab", tabId.Value);
+            if (kind != null) cmd.Parameters.AddWithValue("$kind", kind);
+            cmd.Parameters.AddWithValue("$q", query.Trim());
+            cmd.Parameters.AddWithValue("$m", max);
+            using var r = cmd.ExecuteReader();
+            while (r.Read()) ids.Add(r.GetInt64(0));
+            return ids;
         }
 
         /// <summary>Rich bodies for one row, loaded when the card or the paste path actually needs them.</summary>

@@ -65,6 +65,26 @@ namespace Clip.UI
             return list;
         }
 
+        /// <summary>
+        /// Full-text inlines for the outside tooltip: the same rich template as the row when the
+        /// clip carries formatting, otherwise the full (2000-char) tooltip text — never the
+        /// truncated row preview. Plain runs inherit the tip's own FontSize.
+        /// </summary>
+        public static List<Inline> TipInlines(ClipRow row)
+        {
+            var list = new List<Inline>();
+            if (row == null) return list;
+
+            var template = row.CanBeRich ? Template(row) : null;
+            if (template != null)
+            {
+                foreach (var run in template) list.Add(run.ToInline());
+                return list;
+            }
+            Plain(list, row.Tooltip ?? "", row.Query);
+            return list;
+        }
+
         // ---- plain fallback + search runs (synthesis Q2) ---------------------
 
         static void Plain(List<Inline> list, string text, string query)

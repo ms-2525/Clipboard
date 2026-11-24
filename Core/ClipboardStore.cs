@@ -11,6 +11,7 @@ namespace Clip.Core
     public sealed partial class ClipboardStore : IDisposable
     {
         readonly SqliteConnection _conn;
+        readonly string _path;
 
         /// <summary>Built-in Pinned container. Any item with a tab_id is exempt from cap eviction and Clear.</summary>
         public long PinnedTabId { get; private set; }
@@ -23,6 +24,7 @@ namespace Clip.Core
 
         public ClipboardStore(string dbPath)
         {
+            _path = dbPath;
             SqliteConnection conn = null;
             try
             {
@@ -97,6 +99,14 @@ CREATE TABLE IF NOT EXISTS tabs (
                 cmd.CommandText = @"
 CREATE INDEX IF NOT EXISTS ix_items_tab ON items(tab_id);
 CREATE INDEX IF NOT EXISTS ix_image_hash ON items(image_hash);
+-- One covering index answers the whole list (metadata + preview + body length), so opening the
+-- popup or switching tabs never reads a payload blob. Building it is the one-time cost of the
+-- first start after this upgrade: ~4 s on a 10 000 × 1000-line history, milliseconds on a normal one.
+-- The 1200 literal must stay identical to ClipboardStore.PreviewChars and the substr() in Query.
+CREATE INDEX IF NOT EXISTS ix_list ON items(tab_id, captured_at DESC, id DESC, kind, app_name,
+  window_title, uris, substr(text,1,1200), length(text));
+-- Counts the tab strip needs, narrow enough to stay an index-only scan.
+CREATE INDEX IF NOT EXISTS ix_kind ON items(tab_id, kind);
 INSERT INTO tabs (name, kind, sort_order, created_at)
 SELECT 'Pinned', 'builtin', 0, strftime('%Y-%m-%dT%H:%M:%S','now','localtime')
 WHERE NOT EXISTS (SELECT 1 FROM tabs WHERE name = 'Pinned');

@@ -4,65 +4,61 @@
   <FontFamily x:Key="UiFont">pack://application:,,,/Assets/Fonts/#Inter</FontFamily>
   <FontFamily x:Key="MonoFont">pack://application:,,,/Assets/Fonts/#IBM Plex Mono</FontFamily>
 
-  <!-- Surfaces (docs\DESIGN-contrast.md §0.3) -->
-  <SolidColorBrush x:Key="App"      Color="#08090C"/>
-  <SolidColorBrush x:Key="Surface"  Color="#13151B"/>
-  <SolidColorBrush x:Key="Raised"   Color="#1C1F28"/>
-  <SolidColorBrush x:Key="Field"    Color="#1F2126"/>
+  <!-- Tools3000-derived language (docs\DESIGN-language.md). Every ratio below is computed, not guessed:
+       node %TEMP%\opencode\contrast.mjs prints the table. Text >= 4.5, UI boundaries >= 3.0. -->
 
-  <!-- Text levels: three, no fourth grey (docs\DESIGN-typography.md §3) -->
-  <SolidColorBrush x:Key="Fg"       Color="#FFFFFF"/>
-  <SolidColorBrush x:Key="Fg75"     Color="#C4C5C6"/>
-  <SolidColorBrush x:Key="Fg55"     Color="#959698"/>
-  <SolidColorBrush x:Key="Fg48"     Color="#848588"/>
-  <SolidColorBrush x:Key="Fg40"     Color="#70737A"/>
-  <SolidColorBrush x:Key="Fg35"     Color="#66676B"/>
-  <!-- Kept for existing surfaces; no text uses it after the type pass. -->
-  <SolidColorBrush x:Key="Muted"    Color="#9BA1AC"/>
-  <SolidColorBrush x:Key="Placeholder" Color="#82868F"/>
+  <!-- Surfaces: neutral navy-black page, one step per elevation, 1 px line between them -->
+  <SolidColorBrush x:Key="App"      Color="#0B0D12"/>
+  <SolidColorBrush x:Key="Surface"  Color="#141821"/>
+  <SolidColorBrush x:Key="Raised"   Color="#1B202B"/>
+  <SolidColorBrush x:Key="Field"    Color="#1F2532"/>
 
-  <SolidColorBrush x:Key="Hairline" Color="#262A35"/>
-  <SolidColorBrush x:Key="Divider"  Color="#212329"/>
+  <!-- Text: three levels that all clear AA on Surface and on RowSelected -->
+  <SolidColorBrush x:Key="Fg"       Color="#F5F7FA"/>  <!-- 16.55:1 on Surface -->
+  <SolidColorBrush x:Key="Fg75"     Color="#C9D0DC"/>  <!-- 10.66:1 -->
+  <SolidColorBrush x:Key="Fg55"     Color="#A3ADBE"/>  <!--  7.85:1 (secondary / badge ink) -->
+  <SolidColorBrush x:Key="Fg48"     Color="#8792A6"/>  <!--  5.66:1 (meta, section labels) -->
+  <SolidColorBrush x:Key="Fg40"     Color="#6C7789"/>  <!--  icons and disabled only, never text -->
+  <SolidColorBrush x:Key="Fg35"     Color="#5A6373"/>  <!--  hairlines/decor only -->
+  <SolidColorBrush x:Key="Muted"    Color="#A3ADBE"/>
+  <SolidColorBrush x:Key="Placeholder" Color="#8792A6"/> <!-- 5.66:1 -->
 
-  <!-- Accent is a fill; AccentText is accent-coloured type/rails (DESIGN-contrast §4) -->
-  <SolidColorBrush x:Key="Accent"     Color="#FF8A3D"/>
-  <SolidColorBrush x:Key="AccentText" Color="#FF8A3D"/>
-  <SolidColorBrush x:Key="OnAccent"   Color="#08090C"/>
-  <SolidColorBrush x:Key="ControlLine" Color="#666C7C"/>
-  <SolidColorBrush x:Key="Error"      Color="#FF6B6B"/>
+  <SolidColorBrush x:Key="Hairline" Color="#262E3B"/>
+  <SolidColorBrush x:Key="Divider"  Color="#202632"/>
 
-  <!-- Semantic rails (Ortu): sage success, amber pinned, sky URL, violet code -->
-  <SolidColorBrush x:Key="Sage"   Color="#AEB291"/>
+  <!-- Accent is a fill; AccentText is accent-coloured type/rails. OnAccent is dark ink, never white. -->
+  <SolidColorBrush x:Key="Accent"     Color="#FF7A1A"/>
+  <SolidColorBrush x:Key="AccentText" Color="#FF9550"/> <!-- 8.18:1 on Surface -->
+  <SolidColorBrush x:Key="OnAccent"   Color="#1A0D02"/> <!-- 7.30:1 on Accent -->
+  <SolidColorBrush x:Key="ControlLine" Color="#667284"/> <!-- 3.64:1 -->
+  <SolidColorBrush x:Key="Error"      Color="#FF7B7B"/> <!-- 7.08:1 -->
+
+  <!-- Semantic tints: one per meaning, used as chip fill + ink pairs -->
+  <SolidColorBrush x:Key="Sage"   Color="#8FD8A6"/>
   <SolidColorBrush x:Key="Amber"  Color="#FBBF24"/>
-  <SolidColorBrush x:Key="Sky"    Color="#38BDF8"/>
-  <SolidColorBrush x:Key="Violet" Color="#A78BFA"/>
+  <SolidColorBrush x:Key="Sky"    Color="#7CC4F8"/>
+  <SolidColorBrush x:Key="Violet" Color="#B9A2FF"/>
 
-  <!-- Row separation (RESEARCH-clipboardapps\copyq-forest.md §3): the odd-row fill and an alpha hover,
-       so a hover tints the zebra instead of replacing it. 4 % white over App = the old #121316. -->
-  <SolidColorBrush x:Key="RowAlt"        Color="#16181D"/>
-  <SolidColorBrush x:Key="RowHover"      Color="#0AFFFFFF"/>
+  <!-- Rows: a 1.05:1 zebra is texture, not stripes; selection is a cold raised surface, never an accent wash -->
+  <SolidColorBrush x:Key="RowAlt"        Color="#101319"/>
+  <SolidColorBrush x:Key="RowHover"      Color="#0FFFFFFF"/>
+  <SolidColorBrush x:Key="StateHover"    Color="#0FFFFFFF"/>
+  <SolidColorBrush x:Key="StatePressed"  Color="#1AFFFFFF"/>
+  <SolidColorBrush x:Key="RowSelected"   Color="#1C2536"/>
+  <SolidColorBrush x:Key="SelectionRing" Color="#3A4A66"/>
+  <SolidColorBrush x:Key="SelectionRail" Color="#FF7A1A"/>
+  <SolidColorBrush x:Key="PulseFill" Color="#15221A"/>
+  <SolidColorBrush x:Key="PulseRing" Color="#2E5C3D"/>
 
-  <!-- State tints capped at 8 % (DESIGN-contrast §5.3) -->
-  <SolidColorBrush x:Key="StateHover"    Color="#0AFFFFFF"/>
-  <SolidColorBrush x:Key="StatePressed"  Color="#14FFFFFF"/>
-  <SolidColorBrush x:Key="RowSelected"   Color="#1C1310"/>
-  <SolidColorBrush x:Key="SelectionRing" Color="#3E2517"/>
-  <LinearGradientBrush x:Key="SelectionRail" StartPoint="0,0" EndPoint="0,1">
-    <GradientStop Offset="0" Color="#FF8A3D"/>
-    <GradientStop Offset="1" Color="#FF6B1A"/>
-  </LinearGradientBrush>
-  <SolidColorBrush x:Key="PulseFill" Color="#141515"/>
-  <SolidColorBrush x:Key="PulseRing" Color="#3A3C34"/>
-
-  <SolidColorBrush x:Key="KeycapBackground" Color="#26282D"/>
-  <SolidColorBrush x:Key="KeycapLine"       Color="#3B3D40"/>
-  <SolidColorBrush x:Key="BadgeBackground"  Color="#1F2126"/>
-  <SolidColorBrush x:Key="TileBackground"   Color="#1F2126"/>
-  <SolidColorBrush x:Key="ScrollThumb"      Color="#404249"/>
+  <SolidColorBrush x:Key="KeycapBackground" Color="#1E2532"/>
+  <SolidColorBrush x:Key="KeycapLine"       Color="#2E3848"/>
+  <SolidColorBrush x:Key="BadgeBackground"  Color="#232B3A"/>
+  <SolidColorBrush x:Key="TileBackground"   Color="#1B202B"/>
+  <SolidColorBrush x:Key="ScrollThumb"      Color="#39424F"/>
 
   <!-- LAYER B defaults: original-content fallbacks owned by the content layer. -->
-  <SolidColorBrush x:Key="ContentCanvas" Color="#13151B"/>
-  <SolidColorBrush x:Key="ContentInk" Color="#F5F5F4"/>
+  <SolidColorBrush x:Key="ContentCanvas" Color="#141821"/>
+  <SolidColorBrush x:Key="ContentInk" Color="#F5F7FA"/>
   <SolidColorBrush x:Key="ContentLink" Color="#7FB3FF"/>
   <SolidColorBrush x:Key="ContentDarkBg" Color="#23272E"/>
   <SolidColorBrush x:Key="ContentMatchBg" Color="#3A2E12"/>

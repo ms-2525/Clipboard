@@ -11,6 +11,8 @@ namespace Clip.UI
     /// <summary>
     /// One row of the popup. Every piece of geometry it owns is computed ONCE here, from the item's
     /// text alone — selection can only change brushes (docs\DESIGN-v2-directives.md §1).
+    /// A row carries the stored <see cref="ClipboardStore.PreviewChars"/>-char preview, never the full
+    /// body: the list can hold 10 000 of those, and a 1000-line clip is 60 KB each.
     /// </summary>
     public sealed class ClipRow : INotifyPropertyChanged
     {
@@ -21,50 +23,48 @@ namespace Clip.UI
         /// <summary>
         /// The estimator's chars-per-line, never measured per row: a measured height would twitch on
         /// font fallback and undo the frozen-geometry contract (§1.2). Calibrated for the content size:
-        /// Inter 14 in the 610 px text column (660 DIP popup) measures 95 chars for typical
-        /// prose (FormattedText, 150 % DPI). 92 = measured minus three chars of safety.
+        /// Inter 14 in the 526 px text column (660 DIP popup − 28 tile − 10 gap − 66 facts − 16 inset).
+        /// FormattedText at 150 % DPI measures 6.63 px per character → 79.
         /// </summary>
-        public const double CharsPerLine = 92;
+        public const double CharsPerLine = 79;
+
+        /// <summary>Rows in the list read as a list, not a document. Full text is the outside tooltip.</summary>
+        public const int ListLinesMax = 3;
 
         readonly ClipboardStore _store;
         readonly string _text;
-        readonly int _totalLines;
         readonly int _textCap;
+        readonly int _previewLines;
+        readonly long _textLen;
+        bool _metricsDone;
+        bool _truncated;
+        double _textHeight;
+        double _rowHeight;
+        string _more;
         ClipboardItem _payload;
         bool _payloadRead;
         BitmapSource _thumb;
+        bool _thumbRead;
+        string _tooltip;
+        bool _tooltipRead;
 
         public ClipRow(ClipboardItem item, int previewLines, ClipboardStore store)
         {
             Item = item;
             _store = store;
             _text = item.Text ?? "";
+            _textLen = Math.Max(item.TextLength, _text.Length);
             IsImage = item.Kind == "image";
             IsFiles = item.Kind == "files";
-            _totalLines = IsImage || IsFiles ? 1 : WrappedLines(_text);
+            _previewLines = Math.Max(1, Math.Min(100, previewLines));
+            _textCap = Math.Min(_previewLines, ListLinesMax) * (int)CharsPerLine + (int)CharsPerLine;
 
-            int lines = Math.Max(1, Math.Min(100, previewLines));
-            int visible = Math.Max(1, Math.Min(lines, _totalLines));
-            _textCap = lines * (int)CharsPerLine + (int)CharsPerLine;
-
-            string preview = IsFiles ? FilePreview(item) : IsImage ? "Image  \u00b7  " + Size() : Truncate(_text, _textCap);
-            Preview = preview;
-            Tooltip = IsImage ? null : Truncate(IsFiles ? Paths(item) : _text, TooltipCap);
-
-            TextHeight = visible * 20;
-            RowHeight = TextHeight + 20 + FooterHeight;
-
-            int hidden = _totalLines - visible;
-            if (!IsFiles && !IsImage && preview.Length < _text.Length && hidden < 1) hidden = 1;
-            if (!IsFiles && !IsImage && hidden > 0)
-            {
-                More = "+" + hidden;
-            }
-            Truncated = hidden > 0;
-
+            Preview = IsFiles ? FilePreview(item) : IsImage ? "Image  \u00b7  " + Size() : Truncate(_text, _textCap);
             Source = item.AppName ?? "";
             Title = item.WindowTitle ?? "";
             When = Stamp(item.CapturedAt);
+            Clock = ClockOf(item.CapturedAt);
+            Initial = InitialOf(Source);
         }
 
         public ClipboardItem Item { get; }
@@ -73,13 +73,35 @@ namespace Clip.UI
         /// <summary>What the row's own text slot shows when no formatted body is available.</summary>
         public string Preview { get; }
 
-        /// <summary>Full text (or every file path) — the row tooltip is its only home (directive §2).</summary>
-        public string Tooltip { get; }
+        /// <summary>
+        /// Full text (or every file path) — the row tooltip is its only home (directive §2). Loaded when
+        /// the tip actually asks for it, because the row only carries the visible preview.
+        /// </summary>
+        public string Tooltip
+        {
+            get
+            {
+                if (_tooltipRead) return _tooltip;
+                _tooltipRead = true;
+                if (IsImage) return _tooltip = null;
+                string body = IsFiles ? Paths(Item)
+                    : _textLen > _text.Length && _store != null ? _store.GetText(Item.Id) ?? _text
+                    : _text;
+                _tooltip = Truncate(body, TooltipCap);
+                return _tooltip;
+            }
+        }
 
         /// <summary>Bottom bar provenance for the selected clip: app · window title · captured time.</summary>
         public string Source { get; }
         public string Title { get; }
         public string When { get; }
+
+        /// <summary>Clock only ("21:19") for the row's facts strip — the section band already says the day.</summary>
+        public string Clock { get; }
+
+        /// <summary>The identity tile's letter: the source app, one glyph, read before the text is.</summary>
+        public string Initial { get; }
 
         public string Status
         {
@@ -109,13 +131,10 @@ namespace Clip.UI
         const string StatusSep = "  \u00b7  ";
 
         /// <summary>True when the row shows less than the clip holds — the only rows that get the outside tooltip.</summary>
-        public bool Truncated { get; }
+        public bool Truncated { get { EnsureMetrics(); return _truncated; } }
 
-        public double TextHeight { get; }
-        public double RowHeight { get; }
-
-        /// <summary>Divider block under the body: 8 px gap + 1 px line + 6 px gap + 16 px status (RowTemplate.xaml).</summary>
-        const double FooterHeight = 31;
+        public double TextHeight { get { EnsureMetrics(); return _textHeight; } }
+        public double RowHeight { get { EnsureMetrics(); return _rowHeight; } }
 
         public bool IsImage { get; }
         public bool IsFiles { get; }
@@ -123,7 +142,7 @@ namespace Clip.UI
         /// <summary>Rows that may carry an rtf/html body; images and files never do.</summary>
         public bool CanBeRich => !IsImage && !IsFiles;
 
-        public string More { get; }
+        public string More { get { EnsureMetrics(); return _more; } }
         public Visibility MoreVisibility => More == null ? Visibility.Collapsed : Visibility.Visible;
 
         /// <summary>1-based position in the visible list — the Ctrl+1..9 affordance (directive §3).</summary>
@@ -159,10 +178,13 @@ namespace Clip.UI
         {
             get
             {
-                if (_thumb != null || Item.Thumb == null || Item.Thumb.Length == 0) return _thumb;
+                if (_thumbRead) return _thumb;
+                _thumbRead = true;
+                var bytes = Item.Thumb is { Length: > 0 } ? Item.Thumb : _store?.GetThumb(Item.Id);
+                if (bytes == null || bytes.Length == 0) return _thumb;
                 try
                 {
-                    using var ms = new MemoryStream(Item.Thumb);
+                    using var ms = new MemoryStream(bytes);
                     var bmp = new BitmapImage();
                     bmp.BeginInit();
                     bmp.CacheOption = BitmapCacheOption.OnLoad;
@@ -184,6 +206,29 @@ namespace Clip.UI
             set { if (_sectionLabel == value) return; _sectionLabel = value; Raise(nameof(SectionLabel)); }
         }
 
+        /// <summary>
+        /// "Today / Yesterday / This Week / Earlier" for this row, parsed once. A keystroke re-filtered
+        /// 9500 rows and re-parsed every timestamp; the section only changes with the day, not the query.
+        /// </summary>
+        public string Section
+        {
+            get
+            {
+                if (_sectionRead) return _section;
+                _sectionRead = true;
+                if (!DateTime.TryParse(Item.CapturedAt, out var when)) return _section = "Earlier";
+                var today = DateTime.Today;
+                if (when.Date == today) _section = "Today";
+                else if (when.Date == today.AddDays(-1)) _section = "Yesterday";
+                else if (when >= today.AddDays(-7)) _section = "This Week";
+                else _section = "Earlier";
+                return _section;
+            }
+        }
+
+        string _section;
+        bool _sectionRead;
+
         bool _showSection;
         public bool ShowSection
         {
@@ -195,12 +240,51 @@ namespace Clip.UI
 
         void Raise(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 
+        /// <summary>
+        /// Height, badge and truncation are only needed by a realised row, so they are computed on first
+        /// read: building 10 000 rows must not count wrapped lines in all of them.
+        /// </summary>
+        void EnsureMetrics()
+        {
+            if (_metricsDone) return;
+            _metricsDone = true;
+
+            int total = IsImage || IsFiles ? 1 : Math.Max(WrappedLines(_text), EstimateLines(_textLen));
+            int visible = Math.Max(1, Math.Min(Math.Min(_previewLines, ListLinesMax), total));
+
+            _textHeight = visible * 20;
+            _rowHeight = _textHeight + 16;
+
+            int hidden = total - visible;
+            if (!IsFiles && !IsImage && _textLen > _textCap && hidden < 1) hidden = 1;
+            if (!IsFiles && !IsImage && hidden > 0) _more = "+" + hidden;
+            _truncated = hidden > 0 || _textLen > _textCap;
+        }
+
+        /// <summary>Lower bound on the body's line count from its full length — the preview holds only its start.</summary>
+        static int EstimateLines(long chars) => chars <= 0 ? 1 : (int)Math.Ceiling((double)chars / CharsPerLine);
+
         /// <summary>"23 Nov 15:16" — the date is fixed English (owner's UI language), the clock follows config.</summary>
         static string Stamp(string stamp)
         {
             if (!DateTime.TryParse(stamp, out var when)) return "";
             string clock = string.IsNullOrEmpty(ClipboardItem.ClockFormat) ? "HH:mm" : ClipboardItem.ClockFormat;
             return when.ToString("dd MMM", System.Globalization.CultureInfo.InvariantCulture) + " " + when.ToString(clock);
+        }
+
+        /// <summary>"21:19" only: the section band (Today / Yesterday) already carries the day.</summary>
+        static string ClockOf(string stamp)
+        {
+            if (!DateTime.TryParse(stamp, out var when)) return "";
+            string clock = string.IsNullOrEmpty(ClipboardItem.ClockFormat) ? "HH:mm" : ClipboardItem.ClockFormat;
+            return when.ToString(clock);
+        }
+
+        /// <summary>The identity tile's letter. No source app (own-process copy, file drop) gets a dot.</summary>
+        static string InitialOf(string app)
+        {
+            if (string.IsNullOrWhiteSpace(app)) return "\u2022";
+            return char.ToUpperInvariant(app.Trim()[0]).ToString();
         }
 
         string Size()

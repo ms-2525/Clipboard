@@ -36,7 +36,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.Sqlite" Version="11.0.0" />
     <PackageReference Include="H.NotifyIcon.Wpf" Version="2.4.1" />
-    <PackageReference Include="RtfPipe" Version="2.0.7677.4303" />
+    <PackageReference Include="Syncfusion.SfRichTextBoxAdv.WPF" Version="35.2.13" />
   </ItemGroup>
 
 </Project>

@@ -119,7 +119,17 @@ namespace Clip.UI
             }
 
             var rich = _store.GetRich(row.Id);
-            var editor = new EditorWindow(_store, row.Item, rich?.Html, rich?.Rtf) { Owner = this };
+            // The editor writes the body back, so it must start from the whole text, not the row's preview.
+            var source = row.Item.TextLength > (row.Item.Text?.Length ?? 0)
+                ? new ClipboardItem
+                {
+                    Id = row.Item.Id, Kind = row.Item.Kind, TextLength = row.Item.TextLength,
+                    Text = _store.GetText(row.Id) ?? row.Item.Text,
+                    AppName = row.Item.AppName, WindowTitle = row.Item.WindowTitle,
+                    CapturedAt = row.Item.CapturedAt, SizeBytes = row.Item.SizeBytes, TabId = row.Item.TabId
+                }
+                : row.Item;
+            var editor = new EditorWindow(_store, source, rich?.Html, rich?.Rtf) { Owner = this };
             _editor = editor;
             editor.Closed += (s, e) =>
             {

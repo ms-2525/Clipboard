@@ -39,7 +39,7 @@ namespace Clip
 
         protected override void OnStartup(StartupEventArgs e)
         {
-            // RtfPipe needs the legacy code pages on .NET; before any RTF render.
+            // RTF byte envelopes need the legacy code pages on .NET; register before any RTF render.
             Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
             LogFatalErrors();
 
@@ -145,7 +145,11 @@ namespace Clip
 
         void OnPlainPasteRequested(ClipboardItem item)
         {
-            AfterHide(100, () => _capture.Suppress(PasteInjector.CopyAndPastePlain(item)));
+            AfterHide(100, () =>
+            {
+                LoadForPaste(item);
+                _capture.Suppress(PasteInjector.CopyAndPastePlain(item));
+            });
         }
 
         /// <summary>Ctrl+C: put the selected item back on the clipboard without injecting a paste.</summary>
@@ -179,6 +183,8 @@ namespace Clip
         void LoadForPaste(ClipboardItem item)
         {
             if (item == null) return;
+            if (item.TextLength > (item.Text?.Length ?? 0))
+                item.Text = _store.GetText(item.Id) ?? item.Text;
             if (item.Kind == "image")
             {
                 var image = _store.GetImage(item.Id);
@@ -210,9 +216,17 @@ namespace Clip
         void OnPlainHotkey()
         {
             ClipboardItem item = _main.IsVisible ? _main.SelectedItem : null;
-            if (item == null)
-                item = _store.GetRecent(_cfg.MaxItems).FirstOrDefault(i => !string.IsNullOrWhiteSpace(i.Text));
-            if (item == null) return;
+            if (item != null)
+            {
+                LoadForPaste(item); // the row only carries a preview of a long body
+            }
+            else
+            {
+                // Nothing on screen: one indexed read, never a scan of the whole history.
+                string latest = _store.LatestText();
+                if (latest == null) return;
+                item = new ClipboardItem { Kind = "text", Text = latest, TextLength = latest.Length };
+            }
 
             if (_main.IsVisible) _main.HideForPaste();
             AfterHide(100, () => _capture.Suppress(PasteInjector.CopyAndPastePlain(item)));

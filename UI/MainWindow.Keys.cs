@@ -54,7 +54,7 @@ namespace Clip.UI
                     ApplyFilter();
                     Search.Focus();
                 }
-                else ClosePopup(false);
+                else ClosePopup();
                 e.Handled = true;
                 return;
             }
@@ -291,7 +291,7 @@ namespace Clip.UI
             {
                 Id = row.Item.Id,
                 Kind = row.Item.Kind,
-                Text = row.Item.Text,
+                Text = FullText(row),
                 AppName = row.Item.AppName,
                 WindowTitle = row.Item.WindowTitle,
                 CapturedAt = row.Item.CapturedAt,

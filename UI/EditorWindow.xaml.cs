@@ -1,22 +1,26 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Text;
 using System.Windows;
-using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media.Animation;
 using Clip.Core;
 using Clip.Interop;
+using Syncfusion.Windows.Controls.RichTextBoxAdv;
 
 namespace Clip.UI
 {
     /// <summary>
-    /// F2 editor: ONE rich surface for every text clip. The item's RTF loads first, HTML-only clips
-    /// go through HtmlToRtf, and a failed load says so in the notice bar instead of silently
-    /// dropping to a plain box (docs\DESIGN-v2-ui.md §4, docs\S0-HANDOFF.md).
+    /// F2 editor: ONE rich surface for every text clip, backed by Syncfusion's SfRichTextBoxAdv.
+    /// The item's RTF loads first, HTML-only clips are parsed by the control itself, and a failed
+    /// load says so in the notice bar instead of silently dropping to a plain box
+    /// (docs\DESIGN-v2-ui.md §4, docs\S0-HANDOFF.md).
     /// </summary>
     public partial class EditorWindow : Window
     {
-        /// <summary>The converter has no notice surface, so the caller refuses oversized fragments (§4.5).</summary>
+        /// <summary>The control parses HTML in-process, so the caller refuses oversized fragments (§4.5).</summary>
         const int MaxHtmlFragment = 2_000_000;
 
         const string PlainNotice = "This clip's formatting could not be loaded; editing as plain text.";
@@ -27,6 +31,7 @@ namespace Clip.UI
         readonly bool _hadHtml;
         string _originalText;
         string _originalRtf;
+        string _notice = PlainNotice;
         bool _reflecting;
 
         public EditorWindow(ClipboardStore store, ClipboardItem item, string html, string rtf)
@@ -38,13 +43,19 @@ namespace Clip.UI
 
             SourceInitialized += (s, e) => WindowChrome.Apply(this);
 
-            if (!LoadBody(html, rtf))
+            // The toolbar must not read a half-loaded document, so reflection waits for Loaded.
+            _reflecting = true;
+            try
             {
-                FormatNoticeText.Text = _notice;
-                FormatNotice.Visibility = Visibility.Visible;
+                if (!LoadBody(html, rtf))
+                {
+                    FormatNoticeText.Text = _notice;
+                    FormatNotice.Visibility = Visibility.Visible;
+                }
+                _originalText = CurrentText();
+                _originalRtf = SaveRtf();
             }
-            _originalText = CurrentText();
-            _originalRtf = SaveRtf();
+            finally { _reflecting = false; }
 
             Loaded += (s, e) =>
             {
@@ -59,94 +70,140 @@ namespace Clip.UI
                 };
                 Shell.BeginAnimation(OpacityProperty, fadeIn);
                 RichBox.Focus();
-                RichBox.CaretPosition = RichBox.Document.ContentEnd;
-                // The default 5 DIP page padding would double the 8 DIP content rail; set it last
-                // because the body load and the first template pass re-apply the default.
-                RichBox.Document.PagePadding = new Thickness(0);
+                var end = RichBox.Document.DocumentEnd;
+                RichBox.Selection.Select(end, end);
                 Reflect();
             };
         }
-
-        string _notice = PlainNotice;
 
         // ---- load -------------------------------------------------------------------------
 
         /// <summary>RTF → HTML → plain, in that order; false means the visible notice must show.</summary>
         bool LoadBody(string html, string rtf)
         {
-            if (!string.IsNullOrEmpty(rtf))
+            if (!string.IsNullOrEmpty(rtf)
+                && (TryLoad(RtfText.ToBytes(rtf), FormatType.Rtf) || TryLoad(RtfText.ToUtf8Bytes(rtf), FormatType.Rtf)))
+                return true;
+
+            if (string.IsNullOrEmpty(rtf) && !string.IsNullOrEmpty(html))
             {
-                if (TryLoadRtf(rtf)) return true;
-            }
-            else if (!string.IsNullOrEmpty(html))
-            {
-                string converted = null;
-                try
-                {
-                    string fragment = HtmlFragment.Extract(html);
-                    if (fragment.Length > MaxHtmlFragment) _notice = TooLargeNotice;
-                    else converted = HtmlToRtf.Convert(fragment);
-                }
+                string fragment = null;
+                try { fragment = HtmlFragment.Extract(html); }
                 catch
                 {
-                    // An HTML body the tokeniser cannot read is a failed load, reported by the notice below.
+                    // An html body the tokeniser cannot read is a failed load, reported by the notice below.
                 }
-                if (!string.IsNullOrEmpty(converted) && TryLoadRtf(converted)) return true;
-            }
-            else
-            {
-                DocumentText(_item.Text);
-                return true;
+                if (fragment != null)
+                {
+                    if (fragment.Length > MaxHtmlFragment) _notice = TooLargeNotice;
+                    else if (TryLoad(Encoding.UTF8.GetBytes(fragment), FormatType.Html)) return true;
+                }
             }
 
             DocumentText(_item.Text);
-            return false;
+            return string.IsNullOrEmpty(rtf) && string.IsNullOrEmpty(html);
         }
 
-        /// <summary>Attempt 1 is the byte-exact Latin-1 envelope, attempt 2 the old UTF-8 re-encode.</summary>
-        bool TryLoadRtf(string body)
+        /// <summary>An RTF row is a byte format; the Latin-1 envelope is byte-exact, UTF-8 the old fallback.</summary>
+        bool TryLoad(byte[] bytes, FormatType format)
         {
-            foreach (var bytes in new[] { RtfText.ToBytes(body), RtfText.ToUtf8Bytes(body) })
+            if (bytes.Length == 0) return false;
+            try
             {
-                if (bytes.Length == 0) continue;
-                try
-                {
-                    using var ms = new MemoryStream(bytes);
-                    Body().Load(ms, DataFormats.Rtf);
-                    return true;
-                }
-                catch
-                {
-                    // Try the next envelope; the caller shows the notice when both are exhausted.
-                }
+                using var stream = new MemoryStream(bytes);
+                RichBox.Load(stream, format);
+                return true;
             }
-            return false;
+            catch
+            {
+                // A stream the control rejects leaves no document behind, and the plain-text
+                // fallback below needs one to type into.
+                ResetDocument();
+                return false;
+            }
         }
 
-        TextRange Body() => new TextRange(RichBox.Document.ContentStart, RichBox.Document.ContentEnd);
+        /// <summary>The control leaves no document after a rejected stream; an empty RTF restores a writable one.</summary>
+        void ResetDocument()
+        {
+            using var skeleton = new MemoryStream(
+                Encoding.UTF8.GetBytes(@"{\rtf1\ansi\deff0{\fonttbl{\f0 Calibri;}}\pard\f0\fs24 \par}"));
+            RichBox.Load(skeleton, FormatType.Rtf);
+        }
 
         /// <summary>
-        /// Plain text arrives as one paragraph per line, and a paragraph's inherited block spacing
-        /// doubles the pitch (~36 DIP for a 13 DIP face). Rich bodies keep their own RTF spacing.
+        /// Plain text arrives as one paragraph per line; the control's 8 px default after-spacing
+        /// would double the pitch of a 13 DIP face, so plain bodies are set flush.
         /// </summary>
         void DocumentText(string text)
         {
-            Body().Text = text ?? "";
-            foreach (var block in RichBox.Document.Blocks)
-                if (block is Paragraph paragraph) paragraph.Margin = new Thickness(0);
+            var document = RichBox.Document;
+            RichBox.Selection.Select(document.DocumentStart, document.DocumentEnd);
+            RichBox.Selection.InsertText((text ?? "").Replace("\r\n", "\n").Replace('\r', '\n'));
+            foreach (var paragraph in Paragraphs(document))
+            {
+                paragraph.ParagraphFormat.AfterSpacing = 0;
+                paragraph.ParagraphFormat.BeforeSpacing = 0;
+            }
+        }
+
+        // ---- document text ----------------------------------------------------------------
+
+        /// <summary>Every paragraph in reading order, table cells included.</summary>
+        static List<ParagraphAdv> Paragraphs(DocumentAdv document)
+        {
+            var paragraphs = new List<ParagraphAdv>();
+            foreach (SectionAdv section in document.Sections) Collect(section.Blocks, paragraphs);
+            return paragraphs;
+        }
+
+        static void Collect(BlockAdvCollection blocks, List<ParagraphAdv> into)
+        {
+            foreach (BlockAdv block in blocks)
+            {
+                if (block is ParagraphAdv paragraph) into.Add(paragraph);
+                else if (block is TableAdv table)
+                    foreach (TableRowAdv row in table.Rows)
+                        foreach (TableCellAdv cell in row.Cells)
+                            Collect(cell.Blocks, into);
+            }
+        }
+
+        /// <summary>One paragraph's runs; a BreakAdv is a soft line break and reads as one.</summary>
+        static string ParagraphText(ParagraphAdv paragraph)
+        {
+            var text = new StringBuilder();
+            foreach (Inline inline in paragraph.Inlines)
+            {
+                if (inline is SpanAdv span) text.Append(span.Text);
+                else if (inline is BreakAdv) text.Append('\n');
+            }
+            return text.ToString();
         }
 
         // ---- save -------------------------------------------------------------------------
 
         static string Normalize(string text) => (text ?? "").TrimEnd('\r', '\n');
 
-        string CurrentText() => Normalize(Body().Text);
+        string CurrentText() => Normalize(string.Join("\n", Paragraphs(RichBox.Document).Select(ParagraphText)));
 
         string SaveRtf()
         {
-            using var ms = new MemoryStream();
-            Body().Save(ms, DataFormats.Rtf);
-            return RtfText.FromBytes(ms.ToArray());
+            using var stream = new MemoryStream();
+            RichBox.Save(stream, FormatType.Rtf);
+            return RtfText.FromBytes(stream.ToArray());
+        }
+
+        /// <summary>Only an html-origin clip keeps an html body; an export failure drops it rather than storing a lie.</summary>
+        string SaveHtml()
+        {
+            try
+            {
+                using var stream = new MemoryStream();
+                RichBox.Save(stream, FormatType.Html);
+                return Encoding.UTF8.GetString(stream.ToArray());
+            }
+            catch { return null; } // a body the control cannot export must not be stored as html
         }
 
         bool Dirty => CurrentText() != _originalText || SaveRtf() != _originalRtf;
@@ -157,16 +214,9 @@ namespace Clip.UI
             _item.Text = CurrentText();
             // Set the rich body BEFORE Update: the store writes exactly the fields it is handed.
             _item.Rtf = rtf;
-            _item.Html = _hadHtml ? ToHtml(rtf) : null;
+            _item.Html = _hadHtml ? SaveHtml() : null;
             _store.Update(_item);
             Close();
-        }
-
-        /// <summary>Only an html-origin clip keeps an html body; a converter failure drops it rather than storing a lie.</summary>
-        static string ToHtml(string rtf)
-        {
-            try { return RtfPipe.Rtf.ToHtml(rtf); }
-            catch { return null; } // a body the converter rejects must not be stored as html
         }
 
         // ---- close / keys -----------------------------------------------------------------

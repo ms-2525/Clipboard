@@ -5,58 +5,59 @@
   <FontFamily x:Key="MonoFont">pack://application:,,,/Assets/Fonts/#IBM Plex Mono</FontFamily>
 
   <!-- LAYER A only: application chrome. Rich content (LAYER B) never reads these. -->
-  <!-- Surfaces: warm paper, white cards -->
-  <SolidColorBrush x:Key="App"      Color="#F7F5F1"/>
+  <!-- Tools3000-derived language (docs\DESIGN-language.md). Ratios computed with
+       node %TEMP%\opencode\contrast.mjs — the old warm palette's Fg48 was 2.52:1 on white. -->
+  <SolidColorBrush x:Key="App"      Color="#F6F7F9"/>
   <SolidColorBrush x:Key="Surface"  Color="#FFFFFF"/>
-  <SolidColorBrush x:Key="Raised"   Color="#FCFBF9"/>
-  <SolidColorBrush x:Key="Field"    Color="#F3F1EC"/>
+  <SolidColorBrush x:Key="Raised"   Color="#FBFCFD"/>
+  <SolidColorBrush x:Key="Field"    Color="#F1F3F6"/>
 
-  <!-- Text levels -->
-  <SolidColorBrush x:Key="Fg"       Color="#1C1B1A"/>
-  <SolidColorBrush x:Key="Fg75"     Color="#44403C"/>
-  <SolidColorBrush x:Key="Fg55"     Color="#78716C"/>
-  <SolidColorBrush x:Key="Fg48"     Color="#A8A29E"/>
-  <SolidColorBrush x:Key="Fg40"     Color="#C4BFB9"/>
-  <SolidColorBrush x:Key="Fg35"     Color="#D6D3D1"/>
-  <SolidColorBrush x:Key="Muted"    Color="#78716C"/>
-  <SolidColorBrush x:Key="Placeholder" Color="#A8A29E"/>
+  <!-- Text: three levels, all AA on Surface AND on RowSelected -->
+  <SolidColorBrush x:Key="Fg"       Color="#14181F"/>  <!-- 17.79:1 -->
+  <SolidColorBrush x:Key="Fg75"     Color="#3A4351"/>  <!--  9.99:1 -->
+  <SolidColorBrush x:Key="Fg55"     Color="#5A6474"/>  <!--  5.98:1 (secondary / badge ink) -->
+  <SolidColorBrush x:Key="Fg48"     Color="#646E7D"/>  <!--  4.82:1 on App, 5.16:1 on Surface -->
+  <SolidColorBrush x:Key="Fg40"     Color="#98A1AF"/>  <!--  icons and disabled only -->
+  <SolidColorBrush x:Key="Fg35"     Color="#C4CAD3"/>  <!--  hairlines/decor only -->
+  <SolidColorBrush x:Key="Muted"    Color="#5A6474"/>
+  <SolidColorBrush x:Key="Placeholder" Color="#646E7D"/>
 
-  <SolidColorBrush x:Key="Hairline" Color="#E7E2D9"/>
-  <SolidColorBrush x:Key="Divider"  Color="#ECE8E1"/>
+  <SolidColorBrush x:Key="Hairline" Color="#E4E8EF"/>
+  <SolidColorBrush x:Key="Divider"  Color="#EAEEF4"/>
 
-  <!-- Restrained blue accent: fill for buttons, darker ink for text on white -->
-  <SolidColorBrush x:Key="Accent"     Color="#2E6BEE"/>
-  <SolidColorBrush x:Key="AccentText" Color="#1D4FD7"/>
-  <SolidColorBrush x:Key="OnAccent"   Color="#FFFFFF"/>
-  <SolidColorBrush x:Key="ControlLine" Color="#DCD6CB"/>
-  <SolidColorBrush x:Key="Error"      Color="#C92A2A"/>
+  <!-- Orange stays the brand fill; on white it is ink at AccentText, and OnAccent is dark, never white -->
+  <SolidColorBrush x:Key="Accent"     Color="#FF7A1A"/>
+  <SolidColorBrush x:Key="AccentText" Color="#C2410C"/> <!-- 5.18:1 -->
+  <SolidColorBrush x:Key="OnAccent"   Color="#1A0D02"/> <!-- 7.30:1 on Accent -->
+  <SolidColorBrush x:Key="ControlLine" Color="#7E8A9B"/> <!-- 3.50:1 -->
+  <SolidColorBrush x:Key="Error"      Color="#C02626"/> <!-- 5.92:1 -->
 
-  <SolidColorBrush x:Key="Sage"   Color="#5B7A5B"/>
-  <SolidColorBrush x:Key="Amber"  Color="#92600A"/>
+  <SolidColorBrush x:Key="Sage"   Color="#2F7A4F"/>
+  <SolidColorBrush x:Key="Amber"  Color="#8A5A00"/>
   <SolidColorBrush x:Key="Sky"    Color="#0369A1"/>
   <SolidColorBrush x:Key="Violet" Color="#6D28D9"/>
 
-  <!-- Rows: no zebra band; hover is a warm-black 5% veil, selection a pale blue tint -->
-  <SolidColorBrush x:Key="RowAlt"        Color="#FAF9F7"/>
-  <SolidColorBrush x:Key="RowHover"      Color="#0D1C1917"/>
-  <SolidColorBrush x:Key="StateHover"    Color="#0D1C1917"/>
+  <!-- Rows: near-white zebra, cold selection, rail in AccentText so it clears 3:1 as a state marker -->
+  <SolidColorBrush x:Key="RowAlt"        Color="#FAFBFC"/>
+  <SolidColorBrush x:Key="RowHover"      Color="#0A1C1917"/>
+  <SolidColorBrush x:Key="StateHover"    Color="#0A1C1917"/>
   <SolidColorBrush x:Key="StatePressed"  Color="#141C1917"/>
-  <SolidColorBrush x:Key="RowSelected"   Color="#EDF2FD"/>
-  <SolidColorBrush x:Key="SelectionRing" Color="#C9D9F8"/>
-  <SolidColorBrush x:Key="SelectionRail" Color="#2E6BEE"/>
-  <SolidColorBrush x:Key="PulseFill" Color="#F1EEE9"/>
-  <SolidColorBrush x:Key="PulseRing" Color="#D6D0C7"/>
+  <SolidColorBrush x:Key="RowSelected"   Color="#FFF1E7"/>
+  <SolidColorBrush x:Key="SelectionRing" Color="#F3C9A6"/>
+  <SolidColorBrush x:Key="SelectionRail" Color="#C2410C"/>
+  <SolidColorBrush x:Key="PulseFill" Color="#EAF6EE"/>
+  <SolidColorBrush x:Key="PulseRing" Color="#BFE3CB"/>
 
-  <SolidColorBrush x:Key="KeycapBackground" Color="#F1EEE8"/>
-  <SolidColorBrush x:Key="KeycapLine"       Color="#E0DAD1"/>
-  <SolidColorBrush x:Key="BadgeBackground"   Color="#F3F1EC"/>
-  <SolidColorBrush x:Key="TileBackground"    Color="#F7F5F1"/>
-  <SolidColorBrush x:Key="ScrollThumb"      Color="#D6D0C7"/>
+  <SolidColorBrush x:Key="KeycapBackground" Color="#F1F3F6"/>
+  <SolidColorBrush x:Key="KeycapLine"       Color="#DDE2EA"/>
+  <SolidColorBrush x:Key="BadgeBackground"  Color="#F1F3F6"/>
+  <SolidColorBrush x:Key="TileBackground"   Color="#F1F3F6"/>
+  <SolidColorBrush x:Key="ScrollThumb"      Color="#C9D0DA"/>
 
   <!-- LAYER B defaults: original-content fallbacks owned by the content layer.
        App chrome must not reference these; content rendering must not reference LAYER A. -->
   <SolidColorBrush x:Key="ContentCanvas" Color="#FFFFFF"/>
-  <SolidColorBrush x:Key="ContentInk" Color="#1C1917"/>
+  <SolidColorBrush x:Key="ContentInk" Color="#14181F"/>
   <SolidColorBrush x:Key="ContentLink" Color="#1D4FD8"/>
   <SolidColorBrush x:Key="ContentDarkBg" Color="#23272E"/>
   <SolidColorBrush x:Key="ContentMatchBg" Color="#FEF3C7"/>

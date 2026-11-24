@@ -15,16 +15,28 @@ namespace Clip.UI
     public partial class MainWindow
     {
         const int TipDwellMs = 500;
+        // Crossing the 1 DIP overlap still costs a MouseLeave + re-enter pair; the grace keeps
+        // the tip up while the pointer travels from the row onto the tip to scroll it.
+        const int TipHideMs = 350;
 
         RowTooltipWindow _tip;
         DispatcherTimer _tipTimer;
+        DispatcherTimer _tipHideTimer;
         ClipRow _tipRow;
 
         void QueueRowTip(ClipRow row)
         {
-            if (row == null || !row.Truncated) { HideRowTip(); return; }
+            if (row == null || !row.Truncated)
+            {
+                // No row under the pointer: when the tip is already up the pointer may be on its
+                // way onto it — give it the grace period instead of killing it in the gap.
+                if (_tip is { IsVisible: true }) ArmTipHide();
+                else HideRowTip();
+                return;
+            }
             if (ReferenceEquals(row, _tipRow)) return; // same row: an already-running dwell keeps running
 
+            CancelTipHide();
             _tipRow = row;
             if (_tipTimer == null)
             {
@@ -42,7 +54,12 @@ namespace Clip.UI
             var container = ContainerOf(row);
             if (container == null) return;
 
-            _tip ??= new RowTooltipWindow { OnDismissed = HideRowTip };
+            _tip ??= new RowTooltipWindow
+            {
+                OnDismissed = HideRowTip,
+                OnHoverEnter = CancelTipHide,
+                OnHoverLeave = ArmTipHide,
+            };
             _tip.ShowFor(this, row, container.TranslatePoint(new Point(0, 0), this).Y);
             // A no-activate window still costs the popup its foreground on some setups; keep the keys here.
             if (!IsActive) Activate();
@@ -51,9 +68,24 @@ namespace Clip.UI
         internal void HideRowTip()
         {
             _tipTimer?.Stop();
+            _tipHideTimer?.Stop();
             _tipRow = null;
             _tip?.Dismiss();
         }
+
+        void ArmTipHide()
+        {
+            if (_tip is not { IsVisible: true }) { HideRowTip(); return; }
+            if (_tipHideTimer == null)
+            {
+                _tipHideTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(TipHideMs) };
+                _tipHideTimer.Tick += (s, e) => HideRowTip();
+            }
+            _tipHideTimer.Stop();
+            _tipHideTimer.Start();
+        }
+
+        void CancelTipHide() => _tipHideTimer?.Stop();
 
         void OnListMouseMove(object sender, MouseEventArgs e)
         {
@@ -65,8 +97,9 @@ namespace Clip.UI
         void OnListMouseLeave(object sender, MouseEventArgs e)
         {
             // Moving onto the tooltip itself (to scroll it) is not leaving the row.
-            if (_tip != null && _tip.ContainsCursor()) return;
-            HideRowTip();
+            if (_tip != null && _tip.ContainsCursor()) { CancelTipHide(); return; }
+            if (_tip is { IsVisible: true }) ArmTipHide();
+            else HideRowTip();
         }
 
         // ---- bottom edge: whole rows only ------------------------------------

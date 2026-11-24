@@ -9,6 +9,9 @@ namespace Clip.Core
         public long Id { get; set; }
         public string Kind { get; set; }
         public string Text { get; set; }
+        /// <summary>Full length of the stored body. A list row carries only <see cref="Text"/>'s preview, so
+        /// <c>TextLength &gt; Text.Length</c> means the rest must be loaded before paste/edit.</summary>
+        public long TextLength { get; set; }
         public string Html { get; set; }
         public string Rtf { get; set; }
         public byte[] Image { get; set; }

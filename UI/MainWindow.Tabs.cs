@@ -31,9 +31,7 @@ namespace Clip.UI
         {
             ApplyImagesLayout(); // the list's shape follows the tab, never the selection
 
-            var main = _store.GetRecent(_cfg.MaxItems);
-            int imageCount = main.Count(i => i.Kind == "image");
-            int clipCount = main.Count - imageCount;
+            var (clipCount, imageCount) = _store.Counts();
 
             var vms = new List<TabVm>
             {

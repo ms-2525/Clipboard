@@ -9,6 +9,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media.Animation;
 using System.Windows.Media;
+using System.Threading.Tasks;
 using System.Windows.Threading;
 using Clip.Core;
 using Clip.Interop;
@@ -31,16 +32,23 @@ namespace Clip.UI
         string _tabName = "Clipboard";
 
         ClipboardItem _undoItem;
-        bool _closing;
         bool _suppressFilter;
         bool _composing;
         Window _editor;
+
+        // A filter or a capture invalidates the exact (deep-text) search that is still in flight.
+        int _searchSeq;
+        int _rowsVersion;
+        bool _deepBusy;
+        int _deepQueued;
 
         // The list is rebuilt only when something actually changed — a fresh full Reload on every
         // Alt+V re-read every row and its thumb and cost ~19 MB of native render memory per open.
         bool _dirty = true;
         long? _loadedTab;
         bool _loadedImages;
+        // Section labels freeze "Today" into the rows; a popup opened the next morning must re-read them.
+        static DateTime _listDay = DateTime.Today;
 
         public event Action<ClipboardItem> PasteRequested;
         public event Action<ClipboardItem> PlainPasteRequested;
@@ -72,11 +80,10 @@ namespace Clip.UI
         {
             if (IsVisible)
             {
-                if (_closing) { _closing = false; Shell.BeginAnimation(OpacityProperty, null); Shell.Opacity = 1; WindowChrome.Raise(this); Activate(); Search.Focus(); return; }
                 // A visible-but-inactive popup (another window came forward, or it lost a z-order race)
                 // must come forward, not toggle itself closed: that is what "the hotkey did nothing" was.
                 if (!IsActive) { WindowChrome.Raise(this); Activate(); Search.Focus(); return; }
-                ClosePopup(false);
+                ClosePopup();
             }
             else ShowPopup();
         }
@@ -85,7 +92,6 @@ namespace Clip.UI
         {
             if (IsVisible) { Activate(); Search.Focus(); return; }
 
-            _closing = false;
             _undoItem = null;
             CloseOverlays();
             _tabId = null;
@@ -114,11 +120,12 @@ namespace Clip.UI
             Show();
             WindowChrome.Raise(this);
             Activate();
+            if (_listDay != DateTime.Today) { _listDay = DateTime.Today; _dirty = true; }
             if (_dirty || _loadedTab != _tabId || _loadedImages != _images) Reload();
             else
             {
                 History.SelectedItem = _visible.FirstOrDefault();
-                History.ScrollIntoView(History.SelectedItem);
+                ScrollToTop();
             }
             // One forced pass so the selected row is realised (scroll cue + first paint) before we animate.
             UpdateLayout();
@@ -146,10 +153,7 @@ namespace Clip.UI
         }
 
         /// <summary>Paste hands the window straight back: an exit ghost would swallow the click (motion R4).</summary>
-        public void HideForPaste()        {
-            _closing = false;
-            HideCore();
-        }
+        public void HideForPaste() => HideCore();
 
         public void OnNewItem(ClipboardItem item)
         {
@@ -160,6 +164,7 @@ namespace Clip.UI
             if (_images && item.Kind != "image") return;
             if (!_images && item.Kind == "image") return;
 
+            _rowsVersion++;
             // Measure the row that is about to move to the top BEFORE the list is rebuilt (FLIP).
             var previous = _rows.FirstOrDefault(r => r.Id == item.Id);
             double? before = RowY(previous);
@@ -179,6 +184,7 @@ namespace Clip.UI
 
         public void Reload()
         {
+            _rowsVersion++;
             RichRow.Clear();
             _rows = LoadRows();
             MarkLoaded();
@@ -207,15 +213,28 @@ namespace Clip.UI
         {
             if (_suppressFilter) return;
 
+            // Anything already running is stale the moment the query changes.
+            _searchSeq++;
+
             var hits = SearchService.Filter(_rows.Select(r => r.Item).ToList(), Search.Text);
             var ids = new HashSet<long>(hits.Select(i => i.Id));
+            ShowRows(r => ids.Contains(r.Id), selectId);
+            StartExactSearch();
+        }
+
+        /// <summary>
+        /// Lays out the rows that survive the filter and puts them on screen. Numbers, section bands
+        /// and highlight runs are all baked here so a realized row never computes anything.
+        /// </summary>
+        void ShowRows(Func<ClipRow, bool> keep, string selectId, bool scrollToSelection = true)
+        {
             var display = new List<ClipRow>();
             string query = Search.Text ?? "";
             string section = null;
             foreach (var row in _rows)
             {
-                if (!ids.Contains(row.Id)) continue;
-                row.SectionLabel = SectionFor(row.Item.CapturedAt);
+                if (!keep(row)) continue;
+                row.SectionLabel = row.Section;
                 row.ShowSection = row.SectionLabel != section;
                 section = row.SectionLabel;
                 row.Number = display.Count + 1;
@@ -228,8 +247,15 @@ namespace Clip.UI
             _visible = display;
 
             ClipRow target = selectId != null ? display.FirstOrDefault(r => r.Id.ToString() == selectId) : null;
-            History.SelectedItem = target ?? display.FirstOrDefault();
-            if (History.SelectedItem != null) History.ScrollIntoView(History.SelectedItem);
+            ClipRow first = display.FirstOrDefault();
+            History.SelectedItem = target ?? first;
+            // Jumping to the top resets the offset instead of asking the panel to realise a row: on a
+            // 10 000-row history ScrollIntoView measured 50–100 ms per keystroke, all inside the filter.
+            if (scrollToSelection)
+            {
+                if (target != null && !ReferenceEquals(target, first)) History.ScrollIntoView(target);
+                else ScrollToTop();
+            }
 
             UpdateStatus();
             UpdateEmptyState();
@@ -238,14 +264,60 @@ namespace Clip.UI
             HideRowTip();
         }
 
-        static string SectionFor(string stamp)
+        /// <summary>
+        /// Rows carry only their first <see cref="ClipboardStore.PreviewChars"/> characters, so a match
+        /// deeper in a long body is invisible to the in-memory pass. When any row is longer than its
+        /// preview, the database is asked on a background connection and the exact set replaces the
+        /// optimistic one. Cheap histories never pay for this: short clips skip it entirely.
+        /// </summary>
+        void StartExactSearch()
         {
-            if (!DateTime.TryParse(stamp, out var when)) return "Earlier";
-            var today = DateTime.Today;
-            if (when.Date == today) return "Today";
-            if (when.Date == today.AddDays(-1)) return "Yesterday";
-            if (when >= today.AddDays(-7)) return "This Week";
-            return "Earlier";
+            string query = (Search.Text ?? "").Trim();
+            if (query.Length == 0) return;
+            bool deeper = false;
+            foreach (var row in _rows)
+                if (row.Item.TextLength > (row.Item.Text?.Length ?? 0)) { deeper = true; break; }
+            if (!deeper) return;
+            // One scan at a time: typing a word must not queue a full-history scan per keystroke.
+            if (_deepBusy) { _deepQueued = 1; return; }
+            _deepBusy = true;
+
+            int seq = _searchSeq;
+            int version = _rowsVersion;
+            long? tab = _tabId;
+            string kind = _images ? "image" : null;
+            Task.Run(() => _store.SearchFull(query, _cfg.MaxItems, kind, tab))
+                .ContinueWith(t =>
+                {
+                    if (t.IsFaulted) { _ = t.Exception; } // observed: a failed scan is a miss, not a crash log
+                    Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        _deepBusy = false;
+                        bool queued = _deepQueued != 0;
+                        _deepQueued = 0;
+
+                        if (t.Status == TaskStatus.RanToCompletion && seq == _searchSeq &&
+                            version == _rowsVersion && (Search.Text ?? "").Trim() == query)
+                        {
+                            var set = new HashSet<long>(t.Result);
+                            // No scroll: the exact set lands under the user's eyes, it must not move them.
+                            ShowRows(r => set.Contains(r.Id),
+                                (History.SelectedItem as ClipRow)?.Id.ToString(), scrollToSelection: false);
+                        }
+                        if (queued) StartExactSearch();
+                    }), DispatcherPriority.Background);
+                });
+        }
+
+        /// <summary>Resets the viewport without making the panel realise a specific item.</summary>
+        System.Windows.Controls.ScrollViewer _scroller;
+
+        void ScrollToTop()
+        {
+            _scroller ??= FindDescendant<System.Windows.Controls.ScrollViewer>(History);
+            if (_scroller == null) return;
+            if (_images) _scroller.ScrollToHorizontalOffset(0);
+            else _scroller.ScrollToVerticalOffset(0);
         }
 
         void OnSearchChanged(object sender, TextChangedEventArgs e)
@@ -349,7 +421,7 @@ namespace Clip.UI
             base.OnDeactivated(e);
             // The editor, the popup's overlays and the outside row tooltip are child surfaces, not focus loss.
             if (_tip is { IsVisible: true }) return;
-            if (IsVisible && _editor == null && !AnyOverlayOpen) ClosePopup(false);
+            if (IsVisible && _editor == null && !AnyOverlayOpen) ClosePopup();
         }
 
         void OnShellMouseDown(object sender, MouseButtonEventArgs e)
@@ -403,6 +475,15 @@ namespace Clip.UI
             return cp?.ContentTemplate?.FindName(name, cp) as T;
         }
 
+        /// <summary>The whole body behind a row that only carries its preview — paste, edit and undo need it.</summary>
+        internal string FullText(ClipRow row)
+        {
+            if (row == null) return null;
+            return row.Item.TextLength > (row.Item.Text?.Length ?? 0)
+                ? _store.GetText(row.Id) ?? row.Item.Text
+                : row.Item.Text;
+        }
+
         void AnimateIn()
         {
             // No opacity fade: any opacity below 1 rasterises the subtree and greys the type it is
@@ -421,19 +502,13 @@ namespace Clip.UI
             ShellShift.BeginAnimation(TranslateTransform.YProperty, anim);
         }
 
-        void ClosePopup(bool handoff)
+        /// <summary>
+        /// Hides on the spot. The old 83 ms opacity fade made closing depend on the animation clock, so a
+        /// busy UI thread could leave a topmost popup on screen holding focus — the reported "it will not close".
+        /// </summary>
+        void ClosePopup()
         {
-            if (!IsVisible) return;
-            if (handoff || !Motion.On) { HideCore(); return; }
-            _closing = true;
-            var fade = Motion.Linear(0, 83);
-            fade.Completed += (s, e) =>
-            {
-                if (!_closing) return;
-                _closing = false;
-                HideCore();
-            };
-            Shell.BeginAnimation(OpacityProperty, fade);
+            if (IsVisible) HideCore();
         }
 
         void HideCore()

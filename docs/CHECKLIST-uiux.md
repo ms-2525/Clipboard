@@ -1,97 +1,112 @@
 ﻿# Clip — UI/UX Verification Checklist
 
-Verified the same way as features: observed evidence only. `[U]` = screenshot read against the rendered app.
+**What changed on 24 Nov (owner instruction):** rows that had already PASSED were answering a
+question nobody can fail any more, and they were 58 % of this file. They now live in
+`docs\CHECKLIST-archive.md`. What remains is only what can still fail. Settled rows are not re-read,
+not re-proven, and not extended with new prose.
 
-**VERIFICATION PROTOCOL (owner-mandated):** every `[U]` visual check is executed by a FRESH sub-agent on `opencode-go/deepseek-v4.1-flash#high` (DeepSeek V4.1 Flash 1017, high variant) — fresh session, never one that wrote or orchestrated the code it judges (no self-review). The audit agent launches the app itself, captures its own screenshots, reads them, and reports PASS/FAIL per item with the screenshot as evidence. No other party may mark `[U]` items.
-Visual authority: Ortu (docs\RESEARCH-ortu-ui.md) — the owner pinned it. Where Ortu conflicts with an owner decision, the owner decision wins (noted inline).
+**Visual authority:** `docs\DESIGN-language.md` (Tools3000 manner, orange accent). Reference
+screenshots: `%TEMP%\opencode\t3\`. Ortu is retired as authority (`docs\RESEARCH-ortu-ui.md` stays
+as history). Owner decision wins over any document, always.
+
+**VERIFICATION PROTOCOL (owner-mandated):** every `[U]` item is executed by a FRESH sub-agent on
+`opencode-go/deepseek-v4.1-flash#high` — never one that wrote or orchestrated the code it judges.
+It launches the app, captures and reads its own screenshots, and reports PASS/FAIL with the
+screenshot. No other party may mark `[U]`. Builders mark `[H]` and measured `[L]` only.
+
+`[U]` = screenshot read · `[H]` = harness assertion · `[L]` = live/measured · `[M]` = motion
+measurement (frame counter, not a still).
 
 ---
 
-## 1. Ortu visual language (adopted)
-- ⬜ `[U]` **Flat rows, not cards**: no per-item border, radius 12, compact 8×12 padding — the app's whole texture matches Ortu -- **S3 AUDIT: PASS** (evidence: popup-dark.png, zoom-selected-row.png -- borderless rows, radius 12, 12x8 padding)
-- ⬜ `[U]` **Selection = rail + tint + inset ring**: 2px accent gradient rail (#FF8A3D→#FF6B1A), overlay tint, 1px inset ring — not a full accent border -- **S3 AUDIT: PASS** (measured: 2 DIP gradient rail at x=13-15px, tint #1C1310 = accent 8%, ring #3E2517)
-- ❌ **DEAD — grow-on-selection** (was: selected row grows 1 → 3 lines, "dovetails with the rich-preview expansion"). DESIGN-v2-directives.md §1 deletes it: selection NEVER changes a row's height or the list's geometry — verified live as **0 differing pixels** on ↓ (`CHECKLIST-features.md` §2 nav rows, S1 zero-jump re-verify). Rich content now renders inside every realized row's own fixed height, not by growing the selected one. *S3 AUDIT as-built: it grew 70.7 → 102.7 DIP — the defect this ruling killed.*
-- ⬜ `[U]` **Time sections** (Today / Yesterday / …) with hairline rules between groups -- **S3 AUDIT: PASS** (evidence: popup-dark.png -- 'Today' plus trailing hairline)
-- ⬜ `[U]` **Status bar** with live hints: `{n} clips` + keycaps `↵ paste` / `esc hide` — reinforces the all-keyboard contract -- **S3 AUDIT: PASS** (evidence: zoom-statusbar.png; copy deviates -- 'Enter/F2/Esc' instead of the pinned glyph keycaps, P3)
-- ⬜ `[U]` **Second accent sage #AEB291** in use (domains/success/pill); amber for pinned items; sky/violet for semantic rails -- **S3 AUDIT: FAIL** (Sage/Sky/Violet tokens exist in both themes but are used nowhere on screen; only Amber appears, on the Pinned underline)
-- ⬜ `[U]` Borders are white-alpha 5–12% (light) / black-alpha (dark), not one fixed hairline -- **S3 AUDIT: PASS** (rows carry no border at all; dividers are the Divider token #212329; the alpha-percentage claim is not measurable from a screenshot)
-- ⬜ `[U]` Popup **550 wide × 520 tall** (Ortu's 550; height adapted for the expanding preview — owner-approved deviation) -- **S3 AUDIT: PASS** (measured 825x780 physical @150% = exactly 550x520 DIP)
-- ⬜ `[U]` Metadata line: 10px non-italic above a 1px hairline, **absolute time in the configured 12h/24h format** (owner decision overrides Ortu's relative time) -- **S3 AUDIT: SUPERSEDED BY DESIGN-v2-directives.md** section 2 removes per-row meta entirely (as-built: 11px, non-italic, absolute time)
-- ⬜ `[U]` Tab bar matches Ortu's tab treatment across Clipboard / Images / Pinned / custom -- **S3 AUDIT: PASS** (evidence: zoom-tabstrip.png, tab-pinned.png -- flat labels, counts, 2 DIP underline, amber on Pinned)
-- ⬜ `[U]` **One drawn Path icon family** — the three current systems (Segoe MDL2 `E721` glyph, Unicode `✓ ✕ ▾`, letter-"C" tray logo) are all replaced by stroke-consistent drawn Paths (Ortu draws 14px SVG at stroke 2.5); tray logo becomes a drawn mark, not a letter -- **S3 AUDIT: FAIL** (notification close is still the literal U+2715 text glyph; the tray mark is a GDI+ drawing -- zoom-notification-1.png) -- **ICONS sprint 23 Nov, awaiting a fresh `[U]` pass:** the notification close and the tray were already drawn before this sprint; `IconClipboard`/`IconPicture`/`IconSearch` were re-drawn (the body's top edge no longer runs through the clipboard's clip; the picture frame is rounded like every other mark), the tab-bar `+` moved from 12 → 16 DIP per §8's "16 command icons", `Assets\clip.ico` replaced the generic .NET exe icon, and the tray now ships 16/20/24/32/48 frames instead of one 32 (blur fix)
-- ⬜ `[U]` **Meta line content**: two facts (app + time) with spacing, not middle-dot chains; the window title moves to the row's tooltip — the line itself carries app + timestamp only -- **S3 AUDIT: SUPERSEDED BY DESIGN-v2-directives.md** section 2 removes per-row meta entirely (as-built: 'Notepad  23 Nov 16:22')
-- ⬜ `[U]` **Truthful copy everywhere** (docs\DESIGN-antislop.md table): clear-history copy states pinned/tab items survive; "Close" discards without destruction language; badge "+90 more lines"; status keycaps; tray menu — every visible string from the doc's replacement table -- **S3 AUDIT: FAIL** (badge lies: 30 CRLF lines -> '+57 more lines' instead of +27 -- popup-dark-30lines.png)
-- ⬜ `[U]` **Tray Clear History gets a confirm step** (it currently wipes with none — contradicts the designed confirm path); S3 wires it -- **S3 AUDIT: UNTESTED-BY-AUTOMATION** (Settings window crashes on open, P0-1; destructive path not driven)
-- ⬜ `[U]` Empty states designed with exact copy per the doc: first-run (no history), no search matches, empty Images, empty Pinned
-- ✅ `[U]` **Button grammar unified across ALL surfaces** — pixel-verified both themes (Primary/Secondary/Ghost/Danger; hover/pressed EXACTLY 4%/8%; disabled Divider-line + Fg48; keyboard-only 2px AccentText ring — no ring in any mouse capture, Tab cycles all variants; real Settings footer + editor toolbar/discard verified). Home = UI\Themes\Buttons.xaml. **Metric ruling: 12 DIP SemiBold, px-12 (Ortu's own .btn-primary) WINS over the checklist's earlier 13 Medium — the owner named Ortu the heavy reference** -- **S3 AUDIT: PASS** (no-matches/Images/Pinned all seen with designed copy: popup-search-empty.png, tab-images.png, tab-pinned.png; first-run untested -- needs the owner's config renamed) -- **POPUP-VISUAL sprint, popup-internal part: PASS** — confirm dialog Cancel = Secondary (Raised + ControlLine) with the keyboard-only 2 px AccentText ring, "Delete tab" = Danger (Error line/ink), 28 DIP + radius 8 + 8 DIP gap (`confirm-confirm-dialog.png`); Ctrl+M pills carry hover 4 % (`StateHover`) and selection (`RowSelected` + ControlLine) (`dark-picker.png`); tab-bar `+` = 24 DIP ghost icon button with hover/pressed from `BtnBase` (`dark-open.png`)
-- 🟡 `[U]` **Bottom-edge mid-glyph clipping — FIXED by the popup-visual sprint**: shipped as a measured EdgeMask (whole-row hiding was tried first and left a 160–240 DIP hole; the mask covers the cut row from the next whole text line down, painted in the row's own fill) — verified live at 5 scroll positions dark AND light (`dark-edge0..4.png`, `light-edge0..4.png` in docs\design-evidence\popup-visual\); prior FAIL evidence (S3 audit `zoom-nav2-bottom-clip.png`, ACC-v2 `zoom-bottom-clip-3x.png`) predates the fix
-- REJECTED deviations (owner contracts stand): preview-lines stays 1..100 (not 1–3); duration stays `durationMs` (not seconds)
-- ⬜ `[U]` Hover states on rows and interactive controls -- **S3 AUDIT: PASS** (row hover = RowHover token #121316 measured in popup-hover-row.png; control hover not separately verified)
-- ⬜ `[U]` Copy pulse feedback (~380 ms flash) when an item is pasted — Ortu's signature moment -- **S3 AUDIT: UNTESTED-BY-AUTOMATION** (a 380 ms keyframe cannot be captured or timed in still screenshots)
+## 0. The comparative gate — one judgement per surface, the only rows that judge "does it look right"
 
-## 2. Settings restyle (Ortu + DESIGN docs)
-- ⬜ `[U]` **Reorganized into tabs** (General / Notification): 672px centered `App` bg, `Surface` cards p14 r12, 48px header, 13/600 title -- **S3 AUDIT: UNTESTED-BY-AUTOMATION** (Settings window never renders: opening it terminates the process -- P0-1, settings-open-attempt.png) -- **ACC-v2 PASS**: General / Notification tabs, centered column, Surface cards, 48 DIP header, 13/600 title (`settings-open.png`, `settings-ghost-preview.png`)
-- ⬜ `[U]` 10px uppercase section labels (supersedes 9px — DESIGN-typography.md) -- **S3 AUDIT: UNTESTED-BY-AUTOMATION** (Settings window crashes on open -- P0-1) -- **ACC-v2 PASS**: HOTKEYS / HISTORY / APPEARANCE / STARTUP / NOTIFICATIONS / PREVIEW all uppercase 10 px (`settings-open.png`)
-- ⬜ `[U]` 38×22 switches for toggles; orange segmented control for theme/time-format where applicable -- **S3 AUDIT: UNTESTED-BY-AUTOMATION** (Settings window crashes on open -- P0-1) -- **ACC-v2 PASS**: orange pill switch (Notify me when I copy; Open when I sign in) and orange segmented controls for Theme and Time format and Notification position (`settings-ghost-preview.png`, `settings-open.png`)
-- ⬜ `[U]` **Live notification preview overlay**: a ghost overlay (dashed accent border, 10px uppercase "Notification preview" label, semi-transparent Surface fill) appears at the EXACT on-screen coordinates the real toast will use — position, offsets, width, height, on the right monitor — and moves/resizes LIVE as any value changes; dragging the ghost writes back to offsetX/offsetY; auto-hides after ~4 s idle; a pin/`Show preview` button keeps it up. Owner requirement 23 Nov. -- **S3 AUDIT: UNTESTED-BY-AUTOMATION** (Settings window crashes on open -- P0-1) -- **ACC-v2: FAIL** — the PREVIEW card and its "Show preview" button render, but clicking it twice produces **no overlay window and nothing drawn** (`ghost-preview-retry-crop.png`)
-- ⬜ `[U]` Inline validation errors use the Error token (never modal popups), checkbox borders pass SC 1.4.11 via `ControlLine` -- **S3 AUDIT: UNTESTED-BY-AUTOMATION** (Settings window crashes on open -- P0-1)
-- ⬜ `[U]` Clear-history confirm is an inline two-click swap -- **S3 AUDIT: UNTESTED-BY-AUTOMATION** (Settings window crashes on open -- P0-1) -- **ACC-v2 PASS**: one click swaps the row to "Delete all clips in Clipboard and Images? Pinned clips and tabs stay. / Keep clips / Delete clips" (`clear-history-confirm-step-crop.png`)
+Each of these is a **comparison against the reference**, not a list of sub-items. A surface passes
+when a reader shown the two screenshots cannot name a *structural* difference: row anatomy, type
+levels, badge grammar, spacing rhythm. Sub-item ticking does not pass this gate.
 
-## 3. Typography & color (evidence-corrected by docs\DESIGN-typography.md)
-- ✅ `[H]` **Static Manrope 400/500/600 shipped; the variable default-200 TTF is REMOVED** — root cause of "text looks bad": WPF cannot drive variable axes (dotnet/wpf#7758). VERIFIED: usWeightClass 400/500/600 per file, no fvar/gvar; ink measurement old variable 1393px Normal AND SemiBold (0.0% diff = the bug) vs new statics +36.5%; family names rewritten (GWfH ships source names → silent Arial fallback, caught + fixed); OFL.txt included; resources confirmed embedding exactly the three statics
-- ⬜ `[U]` Manrope embedded (pack URI) renders everywhere - headings, rows, meta, settings, notification; no fallback font anywhere visible -- **S3 AUDIT: PASS** (popup/tray menu/editor/toast all render in the app face; no Segoe fallback visible) -- **FONT SWAP 23 Nov, awaiting a fresh `[U]` pass:** the owner picked the face from a reference screenshot and it is **Inter** (SIL OFL, 400/500/600 static, same #folder trick); row numbers and the Images tile numbers render in **IBM Plex Mono** inside the code-chip boxes; the editor's rich-content family (`RowContent.ContentFamily`), the tooltip and the RichBox all point at the same Inter face so no rich row falls back to a different font; chars-per-line re-measured for Inter (85 in the 610 px column, constant stays 80). Manrope + DM Sans files stay on disk but are no longer embedded, pending owner approval of the new face
-- ⬜ `[U]` **Meta line: 11 px, weight 500, NON-italic** (italic killed: Microsoft excludes it for readability; Ortu never italicises metadata), tabular figures, 1 px hairline, selected-card treatment; **10 px is allowed ONLY for uppercase ≤3-word labels** -- **S3 AUDIT: SUPERSEDED BY DESIGN-v2-directives.md** section 2 removes per-row meta; as-built non-italic and 11 px are correct, LineHeight 14 vs 16
-- ⬜ `[U]` **Contrast token fixes applied (docs\DESIGN-contrast.md — computed values, not guesses)**: Dark — Muted `#8A909C`→`#9BA1AC` (7.03 on Surface, 5.01 under tint), placeholder→`#82868F` (4.51), hover/selection tints capped at **8 %** (15 % kills corrected Muted to 3.94). Light — full semantic re-solve: AccentText `#B84900`, Error `#CC2E33`, Sage `#686C47`, Amber `#826000`, Sky `#046C99`, Violet `#7347E8`, Muted `#586070`, placeholder `#69696E` (Accent stays `#FF8A3D` for FILLS only). Both — new tokens `OnAccent` (#08090C / #FFFFFF) and `ControlLine` (#666C7C / #7F8691) so the white-on-orange tick hits 7.78 and checkbox borders 3.14/3.16 -- **S3 AUDIT: PASS** (verified by reading both theme dictionaries: Muted #9BA1AC/#586070, Placeholder #82868F/#69696E, Error, OnAccent, ControlLine, AccentText #B84900 light, Sage/Amber/Sky/Violet all present)
-- ⬜ `[U]` **The 2px accent rail carries selection** — the accent/0.15 ring measures 1.27:1 and is decoration only, never the indicator -- **S3 AUDIT: PASS** (measured: 2 DIP full-strength gradient rail; the 1 px ring #3E2517 is decoration only)
-- ✅ `[L]` **Text crispness FIXED — ClearType restored on every reading window** (crisp sprint: AllowsTransparency removed from popup/editor/settings/toast; DWM rounded corners + shadow via Interop\WindowChrome; fringed pixels 0→2039 popup, 1760/1763 toast, 316/418 settings — cool/warm split = the ClearType signature; entrance now an 8 DIP slide, no opacity fade; toast click-through proven via WM_NCHITTEST; the preview ghost stays layered by design)
-- ⬜ `[U]` Scale corrections applied (supersede the earlier Ortu numbers): meta 10→11, section labels 9→10 uppercase, status bar 9→11, title 15 Bold→13/600 -- **S3 AUDIT: PASS** (meta 11, section labels 10, status bar 11, editor title 13/600 all observed)
-- ⬜ `[U]` `✓ ✕ ▾` removed (verified absent from Manrope's cmap — Windows was silently falling back) → MDL2 glyphs or `×` -- **S3 AUDIT: FAIL** (notification close is still the literal U+2715 text glyph from a fallback font -- zoom-notification-1.png)
-- ⬜ `[U]` Notification: app name in accent, timestamp muted, body readable at a glance (~3 lines) -- **S3 AUDIT: PASS** (accent name + muted time + readable body in zoom-notification-1.png; the timestamp is still italic, P2-6)
-- ⬜ `[U]` Dark + light themes legible end-to-end. Where docs\DESIGN-typography.md and docs\DESIGN-contrast.md both name a token value, **contrast wins on hexes, typography wins on weights/sizes** -- **S3 AUDIT: UNTESTED-BY-AUTOMATION** (light theme is only reachable through Settings, which crashes -- P0-1; token values verified by reading Light.xaml) -- **ACC-v2 PASS**: Settings opened and the Light theme applied live; popup re-rendered light with readable body, muted meta, blue links, orange selection (`popup-light-theme2.png`); reverted to Dark
+- [ ] [U] **Popup list** — 3 screenshots (dark, light, long-text) beside the reference.
+      Row = identity tile | body ≤3 lines | right-aligned facts. Three type levels. One badge shape.
+- [ ] [U] **Popup chrome** — header / tab strip / status bar: one divider per band, 58 / 54 / 38
+      rhythm, two key hints maximum, right-aligned.
+- [ ] [U] **Images tab** — preview + filmstrip: one selected state, numbered tiles, no blank tile.
+- [ ] [U] **Editor** — toolbar, text area, footer: three type levels, buttons hug their labels.
+- [ ] [U] **Settings** — cards with icon + title + description, controls hug content, 20/24
+      padding, segmented control with a filled thumb.
+- [ ] [U] **Notification + tray menu** — one radius, one shadow, one type scale, no stock chrome.
 
-## 4. Motion & animation (spec: docs\RESEARCH-motion-ui.md — adopt all)
-- ⬜ `[U]` Popup open: opacity 0.70→1 + scale 0.985→1, **140 ms, KeySpline(0,0,0,1)** — first frame already 70% visible so the <150 ms hotkey budget is intact -- **S3 AUDIT: UNTESTED-BY-AUTOMATION** (entrance-animation timing is not capturable in still screenshots)
-- ⬜ `[U]` Popup close: **83 ms** on Esc/focus-loss; **0 ms on paste** (Ortu + Maccy close instantly — an exit ghost swallows the next click) -- **S3 AUDIT: UNTESTED-BY-AUTOMATION** (close timing not capturable; the Esc-close end state was verified)
-- ⬜ `[U]` Notification: 150 ms fade + clip-free 0.98→1 settle (no slide on SizeToContent); never steals focus, never sounds -- **S3 AUDIT: PASS** (never steals focus: the toast appeared while another window stayed foreground -- zoom-notification-3.png; fade timing unmeasured)
-- ⬜ `[U]` Hover 100 ms / row groups 75 ms / selection 100 ms — all overlay-Opacity, never brush animation -- **S3 AUDIT: PASS** (hover and selection states present and token-driven, popup-hover-row.png; timings unmeasured)
-- ❌ **DEAD — the selected-row growth animation** (was: MaxHeight 18→54, 120 ms, "the one sanctioned layout animation"). DESIGN-v2-directives.md §1 deletes it: ↑/↓ moves the highlight with zero layout change — verified live as **0 differing pixels** below the selection and **0 px** height change (`CHECKLIST-features.md` §2 nav/row-separation rows). No layout animation is sanctioned any more. *S3 AUDIT as-built: measured jumping on arrow-key moves — P1-5, nav-0.png..nav-4.png*
-- ❌ **DEAD — "65px compact rows, meta ALWAYS visible" (grows 101/119 on selection)** per docs\DESIGN-layout.md §row anatomies. DESIGN-v2-directives.md §1/§2 replace the anatomy: rows are content-adaptive (`16 + lines×18`, MAX cap), selection changes **no geometry** (verified 0 differing pixels), and per-row meta is gone — provenance lives in the separate bottom bar. *S3 AUDIT as-built: 70.7 DIP with meta always visible.*
-- ⬜ `[U]` Copy pulse: 150 in + 80 hold + 150 out = Ortu's exact **380 ms** as one keyframe animation (sage/green per Ortu) — **fires on the row just captured/deduped WHILE THE POPUP IS OPEN** (critique catch: paste hides at 0 ms, so a paste-pulse is invisible; the capture surface is where it lives) -- **S3 AUDIT: UNTESTED-BY-AUTOMATION** (needs the popup open during a capture plus frame-level timing)
-- ⬜ `[U]` **Clipboard tab is kind-filtered (text + files only; image rows never appear as blank cards)** — images live in the Images tab with thumbnails; view queries filter by kind per tab -- **S3 AUDIT: PASS** (image rows only ever appeared on the Images tab across every capture)
-- ⬜ `[U]` Dedupe jump-to-top: FLIP **200 ms** — with the documented "ship nothing rather than jank" escape hatch if it fights virtualization -- **S3 AUDIT: UNTESTED-BY-AUTOMATION** (needs a re-copy with the popup open plus frame-level timing)
-- ⬜ `[U]` Settings: 150 ms fade, no transform (dialog vs flyout distinction keeps surfaces non-identical) -- **S3 AUDIT: UNTESTED-BY-AUTOMATION** (Settings window crashes on open -- P0-1)
-- ⬜ `[U]` Esc-collapse of search: deliberately instant -- **S3 AUDIT: PASS** (real keypress: Esc #1 cleared the search and kept the popup, Esc #2 hid it)
-- ⬜ `[U]` Reduced motion: `SystemParameters.ClientAreaAnimation` honored — **30-second machine check that the Windows "Animation effects" toggle actually flips it** (unverified link, flagged in research) -- **S3 AUDIT: UNTESTED-BY-AUTOMATION** (would require toggling the OS animation-effects setting mid-audit)
-- ⬜ `[U]` Invariants held: GPU-only properties, one authored moment per surface, animation never blocks input, two curves by role (entrance/exit) -- **S3 AUDIT: UNTESTED-BY-AUTOMATION** (needs frame-level capture, not stills)
+## 1. Open items — each can still fail today
 
-## 5. Keyboard-first affordances (owner contract)
-- ⬜ `[U]` Focus is ALWAYS visible on the selected row (rail + ring readable on both themes) -- **S3 AUDIT: PASS** (rail + ring + tint on the selected row -- zoom-selected-row.png; light theme untested)
-- ⬜ `[U]` Search caret visible on open (CaretBrush themed) -- **S3 AUDIT: PASS** (accent caret visible in the search band -- popup-dark-30lines.png, nav-2.png)
-- ⬜ `[U]` Keycap hints in the status bar match the actual bindings (incl. F2 edit, Ctrl+Shift+V plain paste once shipped) -- **S3 AUDIT: PASS** ('Enter paste / F2 edit / Esc hide' are correct bindings; the pinned glyph copy and a Ctrl+Shift+V keycap are missing, P3)
-- ⬜ `[U]` Delete-key context matrix honored visually: deleting an item gives feedback (row removed + list stays at sane selection); editor Del behaves as text editing -- **S3 AUDIT: PASS** (Delete in list context removed the selected row and left a sane selection -- key-delete.png; editor Del is plain text editing)
-- ⬜ `[U]` Drag-to-move popup does not break keyboard focus -- **S3 AUDIT: UNTESTED-BY-AUTOMATION** (not driven -- a drag would move the popup during other captures)
+### Row anatomy v3 (shipped 24 Nov, unverified)
+- [ ] [U] Identity tile: 28×28, app initial, appears on every row; a row with no app shows `•`.
+- [ ] [U] Facts column: `+N` chip above the clock, right-aligned, stacking in one column — never
+      inline in the sentence (the old `+9` bare / `+20` pill split).
+- [ ] [U] Truthful badge: a 30-line clip reports the real hidden count (`+27`, not the old `+57`).
+- [ ] [U] List clamps to 3 lines; the full text is reachable by the outside tooltip.
+- [ ] [U] No per-row metadata line; provenance is in the bottom bar for the selected row only.
+- [ ] [U] Selection reads as a surface step, not a colour cast: `RowSelected` + ring + rail, no
+      brown wash, no geometry change on ↑/↓.
+- [ ] [U] **`Ctrl+1..9` affordance**: rows no longer print their position (the number was the code
+      gutter). Decide: a corner number on the identity tile, or a bottom-bar hint — do not drop it
+      silently, it is the only visible cue that the shortcut exists.
 
-## 6. Windows & platform conventions
-- ⬜ `[U]` No taskbar entry; no Alt-Tab entry for popup/notification (WS_EX_TOOLWINDOW) -- **S3 AUDIT: PASS** (no taskbar button in any full-screen capture; WS_EX_TOOLWINDOW itself not verified)
-- ⬜ `[U]` Tray icon crisp at 16/24/32px, themed, context menu matches the app's visual world (H.NotifyIcon swap) -- **S3 AUDIT: FAIL** (context menu renders a bright white Aero2 gutter down its left side -- zoom-tray-menu.png, P1-2; the icon itself renders fine in the overflow flyout) -- **ACC-v2 PASS for the menu**: dark rounded menu, **no white gutter**, items Open Clip / Settings… / Clear history… / Exit (`tray-menu-themed.png`)
-- ⬜ `[U]` Multi-monitor: popup + notification land on the monitor of the CURRENT ACTIVE WINDOW (not the mouse — owner requirement), correctly scaled (PerMonitorV2 verified at 150%); popup follows the hotkey press's active window, notification follows the copy's -- **S3 AUDIT: UNTESTED-BY-AUTOMATION** (single 1920x1200 display; no second monitor to move focus to)
-- ⬜ `[U]` Notification click-through everywhere except the ✕; ✕ hover state visible -- **S3 AUDIT: UNTESTED-BY-AUTOMATION** (probing click-through would click applications underneath the toast)
-- ⬜ `[U]` Per-monitor DPI: text crisp, no blurry rescale on monitor switch -- **S3 AUDIT: PASS** (150% geometry exact -- 550x520 DIP = 825x780 px, no rescale blur; text is greyscale-AA per directive 7)
+### Type & icons
+- [ ] [U] Three type levels on every surface (body / secondary / meta), no fourth grey.
+- [ ] [U] Body text is Inter, not a mono or fallback face (`dark-open.png` of 23 Nov looked
+      monospaced — confirm on a real clip, not a fixture).
+- [ ] [U] One drawn icon family; the notification close is a Path, not a U+2715 text glyph.
+- [ ] [U] Tray icon crisp at 16/24/32 and themed; context menu has no Aero2 gutter.
+- [ ] [U] `Sage` / `Sky` / `Violet` are used somewhere on screen or removed from the tokens
+      (last look: present in both themes, used nowhere).
 
-## 7. States & edge cases
-- ⬜ `[U]` Empty history / empty search / empty Images / empty Pinned states all designed -- **S3 AUDIT: PASS** (3 of 4 seen with designed copy -- popup-search-empty.png, tab-images.png, tab-pinned.png; empty history would need a fresh store -- forbidden)
-- ⬜ `[U]` Very long text item: clamp + ellipsis, no layout blowout -- **S3 AUDIT: PASS** (30-line clip clamped to 3 lines with ellipsis -- popup-dark-30lines.png)
-- ⬜ `[U]` Wide/tall image thumbs in grid: uniform, no stretch distortion -- **S3 AUDIT: FAIL** (there is no grid: images are 22 DIP tiles in text rows and one rendered as a blank grey square -- tab-images.png, P1-3) -- **ACC-v2 PASS**: preview 383×247 DIP + uniform numbered tiles, no distortion, no blank tile (`images-tab.png`)
-- ⬜ `[U]` Rich preview worst cases render acceptably (huge table clipped with scroll or max-height; rowspan>3 defect documented, not hidden) -- **S3 AUDIT: FAIL** (MaxHeight 150 with ClipToBounds and no scroll, unstyled serif type, ~120 DIP of empty box for one line -- zoom-nav2-richpreview.png) -- **ACC-v2 PASS for a 240-line RTF and a 30-line clip**: content swap inside the row, app type, badge carries the overflow, no empty box (`rich-rtf-row-clean-crop.png`, `rich-30lines-badge-crop.png`)
-- ⬜ `[U]` Settings with invalid input: save blocked, error inline, no data loss on Close -- **S3 AUDIT: UNTESTED-BY-AUTOMATION** (Settings window crashes on open -- P0-1)
+### Contrast & themes
+- [ ] [U] Light theme end-to-end at AA: body, secondary, meta, placeholder, selected row.
+      Evidence = the screenshot plus `node %TEMP%\opencode\verify-theme.mjs` (28 pairs, 0 fails).
+- [ ] [U] Dark theme: no pure-white body text, no `Fg48` below 4.5:1 on any surface it sits on.
+- [ ] [U] Theme change applies live from Settings and survives a restart.
 
-## 8. Audit scoring (final gate)
-The UI audit agent scores the rendered app 0–4 on five dimensions and every ⬜ above must be PASS or have a written owner-accepted deviation:
-1. Accessibility (contrast, focus, keyboard completeness, reduced motion)
-2. Performance (popup latency, scroll smoothness, memory discipline, only-one-renderer-alive)
-3. Theming (token usage, dark+light first-class, no hardcoded colors)
-4. Platform conformance (tray/hotkey/DPI/click-through/Windows expectations)
-5. Adaptivity (multi-monitor, text scaling, notification positions)
+### Motion (measured, not photographed)
+- [ ] [M] Popup open ≤150 ms, close 83 ms, 0 ms on paste — three numbers on one line.
+- [ ] [M] Copy pulse 380 ms fires while the popup is open.
+- [ ] [M] Dedupe jump-to-top FLIP 200 ms, or the documented "ship nothing rather than jank" exit.
+- [ ] [M] Reduced motion: the OS "Animation effects" toggle actually switches our animations off.
+- [ ] [U] Drag-to-move the popup does not break keyboard focus.
 
-## 9. Design inputs (the no-slop gate — S3 builds right the FIRST time)
-S3's UI implementation must consume, in this order, before writing any XAML: docs\RESEARCH-ortu-ui.md (visual authority) → docs\RESEARCH-motion-ui.md (motion spec) → docs\DESIGN-typography.md + docs\DESIGN-contrast.md + docs\DESIGN-layout.md + docs\DESIGN-antislop.md (the design wave, in flight) → docs\AUDIT-current-visual.md + docs\CRITIQUE-design.md (incumbent sins as anti-reference). The design is not "built then polished" — the first integrated build must already satisfy every checklist item above, verified by a FRESH #high audit agent per the verification protocol.
+### States, platform, settings
+- [ ] [U] First-run empty state (needs a renamed config — owner's data is never touched).
+- [ ] [U] Ghost notification preview appears, moves, writes offsets back, auto-hides (ACC-v2 FAIL).
+- [ ] [U] Tray `Clear history…` has its confirm step.
+- [ ] [U] Settings: invalid input gives an inline error, saves nothing, loses nothing.
+- [ ] [U] Notification: timestamp not italic; ✕ has a hover state; click-through everywhere else.
+- [ ] [U] Multi-monitor: popup + toast land on the active window's monitor, DPI-correct.
+- [ ] [U] No stock WPF control visible anywhere (ScrollBar, ComboBox, ContextMenu, ToolTip,
+      MessageBox, focus rectangle).
+
+## 2. Frozen decisions — do not reintroduce (one line each, no evidence needed)
+
+- Selection NEVER changes a row's height or the list's geometry.
+- No grow-on-selection and no selected-row growth animation.
+- No selected-card-only rich panel: rich content renders inside every realised row.
+- No per-row metadata line (app · title · time) — the bottom bar owns provenance.
+- Rich previews never fetch remote images; `HtmlRenderer` stays removed.
+- No `✓ ✕ ▾` text glyphs as icons — drawn Paths only.
+- Ortu's warm-paper light palette is retired; `docs\DESIGN-contrast.md` is history, not authority.
+- `previewLines` keeps its 1..100 range; `durationMs` stays milliseconds.
+- macOS keep-clips model is rejected: deleting a tab deletes its clips.
+- No layout animation is sanctioned on any surface.
+
+## 3. Audit scoring (unchanged dimensions, scored 0–4)
+
+Accessibility (contrast, focus, keyboard, reduced motion) · Performance (latency, scroll, memory,
+one renderer) · Theming (tokens only, dark+light first-class) · Platform conformance (tray, hotkey,
+DPI, click-through) · Adaptivity (monitors, text scaling, notification positions).
+
+Every open item above must be PASS or carry a written owner-accepted deviation.
+
+## 4. Design inputs, in order
+
+`docs\DESIGN-language.md` (authority) → `UI\Themes\*.xaml` (tokens) → `UI\Buttons.xaml` +
+`Popups.xaml` + `RowTemplate.xaml` + `Icons.xaml` (components) → `%TEMP%\opencode\t3\*.png`
+(reference) → `docs\AUDIT-current-visual.md` + `docs\CRITIQUE-design.md` (anti-reference).
+
+The first integrated build of a surface must already satisfy §0 — not "built then polished".
