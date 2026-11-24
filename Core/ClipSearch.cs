@@ -207,7 +207,8 @@ namespace Clip.Core
             // AppName is searchable in the existing SearchService.Filter too.
             if (item.AppName != null && SearchService.Contains(item.AppName.AsSpan(), value)) return true;
             // An image (or a legacy row) has no text; its file list and window title are what it has.
-            if (item.Text == null)
+            // Empty string means "no text", not "text that blocks the fallback" (AUDIT F14).
+            if (string.IsNullOrEmpty(item.Text))
             {
                 if (item.Uris != null && SearchService.Contains(item.Uris.AsSpan(), value)) return true;
                 if (item.WindowTitle != null && SearchService.Contains(item.WindowTitle.AsSpan(), value)) return true;

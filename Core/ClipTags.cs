@@ -9,8 +9,8 @@ namespace Clip.Core
     /// <summary>
     /// DESIGN-language.md §3.1: tags are derived at read time and only from a positive test. A
     /// heuristic that can be wrong returns nothing; a missing tag is acceptable, a wrong one is not.
-    /// Allocation-light: the list calls this for up to 1,000 rows and the only allocation is the
-    /// returned array for rows that actually carry a tag.
+    /// Allocation-light: the list calls this for up to 1,000 rows and a tagged row allocates one
+    /// short list plus the returned array.
     /// </summary>
     public static class ClipTags
     {
@@ -36,8 +36,9 @@ namespace Clip.Core
 
         // A bare verb is too easy to meet in prose ("Delete from the list"), so the statement shape is
         // part of the proof. A query this strict can miss terse SQL, which is the allowed failure.
+        // DDL needs its terminator: "Drop table reservations, please." is prose, not SQL.
         static readonly Regex SqlRe = new Regex(
-            @"^\s*(?:SELECT\s+(?:\*|[\w.$]+(?:\s*,\s*[\w.$]+)*)\s+FROM\s+[\w.$]+|INSERT\s+INTO\s+[\w.$]+\s*(?:\(|VALUES\b|SELECT\b)|UPDATE\s+[\w.$]+\s+SET\s+[\w.$]+\s*=|DELETE\s+FROM\s+[\w.$]+\s*(?:WHERE\b|;|$)|CREATE\s+(?:OR\s+REPLACE\s+)?(?:TABLE|VIEW|INDEX|DATABASE)\s+[\w.$]+|ALTER\s+TABLE\s+[\w.$]+|DROP\s+(?:TABLE|VIEW|INDEX|DATABASE)\s+[\w.$]+)",
+            @"^\s*(?:SELECT\s+(?:\*|[\w.$]+(?:\s*,\s*[\w.$]+)*)\s+FROM\s+[\w.$]+|INSERT\s+INTO\s+[\w.$]+\s*(?:\(|VALUES\b|SELECT\b)|UPDATE\s+[\w.$]+\s+SET\s+[\w.$]+\s*=|DELETE\s+FROM\s+[\w.$]+\s*(?:WHERE\b|;|$)|(?:CREATE\s+(?:OR\s+REPLACE\s+)?(?:TABLE|VIEW|INDEX|DATABASE)|ALTER\s+TABLE|DROP\s+(?:TABLE|VIEW|INDEX|DATABASE))\s+[\w.$]+[^;\r\n]*;)",
             RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
 
         static readonly Regex XmlRe = new Regex(
@@ -45,21 +46,25 @@ namespace Clip.Core
             RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
 
         // ---- language signatures --------------------------------------------------------------
+        // A tag needs code shape, not code words. "Cheque status: void", "from bank import
+        // statement" and "This function (callback) runs" are ordinary prose, so a keyword or a
+        // vocabulary word is never proof on its own; a snippet these rules miss is the allowed
+        // failure (§3.1), a prose sentence they tag is not.
 
         static readonly Regex CSharpRe = new Regex(
-            @"(?m)^\s*using\s+System(?:\.\w+)*\s*;|^\s*namespace\s+[A-Z]\w*(?:\.[A-Za-z_]\w*)*|^\s*(?:public|internal)\s+(?:(?:sealed|static|abstract|partial)\s+)*(?:class|record|struct|interface)\s+[A-Z]\w*|^\s*Console\.WriteLine\s*\(",
+            @"(?m)^[ \t]*using\s+System(?:\.\w+)*[ \t]*;|^[ \t]*namespace\s+[A-Z]\w*(?:\.[A-Za-z_]\w*)*|^[ \t]*(?:public|internal)[ \t]+(?:(?:sealed|static|abstract|partial)[ \t]+)*(?:class|record|struct|interface)\s+[A-Z]\w*|\bConsole\.WriteLine\s*\(",
             RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.Multiline);
 
         static readonly Regex TypeScriptRe = new Regex(
-            @"\b(?:interface|type)\s+[A-Z]\w*\s*[={]|:\s*(?:string|number|boolean|unknown|any|void)\b",
-            RegexOptions.Compiled | RegexOptions.CultureInvariant);
+            @"\binterface\s+[A-Z]\w*(?:[ \t]*<[^<>\r\n]+>)?[ \t]*\{|\benum\s+[A-Z]\w*[ \t]*\{|^[ \t]*(?:export[ \t]+)?type\s+[A-Z]\w*(?:[ \t]*<[^<>\r\n]+>)?[ \t]*=|\bimplements\s+[A-Z]\w*|:[ \t]*Promise[ \t]*<|:[ \t]*(?:string|number|boolean)[ \t]*\[\]|\bas[ \t]+const\b|^[ \t]*import\s+[^;\r\n]*[ \t]+from[ \t]+['""][^'""\r\n]+['""]|\b(?:class|function|const|let|var)\s+[A-Za-z_$][\w$]*[ \t]*<[A-Z]\w*(?:\s+extends\s+[^<>\r\n]+)?>[ \t]*[({=]",
+            RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.Multiline);
 
         static readonly Regex JavaScriptRe = new Regex(
-            @"\bfunction\s*(?:[A-Za-z_$][\w$]*\s*)?\(|\b(?:const|let|var)\s+[A-Za-z_$][\w$]*\s*=\s*[^;\r\n]*=>|\([^()\r\n]*\)\s*=>|\bconsole\.log\s*\(",
+            @"\bfunction\s*(?:[A-Za-z_$][\w$]*[ \t]*)?\([^)\r\n]*\)[ \t]*\{|=>[ \t]*[{(]|\b(?:const|let|var)\s+[A-Za-z_$][\w$]*[ \t]*=[ \t]*require\s*\(|\bconsole\.log\s*\(|\bdocument\.(?:getElementById|querySelector|querySelectorAll|addEventListener|createElement|body|head|write)\b|\baddEventListener\s*\(",
             RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
         static readonly Regex PythonRe = new Regex(
-            @"(?m)^\s*(?:def\s+[A-Za-z_]\w*\s*\(|class\s+[A-Z]\w*\s*[:(]|import\s+[a-z_][\w.]*|from\s+[a-z_][\w.]*\s+import\s+)",
+            @"(?m)^[ \t]*def\s+[A-Za-z_]\w*[ \t]*\([^)\r\n]*\)[ \t]*(?:->[^:\r\n]+)?:[ \t]*\r?\n[ \t]+\S|^[ \t]*if\s+__name__\s*==\s*['""]__main__['""]|\bself\.|^[ \t]*(?:import|from)[ \t]+(?:sys|os|re|json|datetime|typing|collections|pathlib|math|subprocess)\b",
             RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.Multiline);
 
         static readonly Regex RustRe = new Regex(
@@ -71,7 +76,7 @@ namespace Clip.Core
             RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
 
         static readonly Regex GoRe = new Regex(
-            @"(?m)^\s*package\s+main\b|\bfunc\s+main\s*\(|\bfunc\s+[a-z_]\w*\s*\(|^\s*import\s+\(",
+            @"(?m)^[ \t]*package\s+main\b|\bfunc\s+main\s*\(|\bfunc\s+[a-z_]\w*\s*\(|^[ \t]*import[ \t]+\(",
             RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.Multiline);
 
         static readonly Regex JavaRe = new Regex(
@@ -81,6 +86,31 @@ namespace Clip.Core
         static readonly Regex ShellRe = new Regex(
             @"\A#!.*\b(?:bash|zsh|ksh|dash|sh)\b",
             RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
+        /// <summary>The language rules in the §3.1 priority order; the first match is the tag.</summary>
+        static readonly (string Tag, Regex Rule)[] LanguageRules =
+        {
+            ("csharp", CSharpRe),
+            ("typescript", TypeScriptRe),
+            ("javascript", JavaScriptRe),
+            ("python", PythonRe),
+            ("rust", RustRe),
+            ("php", PhpRe),
+            ("go", GoRe),
+            ("java", JavaRe),
+            ("shell", ShellRe),
+        };
+
+        /// <summary>
+        /// One pass over prose instead of nine: the same alternatives, built from the rules above, so
+        /// it can only answer "no language matches". The ordered rules still decide which tag. The
+        /// list calls this for up to 1,000 rows; a regex per language would spend the 50 ms search
+        /// budget on rows that carry no code at all. NonBacktracking forbids lookarounds, so a rule
+        /// added to <see cref="LanguageRules"/> must stay free of them or the type initializer throws.
+        /// </summary>
+        static readonly Regex AnyLanguageRe = new Regex(
+            string.Join("|", Array.ConvertAll(LanguageRules, r => "(?:" + r.Rule + ")")),
+            RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.NonBacktracking);
 
         // ---- classify -------------------------------------------------------------------------
 
@@ -112,6 +142,11 @@ namespace Clip.Core
 
             if (fileDrop) tags = Add(tags, "files");
             if (spreadsheet) tags = Add(tags, "spreadsheet");
+
+            // A list row carries only PreviewChars of the body. A cut-off tail turns a path plus
+            // prose into "a path", so no whole-text shape is trustworthy on a preview; formats and
+            // the image payload still prove their tags. Missing is allowed, a wrong tag is not.
+            if (item.IsTruncated) return Result(tags);
 
             if (string.IsNullOrWhiteSpace(item.Text)) return Result(tags);
             string text = item.Text.Trim();
@@ -189,15 +224,9 @@ namespace Clip.Core
 
         static string Language(string text)
         {
-            if (CSharpRe.IsMatch(text)) return "csharp";
-            if (TypeScriptRe.IsMatch(text)) return "typescript";
-            if (JavaScriptRe.IsMatch(text)) return "javascript";
-            if (PythonRe.IsMatch(text)) return "python";
-            if (RustRe.IsMatch(text)) return "rust";
-            if (PhpRe.IsMatch(text)) return "php";
-            if (GoRe.IsMatch(text)) return "go";
-            if (JavaRe.IsMatch(text)) return "java";
-            if (ShellRe.IsMatch(text)) return "shell";
+            if (!AnyLanguageRe.IsMatch(text)) return null;
+            for (int i = 0; i < LanguageRules.Length; i++)
+                if (LanguageRules[i].Rule.IsMatch(text)) return LanguageRules[i].Tag;
             return null;
         }
 

@@ -19,10 +19,13 @@ namespace Clip.Core
         public static List<ClipboardItem> Filter(List<ClipboardItem> items, string query)
         {
             if (string.IsNullOrWhiteSpace(query)) return items;
-            var q = query.Trim();
+            // One rule for every search path: the same parser and matcher the bridge uses. This list
+            // carries no tags, so an include tag cannot match here (the old UI has no tag data to
+            // satisfy it); text terms behave exactly like `search`.
+            var parsed = ClipSearch.Parse(query);
             var hits = new List<ClipboardItem>();
             foreach (var it in items)
-                if (Matches(it.Text, q) || Matches(it.AppName, q)) hits.Add(it);
+                if (ClipSearch.Matches(it, null, parsed)) hits.Add(it);
             return hits;
         }
     }
