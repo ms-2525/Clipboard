@@ -82,3 +82,15 @@ dual-axis audit (DB logic + UI/UX) is clean; memory inside the ceiling; docs upd
 ## Night log
 
 - 01:40 â€” S1/S2/R1/R2 dispatched. Tracker created.
+## Release blockers from docs\AUDIT-ui-code.md (25 Nov) — fix after packaging, then re-embed
+
+- **P1 search-box keys**: Delete/Home/End act on the history while the caret is in the search box
+  (useClipboardKeys.ts:142 via App.tsx:490). One guard: ignore matrix keys when the event target is
+  an input/textarea/contenteditable.
+- **P1 editor modal**: ria-modal claimed but no focus trap, no inert background, no focus restore
+  (EditorOverlay.tsx:164). Reuse the Dialog.Root that DeleteConfirm already uses.
+- **P1 stale row after save**: a saved edit never invalidates odyCache (ich.tsx:217), so the row
+  keeps the pre-edit body. Add orgetBody(id) on save.
+- P2: data:image/svg+xml passes the image filter (script vector); 	humbCache uncapped; a delete
+  decrements the result count twice (host also emits deleted).
+- Size debt: App.tsx 876 lines, styles.css 1825 — split after release, not during it.
