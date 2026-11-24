@@ -12,6 +12,9 @@
 | `Core\Config` | camelCase JSON, `%APPDATA%\<AssemblyName>\config.json`; `WasNew` is [JsonIgnore] |
 | `UI\Themes\Dark|Light.xaml` | UiFont, App, Surface, Raised, Fg, Muted, Accent, Hairline (+ sage/amber/sky/violet to land with S3 per Ortu). No other color homes. |
 | `Core\ClipboardStore` | items/tabs/item_formats; `EnforceCap`/`Clear` scoped `tab_id IS NULL`; `TryDedupeMoveToTop` main-history scope only, images via indexed `image_hash` (byte compare still decides); `InsertWithFormats` = the ONE atomic capture write; `GetRich` = html/rtf on demand (the list query never loads them); `Restore` = undo primitive (same id/tab/formats/timestamp, one transaction) |
+| `UI\EditorWindow` + `Assets\editor\` | F2 editor: WPF chrome/toolbar + ONE TipTap page in WebView2. Page API is `window.clipBridge` (`load`, `loadPlain`, `getHtml`, `getText`, `run`, `focus`) and it posts `ready`/`dirty`/`sel`/`save`/`cancel`. The host serves the three embedded assets + the two Inter faces over `https://clip/` (`WebResourceRequested`), never from disk |
+| `UI\EditorRtf.ToHtml` | RTF-only → HTML, because WPF has no HTML export; walks the FlowDocument its own RTF parser builds |
+| `scripts\editor` + `scripts\build-editor.cmd` | The page's npm project (TipTap 3.35.0, esbuild IIFE). `Assets\editor\editor.bundle.js` is the committed build output — never hand-edited, never required by the C# build |
 | `CaptureService.Skipped` | human-readable skip reasons → toast (S3 wires) |
 
 ## Traps (do not repeat)
@@ -37,3 +40,9 @@
 - A cast effect (`DropShadowEffect`) anywhere above text re-rasterises the subtree and silently takes ClearType away again; a themed sibling or the DWM shadow is the substitute (crisp-text sprint).
 - A local `x:Key` in a Window's own resources SHADOWS a theme brush of the same name for `{DynamicResource}`: SettingsWindow's `x:Key="Field"` style fed a `Style` into `Border.Background` and killed the app the moment Settings opened. Keep local style keys distinct (`FieldBox`).
 - `WM_NCHITTEST`/`HTTRANSPARENT` click-through needs no layered window: verified on the opaque toast with a raw `SendMessage` (body → -1, ✕ → 1). `WindowFromPoint` ignores HTTRANSPARENT, so it always names the toast — use WM_NCHITTEST as the proof.
+- A WebView2 child HWND owns the keyboard, so `Window.OnPreviewKeyDown` never sees Esc / Ctrl+S / F2 typed into the page — the page posts `cancel` / `save` instead (TipTap port). WPF also cannot draw over that HWND: the discard prompt is a banner row, never an overlay.
+- A single-file exe cannot ship a loose asset folder: the editor page is three `EmbeddedResource`s served by `WebResourceRequested` over `https://clip/`, and the fonts come from `pack://application:,,,/<ownAssembly>;component/Assets/Fonts/...` (the `;component` name must come from the code's own assembly, or a different entry assembly silently falls back to Segoe).
+- `DataFormats.Html` consumers (Word, Chrome, Excel) expect the **CF_HTML envelope with UTF-8 byte offsets**. Storing bare `<p>` markup breaks Word paste-back; the editor writes the envelope on save and `HtmlFragment.Extract` stays the only reader.
+- `TextRange.Save(stream, DataFormats.Html)` throws `ArgumentException` — WPF has no RTF→HTML export. `UI\EditorRtf` walks the parsed document instead.
+- TipTap is the editor of record, so a save normalises: `<b>`→`<strong>`, classes/comments dropped, text CRLF→LF — the same normalisation the previous editor performed, but the stored html gets much smaller than the captured CF_HTML.
+- WebView2 budget measured on this VM: ~2.9 s to first content (cold 2914 ms, warm 2734 ms) and +302 MB / +6 browser processes while one editor is open; it all exits ~3.5 s after close. Do not promise a Syncfusion-speed F2 open.

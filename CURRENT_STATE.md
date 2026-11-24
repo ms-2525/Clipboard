@@ -2,6 +2,14 @@
 
 LANE: feature
 
+## Position — 24 Nov, TipTap editor port (docs\AUDIT-tiptap-port.md)
+**F2 editor is TipTap in WebView2** (Syncfusion removed; MIT only). Three commits, each 0/0:
+`9c3ada2` page asset (TipTap 3.35.0) · `f45e7c3` host + toolbar + RTF converter · docs/evidence.
+15 screenshots in `docs\evidence-tiptap\`. Save writes CF_HTML, `item.Rtf = null`, row preview proven
+from the store, Word paste proven (Merge Formatting drops the source bands — Word's mode, not ours).
+**Owner decisions open:** editor open is ~2.9 s cold and +302 MB while open on this VM (accept /
+loading line / hidden warm window); DPI 100 % and 200 % not producible on this machine (150 % proven).
+
 ## Position (post-synthesis — full detail in docs\HANDOFF-orchestrator.md)
 **Design frozen:** docs\DESIGN-v2-ui.md + docs\DESIGN-v2-synthesis.md (12 shipped-app audits in docs\RESEARCH-clipboardapps\). Decisions: rich formatting in EVERY realized row via TextBlock.Inlines (shared static RichTextBox; HtmlToRtf for HTML-only), NO selected-row HtmlPanel, HtmlRenderer.WPF REMOVED, no preview pane/F3 popup (F3 read-only = future option), numbers gutter (10+ display-only), Segoe UI/Consolas for row content (Manrope chrome only). Accepted deviation: directive §4's "unselected rows plain" overridden (owner's words + CopyQ reference) — gated on measured row-render cost (≤8 ms/row, ≤200 MB open).
 **In flight:** S0 Core converters (RtfText bytes + HtmlToRtf) · crisp-text sprint (ClearType + Settings P0 crash fix) · synthesis done.
