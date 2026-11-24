@@ -3,16 +3,17 @@
 Date: 24 Nov 2026. Owner decision: the F2 editor moves from Syncfusion `SfRichTextBoxAdv` to TipTap in
 WebView2 (MIT, no key). Handoff: `docs\HANDOFF-tiptap-port.md`. Evidence: `docs\evidence-tiptap\`.
 
-**Shipped in three commits, not the handoff's four.** Slice 1 (host) and slice 3 (toolbar) are one
-compile unit — `EditorWindow.Toolbar.cs` called the Syncfusion control directly, so removing the
-package could not build until the toolbar was ported too. The commits, each gated on
-`dotnet build -c Release` = 0 errors / 0 warnings:
+**Shipped in three port commits plus one review commit, not the handoff's four.** Slice 1 (host) and
+slice 3 (toolbar) are one compile unit — `EditorWindow.Toolbar.cs` called the Syncfusion control
+directly, so removing the package could not build until the toolbar was ported too. The commits, each
+gated on `dotnet build -c Release` = 0 errors / 0 warnings:
 
 | Commit | What |
 |---|---|
 | `9c3ada2` | `Assets\editor\` page asset (TipTap **3.35.0** bundle, HTML, CSS), `scripts\build-editor.cmd`, `scripts\editor\` node project, csproj resource wiring + WebView2 package. Nothing consumed yet. |
-| `f45e7c3` | The port: `EditorWindow.xaml`, `EditorWindow.xaml.cs`, `EditorWindow.Toolbar.cs`, new `EditorRtf.cs`, Syncfusion package removed. |
-| this commit | Audit + evidence + ledger/state/checklist updates. No production code. |
+| `dcbc1cd` | The port: `EditorWindow.xaml`, `EditorWindow.xaml.cs`, `EditorWindow.Toolbar.cs`, new `EditorRtf.cs`, Syncfusion package removed. |
+| `e8b0e2b` | Audit + the first evidence pass + ledger/state/checklist updates. |
+| this commit | Visual-review fixes (band contrast, scrollbar, selection, focus state, footer keycaps, spacing) + the refreshed evidence they produced. |
 
 Syncfusion is gone from the tree (`grep -i syncfusion UI Core Interop` → 0); the package's ~30 MB of
 assemblies no longer ship.
@@ -46,9 +47,22 @@ its colours and bands on block elements (`<h2 style="color: rgb(253,251,247); ba
 not on spans — TipTap's `TextStyle` alone would have dropped them.
 
 - `t3-dark-edge.png`: headings, bold, lists and the per-block dark bands render; the light ink stays on
-  its own dark band ("white-on-dark stays on dark"). The source's own colours are kept, not remapped,
-  because a block with a background is skipped by the contrast guard.
-- Parse result: 2 628 characters of clean HTML, 110 style attributes in, structure out.
+  its own dark band ("white-on-dark stays on dark"). The source's own colours are kept where they are
+  readable on their own band.
+- **Band guard, corrected after the visual review.** The first pass compared every run against the page
+  canvas and skipped anything sitting on a source band. The ChatGPT clip has a black `<li>` band whose
+  two sentences carry the source's own `#14181F` ink — 1.1:1, invisible, and the skip hid it. The guard
+  now compares each run against its own span background, else its nearest ancestor block band, else
+  the canvas; below 2.5:1 it takes whichever end of the theme (ink or canvas) reads better on that
+  band. White-on-dark is untouched; dark-on-dark becomes light-on-dark.
+- Parse result: 2 634 characters of clean HTML, 110 style attributes in, structure out.
+
+## T3b — Long clip: scrollbar styled to the field
+
+`t3b-long.png`: a 20-paragraph clip with a list and a table scrolls inside the rounded field with a
+10 px transparent track and a rounded ink-18 % thumb — no Chromium stepper boxes, no white track
+cutting the field's corner. Scrolling lives on the sheet, not the page body, so the canvas reaches the
+field edge.
 
 ## T4 — Word-style RTF-only clip
 
@@ -74,7 +88,7 @@ Clip 362, edit "Select all → Italic", Save changes. All work happened on a **c
   pressed — the round-trip through the store and the page works.
 - `t5-list.png`: the main list's row preview for the same clip now renders from the saved HTML, with
   the RTF-seeded clip beside it as a control.
-- Store after save (`GetRich` / `GetText`): `htmlLength=4453`, `rtfNull=true`, `italic=true`,
+- Store after save (`GetRich` / `GetText`): `htmlLength=4459`, `rtfNull=true`, `italic=true`,
   `textLength=600`. The 610 → 600 character difference is ten CRLF pairs becoming the editor's `\n` —
   the same normalisation the old editor performed.
 - **HTML is stored as a Windows "HTML Format" payload** (Version/StartHTML/…/EndFragment with UTF-8
@@ -83,7 +97,7 @@ Clip 362, edit "Select all → Italic", Save changes. All work happened on a **c
 - `t5-word-paste.png`: the saved clip put on the clipboard the way the row's Copy does, then pasted
   into a real Microsoft Word document. Structure, bold/italic and bullets survive; **Word's default
   "Merge Formatting" drops the source's dark bands and colours** — that is Word's paste mode, not a
-  Clip change. The clipboard read back intact: `readBackHtml=4453 hasColour=True hasBand=True
+  Clip change. The clipboard read back intact: `readBackHtml=4459 hasColour=True hasBand=True
   hasHeader=True`. Choosing Paste → Keep Source Formatting in Word keeps the bands.
 
 ## T6 — Toolbar
@@ -98,7 +112,7 @@ Each control was clicked through the real WPF button/popup against its own parag
 | Colour swatch (Accent) | paragraph recoloured, the colour bar under "A" shows it |
 | Highlight (Amber) | fill applied with canvas-coloured ink so it reads in both themes |
 | Clear | removes the bold+underline the eighth paragraph started with |
-| Single line | 10 blocks joined into one paragraph, one space between, marks kept |
+| Single line | 10 blocks joined into one paragraph, one space between; every mark survives (`t6-tools-single.png` shows bold, italic, underline, strike, 18 px, accent and amber all kept) |
 | Aa | lowercase → UPPERCASE → Title Case (`t6-tools-case-lower/upper/title.png`), minor words stay lowercase |
 
 Buttons reflect the caret: the page posts `{type:"sel", …}` after every selection change and every
@@ -111,8 +125,8 @@ the WebView2 runtime is 158.0.4370.33):
 
 | | Cold (first open in a process) | Warm (second open, same process) |
 |---|---|---|
-| Browser core ready | 481 ms | 311 ms |
-| Page ready (clip on screen) | **2 921 ms** | **2 741 ms** |
+| Browser core ready | 478 ms | 293 ms |
+| Page ready (clip on screen) | **2 923 ms** | **2 706 ms** |
 
 Memory while one editor is open: **+302 MB across +6 `msedgewebview2` processes**; after closing, back
 to the machine's baseline (362.1 MB / 6 processes belong to other Windows apps that use WebView2).
@@ -134,8 +148,33 @@ No mitigation was shipped in this port.
   The window, toolbar, glyphs and page all scale correctly at 150 %.
 - **100 % and 200 % could not be produced here.** This VM exposes one 96-DPI virtual display and the
   documented scale API (`DISPLAYCONFIG_DEVICE_INFO_SET_DPI_SCALE`) crashed the calling process without
-  changing the scale. Three DPI screenshots therefore need a machine with a changeable scale; the app
-  is declared PerMonitorV2 (`app.manifest`) and WebView2 scales natively.
+  changing the scale. The 100 % and 200 % screenshots therefore need a machine with a changeable
+  scale; the app is declared PerMonitorV2 (`app.manifest`) and WebView2 scales natively.
+
+## Visual review (fresh agent, before these fixes)
+
+A fresh `deepseek-v4.1-flash#high` agent took its own shots plus zoom crops and judged them against
+`docs\DESIGN-language.md` and `docs\CHECKLIST-uiux.md` §0. It rejected the first port: "No — not while
+a band of text on the real ChatGPT clip is 1.1:1 and long clips reveal a stock scrollbar." That
+verdict produced this commit:
+
+| Found | Fix |
+|---|---|
+| Bullet band of clip 362: `#14181F` on `#030607`, ≈1.1:1 | The guard compares against the band (T3); the same shot is now light-on-dark |
+| Stock Chromium scrollbar (steppers, white track) inside the rounded field | Thin ink-18 % thumb, transparent track, no buttons; scrolling moved onto the sheet (T3b) |
+| Browser-blue text selection, the only blue on the surface | Neutral ink-20 % selection |
+| Field focus ring never appeared (`IsKeyboardFocusWithin` is dead for a WebView2 child) | Page posts `focus`/`blur`, the host sets the border; `Web.Focus()` after seeding makes it deterministic |
+| Footer "Ctrl+S saves" a plain 10 px left-aligned meta line | `Esc` / `Ctrl+S` Keycaps, right-aligned (DESIGN-language grammar) |
+| B/I/U/S bordered buttons 2 DIP apart, a scalloped chain | 4 DIP between them, 10 DIP to the divider |
+| Close icon stroke 2 (rule is 1.5) | 1.5 |
+| Discard banner radius 10 (card grammar is 12) | 12 |
+| Audit claimed "Single line keeps marks" while the harness cleared every mark before joining | Harness no longer clears; the new shot proves bold/italic/underline/strike/size/colour/highlight survive. The command was already correct. |
+
+Accepted nits, not changed: h2 and h3 differ by 1 px; the discard banner leaves its left half empty;
+the footer Cancel/Save stay live behind the banner; the blockquote rule is faint at 20 % ink.
+
+All 16 shots in `docs\evidence-tiptap\` are from the fixed build. The judgement gap that remains is
+the dark theme: every capture is the light theme.
 
 ## Deviations from the handoff (and why)
 
@@ -171,6 +210,9 @@ No mitigation was shipped in this port.
     and the harness can drive the real buttons/popups. Capture is a DPI-aware screen grab, because
     `RenderTargetBitmap` cannot see the WebView2 child window (a `RenderTargetBitmap` shot would show
     the chrome and an empty content area — the handoff's plan would have produced exactly that).
+13. **The field's focus ring is driven by a page message**, not `IsKeyboardFocusWithin`: the WPF
+    property never sees the WebView2 child's focus. The page posts `focus`/`blur`; the host sets the
+    border. The same reason the keys had to move into the page (deviation 3).
 
 ## Not proven here (owner or a machine with different hardware)
 
@@ -190,6 +232,6 @@ No mitigation was shipped in this port.
 3. The harness (`%TEMP%\opencode\evidence-harness`, a scratch WPF project that references the real
    `Clip.csproj`) opens the real `EditorWindow` on that copy, drives the real WPF controls and the real
    page, and captures each window with a DPI-aware screen grab (`RenderTargetBitmap` cannot see a
-   WebView2 child window). It seeds the plain / formatting / RTF clips and never writes the real
+   WebView2 child window). It seeds the plain / formatting / RTF / long clips and never writes the real
    database.
-4. `run-evidence.ps1` runs T2–T7; `paste-word.ps1` does the Word paste.
+4. `run-evidence.ps1` runs T2–T8 (T3b is the long clip); `paste-word.ps1` does the Word paste.

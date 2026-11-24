@@ -17,11 +17,6 @@
       <Setter Property="BorderBrush" Value="{DynamicResource ControlLine}"/>
       <Setter Property="BorderThickness" Value="1"/>
       <Setter Property="CornerRadius" Value="8"/>
-      <Style.Triggers>
-        <Trigger Property="IsKeyboardFocusWithin" Value="True">
-          <Setter Property="BorderBrush" Value="{DynamicResource AccentText}"/>
-        </Trigger>
-      </Style.Triggers>
     </Style>
 
     <!-- Toolbar controls come from the shared button grammar (UI\Themes\Buttons.xaml). -->
@@ -53,6 +48,24 @@
       <Setter Property="VerticalAlignment" Value="Center"/>
       <Setter Property="Background" Value="{DynamicResource Divider}"/>
     </Style>
+
+    <!-- DESIGN-language Keycap: 11 Mono SemiBold on KeycapBackground, right-aligned key hints. -->
+    <Style x:Key="Keycap" TargetType="Border">
+      <Setter Property="Height" Value="20"/>
+      <Setter Property="Padding" Value="5,0"/>
+      <Setter Property="CornerRadius" Value="6"/>
+      <Setter Property="Background" Value="{DynamicResource KeycapBackground}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource KeycapLine}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+    <Style x:Key="KeycapText" TargetType="TextBlock">
+      <Setter Property="FontFamily" Value="{StaticResource MonoFont}"/>
+      <Setter Property="FontSize" Value="11"/>
+      <Setter Property="LineHeight" Value="14"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="Foreground" Value="{DynamicResource Fg75}"/>
+    </Style>
   </Window.Resources>
 
   <Border x:Name="Shell" Background="{DynamicResource App}" CornerRadius="12"
@@ -76,7 +89,7 @@
                   Click="OnCancelClick"
                   ToolTip="Cancel (Esc)" AutomationProperties.Name="Cancel">
             <Viewbox Width="12" Height="12">
-              <Path Data="{StaticResource IconClose}" Stroke="{DynamicResource Fg48}" StrokeThickness="2"
+              <Path Data="{StaticResource IconClose}" Stroke="{DynamicResource Fg48}" StrokeThickness="1.5"
                     StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
             </Viewbox>
           </Button>
@@ -86,20 +99,20 @@
       <!-- Formatting toolbar: every button acts on the selection and reflects the caret. -->
       <Border Grid.Row="1" Padding="8,0" BorderBrush="{DynamicResource Divider}" BorderThickness="0,0,0,1">
         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-          <ToggleButton x:Name="BoldButton" Style="{StaticResource ToolToggle}" Click="OnBoldClick"
+          <ToggleButton x:Name="BoldButton" Style="{StaticResource ToolToggle}" Click="OnBoldClick" Margin="0,0,4,0"
                         ToolTip="Bold (Ctrl+B)" AutomationProperties.Name="Bold">
             <TextBlock Text="B" FontSize="14" LineHeight="18" LineStackingStrategy="BlockLineHeight" FontWeight="Bold"/>
           </ToggleButton>
-          <ToggleButton x:Name="ItalicButton" Style="{StaticResource ToolToggle}" Click="OnItalicClick"
+          <ToggleButton x:Name="ItalicButton" Style="{StaticResource ToolToggle}" Click="OnItalicClick" Margin="0,0,4,0"
                         ToolTip="Italic (Ctrl+I)" AutomationProperties.Name="Italic">
             <!-- Segoe/Manrope italic I is a bare slash; a serif I stays recognisable next to U. -->
             <TextBlock Text="I" FontFamily="Georgia" FontSize="14" LineHeight="18" LineStackingStrategy="BlockLineHeight" FontStyle="Italic"/>
           </ToggleButton>
-          <ToggleButton x:Name="UnderlineButton" Style="{StaticResource ToolToggle}" Click="OnUnderlineClick"
+          <ToggleButton x:Name="UnderlineButton" Style="{StaticResource ToolToggle}" Click="OnUnderlineClick" Margin="0,0,4,0"
                         ToolTip="Underline (Ctrl+U)" AutomationProperties.Name="Underline">
             <TextBlock Text="U" FontSize="14" LineHeight="18" LineStackingStrategy="BlockLineHeight" TextDecorations="Underline"/>
           </ToggleButton>
-          <ToggleButton x:Name="StrikeButton" Style="{StaticResource ToolToggle}" Click="OnStrikeClick"
+          <ToggleButton x:Name="StrikeButton" Style="{StaticResource ToolToggle}" Click="OnStrikeClick" Margin="0,0,4,0"
                         ToolTip="Strikethrough" AutomationProperties.Name="Strikethrough">
             <TextBlock Text="S" FontSize="14" LineHeight="18" LineStackingStrategy="BlockLineHeight" TextDecorations="Strikethrough"/>
           </ToggleButton>
@@ -207,7 +220,7 @@
            child window, and hiding the browser would blank the clip the question is about. -->
       <Border x:Name="DiscardPrompt" Grid.Row="3" Visibility="Collapsed" Margin="8,6,8,0"
               Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Hairline}"
-              BorderThickness="1" CornerRadius="10" Padding="14">
+              BorderThickness="1" CornerRadius="12" Padding="14">
         <StackPanel>
           <TextBlock x:Name="DiscardText" Text="Discard changes?" FontSize="14" LineHeight="20"
                      FontWeight="Medium" Foreground="{DynamicResource Fg75}"/>
@@ -221,7 +234,7 @@
       </Border>
 
       <Grid Grid.Row="4" Margin="8,6,8,8">
-        <Border Style="{StaticResource EditorField}" Padding="0">
+        <Border x:Name="Field" Style="{StaticResource EditorField}" Padding="0">
           <!-- The page paints its own rounded canvas; the frame edge belongs to the WPF border. -->
           <wv2:WebView2 x:Name="Web" AutomationProperties.Name="Clip content"/>
         </Border>
@@ -229,16 +242,14 @@
 
       <!-- Footer shares the 8 DIP content gutter, so Save's edge lines up with the text field. -->
       <Border Grid.Row="5" Padding="8,14" BorderBrush="{DynamicResource Divider}" BorderThickness="0,1,0,0">
-        <Grid>
-          <TextBlock Text="Ctrl+S saves" FontSize="10" LineHeight="16" Foreground="{DynamicResource Fg48}"
-                     VerticalAlignment="Center"/>
-          <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-            <Button Content="Cancel" Style="{StaticResource Secondary}"
-                    Click="OnCancelClick" ToolTip="Cancel (Esc)"/>
-            <Button x:Name="SaveButton" Content="Save changes" Style="{StaticResource Primary}" Margin="8,0,0,0"
-                    Click="OnSaveClick" ToolTip="Save changes (Ctrl+S)"/>
-          </StackPanel>
-        </Grid>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+          <Border Style="{StaticResource Keycap}"><TextBlock Text="Esc" Style="{StaticResource KeycapText}"/></Border>
+          <Button Content="Cancel" Style="{StaticResource Secondary}" Margin="8,0,0,0"
+                  Click="OnCancelClick" ToolTip="Cancel (Esc)"/>
+          <Border Style="{StaticResource Keycap}" Margin="16,0,0,0"><TextBlock Text="Ctrl+S" Style="{StaticResource KeycapText}"/></Border>
+          <Button x:Name="SaveButton" Content="Save changes" Style="{StaticResource Primary}" Margin="8,0,0,0"
+                  Click="OnSaveClick" ToolTip="Save changes (Ctrl+S)"/>
+        </StackPanel>
       </Border>
     </Grid>
   </Border>

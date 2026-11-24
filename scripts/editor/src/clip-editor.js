@@ -84,9 +84,11 @@ function readThemeHex(name) {
     return getComputedStyle(root).getPropertyValue(name).trim();
 }
 
-const canvasRgb = parseRgb(readThemeHex('--canvas'));
+const canvasHex = readThemeHex('--canvas');
+const canvasRgb = parseRgb(canvasHex);
 root.style.colorScheme = canvasRgb && relativeLuminance(canvasRgb) <= 0.5 ? 'dark' : 'light';
 const inkHex = readThemeHex('--ink');
+const inkRgb = parseRgb(inkHex);
 
 function post(message) {
     if (!window.chrome?.webview) return;
@@ -271,6 +273,9 @@ const editor = new Editor({
         postSelection();
     },
     onSelectionUpdate: () => postSelection(),
+    // The WebView's child window owns the keyboard, so WPF's IsKeyboardFocusWithin never fires.
+    onFocus: () => post({ type: 'focus' }),
+    onBlur: () => post({ type: 'blur' }),
 });
 
 function syncDirty() {
@@ -300,38 +305,51 @@ function postSelection() {
     post(selectionState());
 }
 
-function walkText(node, pos, insideBackground, visit) {
+function walkText(node, pos, background, visit) {
     if (node.isText) {
-        visit(node, pos, insideBackground);
+        visit(node, pos, background);
         return;
     }
-    const backgrounded = insideBackground || Boolean(node.attrs && node.attrs.background);
-    node.forEach((child, offset) => walkText(child, pos + 1 + offset, backgrounded, visit));
+    const own = parseRgb(node.attrs && node.attrs.background);
+    node.forEach((child, offset) => walkText(child, pos + 1 + offset, own || background, visit));
 }
 
-// Mirrors RichRow's dark-pill rule, opposite mechanism: a run nobody can read on the canvas gets the theme ink.
+// Whichever end of the theme reads on that band: a source's dark ink on its own dark band is 1.1:1.
+function readableInk(background) {
+    const target = background || canvasRgb;
+    return inkRgb && canvasRgb && contrastRatio(canvasRgb, target) > contrastRatio(inkRgb, target)
+        ? canvasHex
+        : inkHex;
+}
+
+// Mirrors RichRow's dark-pill rule, opposite mechanism: a run nobody can read on its band gets an ink that can.
 function guardContrast() {
     const markType = editor.schema.marks.textStyle;
     if (!markType || !canvasRgb) return;
     const tr = editor.state.tr;
     let changed = false;
-    editor.state.doc.forEach((child, offset) => walkText(child, offset, false, (node, pos, insideBackground) => {
-        if (insideBackground) return;
+    editor.state.doc.forEach((child, offset) => walkText(child, offset, null, (node, pos, background) => {
         const textStyle = node.marks.find(mark => mark.type === markType);
-        if (!textStyle || textStyle.attrs.backgroundColor || !textStyle.attrs.color) return;
+        if (!textStyle || !textStyle.attrs.color) return;
+        const band = parseRgb(textStyle.attrs.backgroundColor) || background || canvasRgb;
         const rgb = parseRgb(textStyle.attrs.color);
-        if (!rgb || contrastRatio(rgb, canvasRgb) >= MIN_READABLE_CONTRAST) return;
+        if (!rgb || contrastRatio(rgb, band) >= MIN_READABLE_CONTRAST) return;
         tr.removeMark(pos, pos + node.nodeSize, markType);
-        tr.addMark(pos, pos + node.nodeSize, markType.create({ ...textStyle.attrs, color: inkHex }));
+        tr.addMark(pos, pos + node.nodeSize, markType.create({ ...textStyle.attrs, color: readableInk(band) }));
         changed = true;
     }));
-    // A block's own ink (a <p style="color:…"> with no band) is just as invisible, and it is not a mark.
-    editor.state.doc.descendants((node, pos, parent) => {
-        if (!node.isTextblock || !node.attrs.color || node.attrs.background) return true;
-        if (parent && parent.attrs && parent.attrs.background) return true;
+    // A block's own ink (a <p style="color:…">) is just as invisible on its own or an ancestor's band.
+    editor.state.doc.descendants((node, pos) => {
+        if (!node.isTextblock || !node.attrs.color) return true;
+        let band = parseRgb(node.attrs.background);
+        const $pos = editor.state.doc.resolve(pos);
+        for (let depth = $pos.depth; depth > 0 && !band; depth -= 1) {
+            band = parseRgb($pos.node(depth).attrs.background);
+        }
+        band = band || canvasRgb;
         const rgb = parseRgb(node.attrs.color);
-        if (!rgb || contrastRatio(rgb, canvasRgb) >= MIN_READABLE_CONTRAST) return true;
-        tr.setNodeMarkup(pos, undefined, { ...node.attrs, color: inkHex });
+        if (!rgb || contrastRatio(rgb, band) >= MIN_READABLE_CONTRAST) return true;
+        tr.setNodeMarkup(pos, undefined, { ...node.attrs, color: readableInk(band) });
         changed = true;
         return true;
     });

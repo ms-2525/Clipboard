@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
@@ -251,6 +252,12 @@ namespace Clip.UI
                     case "sel":
                         ReflectSel(root);
                         break;
+                    case "focus":
+                        Field.SetResourceReference(Border.BorderBrushProperty, "AccentText");
+                        break;
+                    case "blur":
+                        Field.SetResourceReference(Border.BorderBrushProperty, "ControlLine");
+                        break;
                 }
             }
             catch
@@ -269,6 +276,8 @@ namespace Clip.UI
                     await Web.ExecuteScriptAsync("window.clipBridge.loadPlain(" + JsonSerializer.Serialize(_loadText ?? "") + ")");
                 // Only a page that has actually received the clip may speak for it on save.
                 _ready = true;
+                // The page's focus event is the only focus signal WPF gets from a WebView2 child.
+                Web.Focus();
             }
             catch
             {

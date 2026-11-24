@@ -3,10 +3,14 @@
 LANE: feature
 
 ## Position — 24 Nov, TipTap editor port (docs\AUDIT-tiptap-port.md)
-**F2 editor is TipTap in WebView2** (Syncfusion removed; MIT only). Three commits, each 0/0:
-`9c3ada2` page asset (TipTap 3.35.0) · `f45e7c3` host + toolbar + RTF converter · docs/evidence.
-15 screenshots in `docs\evidence-tiptap\`. Save writes CF_HTML, `item.Rtf = null`, row preview proven
+**F2 editor is TipTap in WebView2** (Syncfusion removed; MIT only). Three port commits + one review
+commit, each 0/0: `9c3ada2` page asset (TipTap 3.35.0) · `dcbc1cd` host + toolbar + RTF converter ·
+`e8b0e2b` evidence/docs · the review commit (band contrast, scrollbar, selection, focus ring, footer
+keycaps, spacing).
+16 screenshots in `docs\evidence-tiptap\`. Save writes CF_HTML, `item.Rtf = null`, row preview proven
 from the store, Word paste proven (Merge Formatting drops the source bands — Word's mode, not ours).
+An independent visual agent rejected the first build — invisible text on the ChatGPT clip's dark band,
+a stock scrollbar, a dead focus ring — all fixed and re-shot; the review table is in the audit.
 **Owner decisions open:** editor open is ~2.9 s cold and +302 MB while open on this VM (accept /
 loading line / hidden warm window); DPI 100 % and 200 % not producible on this machine (150 % proven).
 

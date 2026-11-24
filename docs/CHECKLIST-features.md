@@ -39,7 +39,8 @@ none of them could fail any more. This file is the work that is actually open.
 - [ ] [H] CF_HTML byte-offset fragment extraction, Unicode-safe (Devanagari/emoji torture test).
 - [ ] [U] Remote images in preview: no network fetch, transparent 1×1, never a broken-image glyph.
 - [ ] [U] **F2 editor after the TipTap port**: toolbar / text / footer read as three type levels,
-      discard banner leaves the clip readable, a dark-source clip keeps its dark bands. Evidence:
+      discard banner leaves the clip readable, a dark-source clip keeps its dark bands with readable
+      ink, a long clip scrolls on a themed bar, the field shows its accent focus ring. Evidence:
       `docs\evidence-tiptap\`, audit: `docs\AUDIT-tiptap-port.md`. Owner eyeball at 100 %/200 % DPI.
 - [ ] [L] **F2 open after the port**: ~2.9 s cold, ~2.7 s warm, +302 MB while open (this VM). Decide:
       accept, a "Loading…" line, or a hidden warm window (RAM trade). Numbers in the audit.
