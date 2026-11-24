@@ -26,16 +26,14 @@ namespace Clip.Host
         bool _settingsLoaded;
 
         /// <summary>
-        /// Called once from the constructor. App.V2 resolves "system" before this host exists, so the raw
-        /// choice is read back from the file it was saved in; the zoom is applied to the browser here.
+        /// Called once from the constructor. App.V2 resolves "system" for the shell before this host exists,
+        /// so the raw choice is read back from the file it was saved in; the zoom is applied to the browser here.
         /// </summary>
         void LoadSettings()
         {
             if (_settingsLoaded) return;
             _settingsLoaded = true;
             _themeChoice = Config.Load().Theme;
-            // App.ApplyTheme has the registry test inverted, so "system" must be resolved here for the page.
-            if (_themeChoice == "system") _cfg.Theme = ResolveTheme("system");
             _zoom = Math.Clamp(_cfg.UiZoom, ZoomMin, ZoomMax);
             _cfg.UiZoom = _zoom;
             try { _web.ZoomFactor = _zoom / 100.0; }
