@@ -28,7 +28,7 @@ dual-axis audit (DB logic + UI/UX) is clean; memory inside the ceiling; docs upd
 |---|---|---|---|---|
 | S1 | `ClipTags` classifier + `tags[]` DTO | `Core\ClipTags.cs`, `Host\ClipHost.Queries.cs` | **DONE `1b57ecd`** | 27/27 fixtures, 0 false positives; real rows tagged |
 | S2 | Visual audit + contrast tokens | `UI\web\src\styles.css`, `icons.tsx` | IN PROGRESS | Computed ratio table light+dark, screenshots |
-| R1 | OCR research (engine, cost, storage) | scratch only | IN PROGRESS | Accuracy table, per-image ms, migration cost |
+| R1 | OCR research (engine, cost, storage) | scratch only | **DONE** — Windows.Media.Ocr, +25.4 MB exe, zero schema change | Accuracy table, per-image ms, migration cost |
 | R2 | Export + tag-query research | scratch only | IN PROGRESS | CSV proof on real clip, 15-query grammar |
 | S3a | Search parser + tag filter + `search` bridge | `Core\ClipSearch.cs`, `Host\` | **DONE `ffc97aa`** | 15/15 grammar rows; 3–30 ms at 1k/2k, budget 50 ms |
 | S3b | Row contract + keyboard matrix in the UI | `UI\web\src\*` | QUEUED (waits on S2) | 10-line clamp, index `01`, provenance, digits 1–9 |
@@ -42,8 +42,21 @@ dual-axis audit (DB logic + UI/UX) is clean; memory inside the ceiling; docs upd
 
 ## Open defects / debt
 
-- `moreCount` means remaining characters; rename to `remainingChars` (UI shows `+1.8k`). — S3.
-- Rows still show 3 lines + ISO times in the real host build; the row contract lands in S3.
+**From `docs\AUDIT-db-logic.md` (25 Nov) — blocking:**
+- **P0 truncation data loss.** `TextLength` counts SQLite code points; callers compare it to `Text.Length`
+  (UTF-16 units), so an emoji-heavy clip looks complete and F2 save overwrites the stored body with the
+  1,200-char preview. Five call sites. Fix: one `IsTruncated` helper in `Core\`. — **S3c**
+- **P1 corrupt page not detected**: opens, then every capture throws SQLITE_CORRUPT and the app
+  crash-loops; the `MoveAside` path is never reached. — **S3c**
+- **P1 two search rules disagree** (`Filter` OrdinalIgnoreCase finds `CAFÉ`, SQL `lower()` does not). — **S3c**
+- **P1 bridge search blocks the UI thread**: 48 ms at 1k, 531 ms at 9.5k. → run off the UI thread. — **S3e**
+- **P1** restore into a deleted tab leaves an invisible row; wall-clock stamps invert order in a DST
+  fall-back (order by id, display the time). — **S3d**
+- **P2** pinning an old clip lands at the bottom of Pinned; tag filters only see loaded rows in the old UI. — **S3d**
+
+**Carried:**
+- `moreCount` means remaining characters; rename to `remainingChars` + a real `truncated` flag. — S3c
+- Rows still show 3 lines + ISO times in the real host build; the row contract lands in S3b.
 - `UI\web\` is untracked in git — commit it with S2 once the audit stops editing it.
 - Warm/hidden startup not wired (window shows immediately). — S8.
 - The old WPF `UI\` stays the fallback until S8 cutover; do not delete early.

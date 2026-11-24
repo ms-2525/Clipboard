@@ -33,13 +33,45 @@ Status moves: Not started → Logic Sheet approved → Built, waiting for your c
 
 - The tag is shown as **Spreadsheet**; typing `excel:`, `sheet:`, `xls:` or `csv:` all mean the same.
 - A tag word needs the colon. A bare word still searches text, so `image` finds clips containing the
-  word "image", and `image:` finds pictures. Predictable beats clever.
+  word "image", and `image:` finds pictures. Predictable beats clever. A colon is never a tag when the
+  prefix is unknown or when it is part of `://`.
 - Space between words = **and**. A leading `-` = **not**. No OR in step 1.
 - Export never changes the clip. A spreadsheet clip exports as CSV because the clipboard already
   carries the cells as tab-separated text — no Excel needed.
 - The file name is always offered for you to confirm, never silently chosen (standing preference).
 - OCR is **offline**; nothing is uploaded. English first; a second language only if Windows already
   has it installed. Handwriting and very low-resolution images are not promised.
+
+### Step 2 detail — frozen by measurement (25/11/2026)
+
+- CSV is written **UTF-8 with a BOM and never `sep=`**. Without the BOM Excel shows `à¤°à¤¾à¤®` for
+  `राम`; with `sep=` it does so even when the BOM is present, so the two cannot both be used.
+- The converter is byte-identical to Excel's own CSV payload on a real clip, and survives commas,
+  quotes, embedded newlines, tabs, `₹`, `007` and `=1+1` without corrupting the file.
+- **Excel still reinterprets on open**: `007` becomes `7` and `=1+1` becomes `2`. That is Excel's
+  behaviour, not the export; the file itself is correct. Users need to know this.
+- `.md` and `.txt` are the **same bytes**; the Save dialog offers both and no content detection runs.
+- Image export is the stored PNG, unchanged. A file-list clip exports nothing (it is a list of paths,
+  not a document).
+- File name: first line of the clip → invalid characters become spaces → trim spaces/dots → 80
+  characters → reserved Windows names guarded with `_` → fallback `Clip 2026-11-25 21-25.ext`.
+
+### Step 3 detail — frozen by measurement (25/11/2026)
+
+- Engine: **Windows' built-in OCR**. +25.4 MB on the exe, ~40 ms per full-HD screenshot, and clearly
+  better than Tesseract on dark UIs and tables (Tesseract is 10× slower and weaker there).
+- The recognised text is stored as the clip's text, so existing search finds it with **no schema
+  change**. The image stays the image: plain paste still pastes the picture, never the OCR text.
+- OCR runs on one background worker after capture, one image at a time (the Windows API refuses
+  concurrent calls). Images wider than 10,000 px are scaled down first.
+- **Amounts are not trustworthy.** Neither engine reads `₹`; Indian digit grouping is lost and some
+  amount lines are dropped. OCR text is for finding a screenshot, never for a figure that matters.
+- If the OCR language is not installed, the app says so once instead of returning garbage.
+
+### Step 1 detail — where the rule lives
+
+The grammar is `Core\ClipSearch.cs` (already built and audited): one parser, one matcher, used by the
+bridge and by the old UI. `SearchService` remains the text-matching rule; there is no second parser.
 
 ## Left for later (not planned yet)
 
