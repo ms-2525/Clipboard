@@ -37,7 +37,8 @@ dual-axis audit (DB logic + UI/UX) is clean; memory inside the ceiling; docs upd
 | S6 | Export clip to file | `Core\ClipExport.cs`, `Host\`, `UI\web\src\*` | QUEUED | CSV opens in Excel; PNG opens; names safe |
 | S7 | Settings + TipTap editor overlay | `UI\web\src\*`, `Host\` | QUEUED | Save round-trip keeps CF_HTML; zoom persists |
 | S8 | Native edges + cutover: tray, hotkey, toast, paste, single instance, autostart, DPI | `UI\ShellWindow*`, `App.xaml.cs`, `Core\Config.cs` | QUEUED | Alt+V 150 ms; toast auto-fits; reboot autostart |
-| S9 | OCR: extract, store, search, display | `Core\Ocr*.cs`, `Host\`, `UI\web\src\*` | QUEUED | Real screenshot text found by search; <100 ms warm |
+| S9a | OCR engine: retarget TFM, `Core\OcrService.cs`, store into the clip text, search | `Clip.csproj`, `Core\Ocr*.cs`, `Core\ClipboardStore*` | QUEUED | Real screenshot text found by search; 40 ms warm; single worker |
+| S9b | OCR in the UI: show extracted text, language notice, money caveat | `UI\web\src\*`, `Host\` | QUEUED | Image row shows its text; plain paste still pastes the picture |
 | S10 | Packaging + release audit | `Clip.csproj`, `build-release.cmd`, docs | QUEUED | One exe runs on a clean profile; checklists pass |
 
 ## Open defects / debt
@@ -55,6 +56,8 @@ dual-axis audit (DB logic + UI/UX) is clean; memory inside the ceiling; docs upd
 - **P2** pinning an old clip lands at the bottom of Pinned; tag filters only see loaded rows in the old UI. — **S3d**
 
 **Carried:**
+- `USER_GUIDE.md` must state: OCR cannot be trusted for **amounts** (₹ is unreadable by both engines,
+  Indian grouping is lost); CSV opens correctly but Excel reinterprets `007` and `=1+1` on open.
 - `moreCount` means remaining characters; rename to `remainingChars` + a real `truncated` flag. — S3c
 - Rows still show 3 lines + ISO times in the real host build; the row contract lands in S3b.
 - `UI\web\` is untracked in git — commit it with S2 once the audit stops editing it.
