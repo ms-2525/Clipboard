@@ -1,8 +1,11 @@
 using System;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Threading;
 using Clip.Core;
 using Clip.Host;
 using Clip.Interop;
@@ -21,6 +24,7 @@ namespace Clip.UI
         readonly ClipboardStore _store;
         readonly Config _cfg;
         readonly string _dbPath;
+        IntPtr _returnTarget;
         ClipHost _host;
 
         public ShellWindow(ClipboardStore store, Config cfg, string dbPath)
@@ -34,7 +38,7 @@ namespace Clip.UI
             if (app != null)
                 Web.DefaultBackgroundColor = System.Drawing.Color.FromArgb(app.Color.A, app.Color.R, app.Color.G, app.Color.B);
 
-            SourceInitialized += (s, e) => WindowChrome.Apply(this);
+            SourceInitialized += OnSourceInitialized;
             Loaded += OnLoaded;
             Closed += OnClosed;
         }
@@ -66,7 +70,7 @@ namespace Clip.UI
                 Web.CoreWebView2.NavigationStarting += OnNavigationStarting;
                 Web.CoreWebView2.NewWindowRequested += (s, args) => args.Handled = true;
 
-                _host = new ClipHost(Web, _store, _cfg, _dbPath);
+                _host = new ClipHost(Web, _store, _cfg, _dbPath, () => _returnTarget, HideForPaste, ShowAfterPaste);
 
                 string webRoot = FindWebRoot();
                 if (webRoot == null)
@@ -86,6 +90,59 @@ namespace Clip.UI
                 Notice.Visibility = Visibility.Visible;
             }
         }
+
+        /// <summary>
+        /// Records the last window that owned the foreground before this shell, so paste can hand focus back
+        /// to it instead of guessing. A cheap UI-thread sample; WM_ACTIVATE's lParam is the backup signal.
+        /// </summary>
+        void OnSourceInitialized(object sender, EventArgs e)
+        {
+            WindowChrome.Apply(this);
+            _shellHwnd = new WindowInteropHelper(this).Handle;
+            HwndSource.FromHwnd(_shellHwnd)?.AddHook(OnWindowMessage);
+
+            _foregroundWatch = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
+            _foregroundWatch.Tick += (s, args) => WatchForeground();
+            _foregroundWatch.Start();
+        }
+
+        const int WM_ACTIVATE = 0x0006;
+
+        IntPtr _shellHwnd;
+        DispatcherTimer _foregroundWatch;
+
+        void WatchForeground()
+        {
+            var hwnd = GetForegroundWindow();
+            if (hwnd == IntPtr.Zero || hwnd == _shellHwnd) return;
+            GetWindowThreadProcessId(hwnd, out uint pid);
+            if (pid != 0 && pid != (uint)Environment.ProcessId) _returnTarget = hwnd;
+        }
+
+        IntPtr OnWindowMessage(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+        {
+            if (msg == WM_ACTIVATE && (int)wParam != 0 && lParam != IntPtr.Zero && lParam != hwnd)
+                _returnTarget = lParam;
+            return IntPtr.Zero;
+        }
+
+        /// <summary>Paste hides the window but keeps the WebView2 alive; the hotkey/show path brings it back.</summary>
+        internal void HideForPaste() => Hide();
+
+        internal void ShowAfterPaste()
+        {
+            Show();
+            Activate();
+        }
+
+        /// <summary>Plumbing for a capture service in v2; --v2 currently starts none, so this is never called.</summary>
+        public void NotifyCaptured(ClipboardItem item) => _host?.EmitCaptured(item);
+
+        [DllImport("user32.dll")]
+        static extern IntPtr GetForegroundWindow();
+
+        [DllImport("user32.dll")]
+        static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
 
         /// <summary>The dist lives in the worktree during Phase 1; walk up from bin\Release\net10.0-windows.</summary>
         static string FindWebRoot()
@@ -111,6 +168,7 @@ namespace Clip.UI
 
         void OnClosed(object sender, EventArgs e)
         {
+            _foregroundWatch?.Stop();
             try { _host?.Dispose(); }
             catch (Exception) { } // browser already torn down; nothing left to unsubscribe
             try { Web.Dispose(); }

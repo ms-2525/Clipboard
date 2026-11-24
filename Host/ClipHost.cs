@@ -28,13 +28,24 @@ namespace Clip.Host
         readonly string _dbPath;
         readonly long _pinnedTabId;
         readonly ReadQueue _reads;
+        readonly Func<IntPtr> _returnTarget;
+        readonly Action _hide;
+        readonly Action _show;
 
-        public ClipHost(WebView2 web, ClipboardStore store, Config cfg, string dbPath)
+        /// <summary>
+        /// <paramref name="returnTarget"/> is the last window that owned the foreground before the shell;
+        /// <paramref name="hide"/> and <paramref name="show"/> keep the window itself out of this layer.
+        /// </summary>
+        public ClipHost(WebView2 web, ClipboardStore store, Config cfg, string dbPath,
+            Func<IntPtr> returnTarget, Action hide, Action show)
         {
             _web = web;
             _store = store;
             _cfg = cfg;
             _dbPath = dbPath;
+            _returnTarget = returnTarget;
+            _hide = hide;
+            _show = show;
             _dispatcher = web.Dispatcher;
             _pinnedTabId = store.PinnedTabId;
             _reads = new ReadQueue();
@@ -69,6 +80,14 @@ namespace Clip.Host
                 if (method == "init" || method == "getItems" || method == "search")
                 {
                     Queue(method, id, p);
+                    return;
+                }
+
+                // Paste hides the window and must answer after the target app has focus again, so it owns its
+                // own timer and reply instead of the synchronous reply below.
+                if (method == "paste")
+                {
+                    BeginPaste(id, p);
                     return;
                 }
 
@@ -113,8 +132,25 @@ namespace Clip.Host
                 case "export":
                     return Export(p);
 
-                case "paste":
-                    throw new InvalidOperationException("phase 2");
+                case "delete":
+                    return Delete(p);
+
+                case "restore":
+                    return Restore(p);
+
+                case "togglePin":
+                    return TogglePin(p);
+
+                case "moveToTab":
+                    return MoveToTab(p);
+
+                case "hide":
+                    _hide();
+                    return new { hidden = true };
+
+                case "show":
+                    _show();
+                    return new { shown = true };
 
                 default:
                     throw new InvalidOperationException("unknown method: " + method);

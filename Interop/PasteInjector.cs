@@ -149,19 +149,24 @@ namespace Clip.Interop
         }
 
         /// <summary>The exact key sequence for Ctrl+V: modifier key-ups first, then the chord.</summary>
-        internal static List<(ushort vk, uint flags)> PasteInputSequence() => new List<(ushort vk, uint flags)>
+        internal static List<(ushort vk, uint flags)> PasteInputSequence()
         {
-            // A hotkey modifier still physically down (Alt from Alt+V) turns the chord into Ctrl+Alt+V; release them first.
-            (VK_CONTROL, KEYEVENTF_KEYUP),
-            (VK_MENU, KEYEVENTF_KEYUP),
-            (VK_SHIFT, KEYEVENTF_KEYUP),
-            (VK_LWIN, KEYEVENTF_KEYUP),
-            (VK_RWIN, KEYEVENTF_KEYUP),
-            (VK_CONTROL, 0),
-            (VK_V, 0),
-            (VK_V, KEYEVENTF_KEYUP),
-            (VK_CONTROL, KEYEVENTF_KEYUP)
-        };
+            var sequence = new List<(ushort vk, uint flags)>();
+            // Only a modifier that is actually held needs releasing. A key-up for a key that was never down
+            // leaves the synthetic keyboard state inconsistent and the following chord is swallowed.
+            if (IsDown(VK_CONTROL)) sequence.Add((VK_CONTROL, KEYEVENTF_KEYUP));
+            if (IsDown(VK_MENU)) sequence.Add((VK_MENU, KEYEVENTF_KEYUP));
+            if (IsDown(VK_SHIFT)) sequence.Add((VK_SHIFT, KEYEVENTF_KEYUP));
+            if (IsDown(VK_LWIN)) sequence.Add((VK_LWIN, KEYEVENTF_KEYUP));
+            if (IsDown(VK_RWIN)) sequence.Add((VK_RWIN, KEYEVENTF_KEYUP));
+            sequence.Add((VK_CONTROL, 0));
+            sequence.Add((VK_V, 0));
+            sequence.Add((VK_V, KEYEVENTF_KEYUP));
+            sequence.Add((VK_CONTROL, KEYEVENTF_KEYUP));
+            return sequence;
+        }
+
+        static bool IsDown(ushort vk) => (GetAsyncKeyState(vk) & 0x8000) != 0;
 
         static uint SendPaste()
         {
@@ -171,6 +176,9 @@ namespace Clip.Interop
             SendInput((uint)inputs.Length, inputs, Marshal.SizeOf<INPUT>());
             return GetClipboardSequenceNumber();
         }
+
+        [DllImport("user32.dll")]
+        static extern short GetAsyncKeyState(ushort vk);
 
         static BitmapImage ToBitmapSource(byte[] png)
         {
