@@ -55,6 +55,7 @@ namespace Clip.Host
                     HasHtml = info?.HasHtml ?? false,
                     HasRtf = info?.HasRtf ?? false,
                     Formats = info?.Formats ?? new List<string>(),
+                    Tags = ClipTags.Classify(row, info?.Formats),
                     MoreCount = (int)Math.Min(int.MaxValue, Math.Max(0, row.TextLength - (row.Text?.Length ?? 0)))
                 });
             }
@@ -229,6 +230,7 @@ FROM items i WHERE i.id IN ({string.Join(",", names)})";
             public bool HasHtml { get; set; }
             public bool HasRtf { get; set; }
             public List<string> Formats { get; set; }
+            public string[] Tags { get; set; }
             public int MoreCount { get; set; }
         }
     }
