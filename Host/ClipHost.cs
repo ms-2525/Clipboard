@@ -6,7 +6,6 @@ using System.Windows.Threading;
 using Clip.Core;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.Wpf;
-using Microsoft.Win32;
 
 namespace Clip.Host
 {
@@ -332,7 +331,6 @@ namespace Clip.Host
         public void Dispose()
         {
             _reads.Dispose();
-            SystemEvents.UserPreferenceChanged -= OnThemePreferenceChanged;
             var core = _web.CoreWebView2;
             if (core != null) core.WebMessageReceived -= OnMessage;
         }

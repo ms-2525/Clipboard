@@ -375,12 +375,24 @@ namespace Clip
 
         /// <summary>
         /// The one polarity (HKCU AppsUseLightTheme: 0 = dark, 1 = light); the value is passed in so both
-        /// branches are provable without changing the user's Windows theme. Same answer as the host's resolver.
+        /// branches are provable without changing the user's Windows theme. The web host calls this too.
         /// </summary>
         internal static string ResolveTheme(string choice, object appsUseLightTheme)
         {
             if (choice != "system") return choice == "light" ? "light" : "dark";
             return appsUseLightTheme is int i && i == 0 ? "dark" : "light";
+        }
+
+        /// <summary>
+        /// A theme saved from the web settings: the raw choice drives the WPF dictionaries and the
+        /// Windows watcher, while the page hears the resolved mode from the host's reply and event.
+        /// </summary>
+        internal string ApplyThemeFromSettings(string choice)
+        {
+            SystemEvents.UserPreferenceChanged -= OnThemePreferenceChanged;
+            _themeSetting = choice; // the watcher and ExitV2 both read the raw choice
+            if (choice == "system") SystemEvents.UserPreferenceChanged += OnThemePreferenceChanged;
+            return ApplyTheme(choice);
         }
 
         void ExitApp()

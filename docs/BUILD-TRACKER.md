@@ -69,7 +69,8 @@ dual-axis audit (DB logic + UI/UX) is clean; memory inside the ceiling; docs upd
 - **S7 (25 Nov):** `ClipHost.RebindHotkey` reaches `RegisterV2Hotkeys` by reflection until
   `App.V2.cs` is free for a typed hook. Toast width/height/position are persisted by `saveConfig`
   but have no dialog row yet. Editor alignment was not added (no text-align extension installed or
-  cached).
+  cached). Theme polarity has one home (`App.ResolveTheme`); the host calls it and also applies
+  `App.ApplyThemeFromSettings` on save.
 - `USER_GUIDE.md` must state: OCR cannot be trusted for **amounts** (₹ is unreadable by both engines,
   Indian grouping is lost); CSV opens correctly but Excel reinterprets `007` and `=1+1` on open.
 - `UI\EditorWindow.xaml.cs` is 414 lines, over the 400 budget (pre-existing, +7 for the save guard).

@@ -99,8 +99,10 @@ Discard: the first Esc closes the link popover (`popClosed.editor === true`), th
   dialog (the task allowed cutting them). `Toast lines` (Notification.MaxLines) is wired.
 - **Alignment** buttons were not added: `@tiptap/extension-text-align` is not installed and the
   npm cache here has no copy; every other toolbar group from the brief is present.
-- The host keeps its own `ResolveTheme` for "system" (same polarity as `App.ResolveTheme`) because
-  `Host\ClipHost.Settings.cs` must not depend on `Clip.App`.
+- The host keeps no theme polarity of its own: `Host\ClipHost.Settings.cs` calls `App.ResolveTheme`
+  (the one resolver), and a saved choice applies `App.ApplyThemeFromSettings` so the WPF dictionaries
+  and the Windows watcher follow the same value the page gets. The page hears the resolved mode in
+  the `saveConfig` reply/`settingsSaved` and, when it differs, the `themeChanged` event.
 - `RebindHotkey` reaches the app's private `RegisterV2Hotkeys` by reflection because `App.V2.cs` was
   off-limits for this slice; a typed method on `App` should replace it (marked `shortcut:`).
 - `Core\Config.cs` gained one additive property, `UiZoom` (80–150), because `saveConfig` must persist

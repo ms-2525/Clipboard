@@ -41,7 +41,6 @@ namespace Clip.Host
             {
                 // The browser is still initialising on a cold start; the first settings save applies it again.
             }
-            if (_themeChoice == "system") SystemEvents.UserPreferenceChanged += OnThemePreferenceChanged;
         }
 
         /// <summary>The page's settings shape: the whole live config plus the raw theme choice.</summary>
@@ -101,10 +100,11 @@ namespace Clip.Host
             if (theme != null)
             {
                 _themeChoice = theme;
-                string resolved = ResolveTheme(theme);
+                string resolved = ResolvedTheme(theme);
                 themeChanged = resolved != _cfg.Theme;
                 _cfg.Theme = resolved;
-                WatchSystemTheme(theme == "system");
+                // The whole app follows the same choice: App owns the WPF dictionaries and the Windows watcher.
+                (System.Windows.Application.Current as Clip.App)?.ApplyThemeFromSettings(theme);
             }
             if (maxItems.HasValue) _cfg.MaxItems = maxItems.Value;
             if (timeFormat != null)
@@ -132,7 +132,7 @@ namespace Clip.Host
             // Persist the choice, not the resolved theme: App.V2 resolves "system" again on the next start.
             _cfg.Theme = _themeChoice;
             _cfg.Save();
-            _cfg.Theme = ResolveTheme(_themeChoice);
+            _cfg.Theme = ResolvedTheme(_themeChoice);
 
             if (themeChanged) OnUi(() => Emit("themeChanged", new { theme = _cfg.Theme }));
             OnUi(() => Emit("settingsSaved", ConfigDto()));
@@ -153,30 +153,13 @@ namespace Clip.Host
 
         // ---- theme ----------------------------------------------------------------------------
 
-        /// <summary>Windows' own light/dark, the same registry value App.ApplyTheme reads.</summary>
-        static string ResolveTheme(string theme)
-        {
-            if (theme != "system") return theme == "light" ? "light" : "dark";
-            var v = Registry.GetValue(
-                @"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize",
-                "AppsUseLightTheme", 1);
-            return v is int i && i == 0 ? "dark" : "light";
-        }
-
-        void WatchSystemTheme(bool on)
-        {
-            SystemEvents.UserPreferenceChanged -= OnThemePreferenceChanged; // idempotent: one subscription at most
-            if (on) SystemEvents.UserPreferenceChanged += OnThemePreferenceChanged;
-        }
-
-        void OnThemePreferenceChanged(object sender, UserPreferenceChangedEventArgs e)
-        {
-            if (_themeChoice != "system") return;
-            string resolved = ResolveTheme("system");
-            if (resolved == _cfg.Theme) return;
-            _cfg.Theme = resolved;
-            OnUi(() => Emit("themeChanged", new { theme = resolved }));
-        }
+        /// <summary>
+        /// One polarity in the whole app: the registry value is only read here, the answer comes from
+        /// App.ResolveTheme. The watch for later Windows changes is App's too (ApplyThemeFromSettings).
+        /// </summary>
+        static string ResolvedTheme(string choice) => Clip.App.ResolveTheme(choice, Registry.GetValue(
+            @"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize",
+            "AppsUseLightTheme", 1));
 
         // ---- hotkey ---------------------------------------------------------------------------
 
