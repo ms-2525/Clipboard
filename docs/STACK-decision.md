@@ -18,9 +18,10 @@ and user zoom. This supersedes the stack bake-off in chat.
 | Bridge | `Clip.Host`: typed JSON requests/commands/events; generated TS types |
 | Native-only | tray, toast, tooltips outside the window, hotkeys, clipboard formats, paste injection, window positioning/DPI |
 
-The Alt+V list, Settings, the editor and the component gallery are **routes in one page**. There is no
-second WebView2, no browser start on F2, and no webview on the cold popup path beyond the one warm
-surface created at login.
+The Alt+V list, Settings and the component gallery are **routes in one page**; the F2 editor is an
+**in-document overlay**, not a navigation. Navigating to a separate editor route costs ~2.2 s; the
+overlay paints in ~41 ms. There is no second WebView2, no browser start on F2, and no webview on the
+cold popup path beyond the one warm surface created at login.
 
 ## Why this stack
 
@@ -58,13 +59,18 @@ App.exe (WPF, .NET 10)
    ├─ ShellWindow.xaml        one window host, WebView2, drag/resize, hotkey show
    ├─ ToastWindow.xaml        native click-through toast                     (unchanged)
    └─ web\                    React app, embedded resources, served over https://clip/
-      ├─ routes: #/list  #/settings  #/editor/:id  #/gallery
+      ├─ routes: #/list  #/settings  #/gallery
+      ├─ editor: in-document overlay over #/list (kept warm after first open)
       ├─ components: ClipRow, TabStrip, Search, Keycap, Dialog, Editor, Toolbar
       └─ theme: CSS variables for Light/Dark + content layer
 ```
 
 - The WebView2 is created **hidden at startup after the tray icon exists**, loads `#/list`, and is never
-  destroyed. Alt+V shows the window; F2 swaps the route to `#/editor/:id` in the same page.
+  destroyed. Alt+V shows the window; F2 opens the editor overlay in the same document.
+- Cold start is ~4.2 s on this VM (window 1.7 s, WebView2 ready 4.2 s). The tray icon must appear first;
+  the surface is pre-created at login so the first Alt+V is warm. If the hotkey is pressed while the
+  surface is still loading, show the native window with a lightweight native "Loading editor…" line
+  until the page's first paint.
 - The page has no Node, no DB, no network. Captured HTML is sanitized before it touches the DOM
   (DOMPurify + a strict allow-list); remote images never load.
 - All clipboard writes/pastes go through `Clip.Host` by item id; JS `navigator.clipboard` is never
@@ -92,36 +98,51 @@ Events: `captured`, `skipped`, `settingsSaved`, `themeChanged`, `hotkeyFailed`, 
 - Verification matrix: system DPI **100 / 150 / 200 %** × zoom **100 / 125 / 150 %**, plus a narrow
   (480 DIP) and wide (900 DIP) window. This VM can only prove 150 % system DPI; the owner or a real
   desktop verifies the rest. Fresh-agent visual checks at each stop.
+- **Spike result (25 Nov, final):** the responsive rebuild passes with **zero horizontal overflow** at
+  CSS widths 900 / 720 / 600 / 480 / 430 and at WebView2 `ZoomFactor` 1.25 / 1.5. At 1.5
+  (600×466 CSS) Save/Cancel and the settings actions are fully on-screen; the toolbar wraps to two
+  rows. The original 900 px `min-width` was the only cause of the first failure; the final UI inherits
+  the no-min-width rule.
 - Native toast/tooltip positioning keeps the existing `ScreenDpi` math; the web content never
   computes screen coordinates.
 
 ## Performance budgets
 
-| Metric | Budget |
-|---|---|
-| Warm Alt+V show → first paint | **< 150 ms** |
-| First Alt+V after login (surface pre-created) | **< 150 ms** |
-| Hidden idle total (host + WebView2) | **≤ 550 MB**, target 450 |
-| Shown list total | **≤ 600 MB** |
-| Editor route open total | **≤ 600 MB** |
-| 1,000-row scroll | 60 fps, visible rows only |
-| Search keystroke → list swap | < 50 ms (120 ms debounce) |
-| Editor open | instant (route swap, no page load) |
+| Metric | Budget | Measured (25 Nov spike) |
+|---|---|---|
+| Warm Alt+V show → first paint | **< 150 ms** | **28.7 ms median / 35.8 ms p90** |
+| First Alt+V after surface ready | < 150 ms | 31.2 ms first show |
+| Hidden idle total (host + WebView2) | ≤ 550 MB private | **248 MB private** / 491 MB WS |
+| Shown list total | ≤ 600 MB private | **363 MB private** / 611 MB WS |
+| Editor open total | ≤ 600 MB private | **421 MB private** / 698 MB WS, 662 MB WS after trim |
+| Editor overlay paint | < 150 ms | **72.6 ms** at 1.0; 35–50 ms at 1.25/1.5 |
+| Warm show at zoom 1.25 / 1.5 | < 150 ms | 19.7 / 21.6 ms median |
+| 1,000-row scroll | 60 fps, visible rows only | 8–20 row elements |
+| Search keystroke → list swap | < 50 ms (120 ms debounce) | not yet wired |
+
+- **Memory metric:** private bytes per state is the budget; summed working set counts shared Chromium
+  pages in several processes and is not additive. If the owner reads 600 MB as summed working set, the
+  list is 11 MB over and the editor 98 MB over at first sample (37 MB trims after two more seconds).
+  Approved reductions, in order: mount the editor only when first opened (or keep it warm but unmount
+  the list), load list bodies/images on demand, and a leaner host if needed — **never a feature cut**.
+- **Cold start:** 4.4 s (window 1.7 s, WebView2 ready 4.4 s, navigate→ready 2.16 s). Pre-create at
+  login; do not launch on demand.
 
 If a budget is missed, optimize the DOM, image loading or cache layout — **do not cut features**.
 Report the measured number and the trade-off to the owner.
 
 ## Phases (each gated, current app remains runnable)
 
-0. **Warm-surface spike** (scratch, no repo rewrite): shared React UI in a WPF WebView2, hidden at
-   startup; measure show latency, hidden/shown RAM, zoom. Gate: budgets above.
+0. **Warm-surface spike — DONE (25 Nov).** Shared React UI in a scratch WPF WebView2: warm show
+   28.7 ms median, editor overlay 72.6 ms, zoom 1.25/1.5 zero overflow, private memory 248/363/421 MB.
+   Cold start requires login prewarm.
 1. **Bridge + read-only list**: `Clip.Host`, `#/list` renders real recent items, tabs, counts; native
    paste still works from the page.
 2. **Interactions**: selection, keyboard matrix, search, delete/undo, pin/move, context menu,
    empty states, live capture updates.
 3. **Rich rows**: text/HTML/RTF/files/images, sanitization, 3-line clamp, +N, time sections, gallery.
-4. **Settings + editor**: settings routes, hotkey capture, theme/zoom, editor route + TipTap toolbar,
-   CF_HTML save, discard prompt.
+4. **Settings + editor**: settings routes, hotkey capture, theme/zoom, editor **overlay** + TipTap
+   toolbar, CF_HTML save, discard prompt. Measure first-open latency; mount lazily and keep warm.
 5. **Native edges**: toast/tooltip, tray routing, DPI 100/150/200, zoom matrix, accessibility, IME.
 6. **Cutover**: feature checklist, audit, owner acceptance; archive the WPF UI.
 
