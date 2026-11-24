@@ -20,11 +20,24 @@ namespace Clip.Interop
         const ushort VK_RWIN = 0x5C;
         const ushort VK_MASK = 0xE8; // unassigned: no character, no accelerator, nothing to react
 
+        /// <summary>The one refusal message; the host replies with it verbatim.</summary>
+        internal const string ClipboardWriteError = "Could not put this clip on the clipboard.";
+
+        /// <summary>
+        /// Refuses the chord when the write did not land: injecting here would paste whatever the clipboard held
+        /// before and still report success. Only reached by a failed write, so any exception is that failure.
+        /// </summary>
+        static uint Paste(bool wrote)
+        {
+            if (!wrote) throw new InvalidOperationException(ClipboardWriteError);
+            return SendPaste();
+        }
+
         /// <summary>Places text on the clipboard, sends Ctrl+V, returns the sequence number so the caller can suppress self-capture.</summary>
         public static uint CopyAndPaste(string text)
         {
-            ClipboardFormats.WithClipboardRetry(() => System.Windows.Clipboard.SetDataObject(text, true));
-            return SendPaste();
+            return Paste(ClipboardFormats.Write(() => System.Windows.Clipboard.SetDataObject(text, true),
+                System.Windows.DataFormats.UnicodeText));
         }
 
         /// <summary>Restores a captured item: images as real CF_DIB + PNG, else all original formats, else text/rich text by kind.</summary>
@@ -34,15 +47,12 @@ namespace Clip.Interop
             if (item?.Kind == "image")
             {
                 // Caller is expected to have loaded the full image blob (ClipboardStore.GetImage) onto the item.
-                if (item.Image is { Length: > 0 }) SetImageClipboard(item.Image);
-                return SendPaste();
+                if (item.Image is not { Length: > 0 }) throw new InvalidOperationException(ClipboardWriteError);
+                return Paste(SetImageClipboard(item.Image));
             }
 
             if (item?.Formats != null && item.Formats.Count > 0)
-            {
-                ClipboardFormats.Restore(item.Formats); // round-trips every format; per-app cases never needed
-                return SendPaste();
-            }
+                return Paste(ClipboardFormats.Restore(item.Formats)); // round-trips every format; per-app cases never needed
 
             if (item != null && (!string.IsNullOrEmpty(item.Html) || !string.IsNullOrEmpty(item.Rtf)))
             {
@@ -50,33 +60,32 @@ namespace Clip.Interop
                 data.SetData(System.Windows.DataFormats.UnicodeText, item.Text ?? string.Empty);
                 if (!string.IsNullOrEmpty(item.Rtf)) data.SetData(System.Windows.DataFormats.Rtf, item.Rtf);
                 if (!string.IsNullOrEmpty(item.Html)) data.SetData(System.Windows.DataFormats.Html, item.Html);
-                ClipboardFormats.WithClipboardRetry(() => System.Windows.Clipboard.SetDataObject(data, true));
+                return Paste(ClipboardFormats.Write(() => System.Windows.Clipboard.SetDataObject(data, true),
+                    System.Windows.DataFormats.UnicodeText));
             }
-            else
-            {
-                ClipboardFormats.WithClipboardRetry(() => System.Windows.Clipboard.SetDataObject(item?.Text ?? string.Empty, true));
-            }
-            return SendPaste();
+
+            return Paste(ClipboardFormats.Write(() => System.Windows.Clipboard.SetDataObject(item?.Text ?? string.Empty, true),
+                System.Windows.DataFormats.UnicodeText));
         }
 
         /// <summary>Pastes only the raw text: strips colours, tables and fonts (Ctrl+Shift+V).</summary>
         public static uint CopyAndPastePlain(ClipboardItem item)
         {
-            ClipboardFormats.WithClipboardRetry(() => System.Windows.Clipboard.SetDataObject(item?.Text ?? string.Empty, true));
-            return SendPaste();
+            return Paste(ClipboardFormats.Write(() => System.Windows.Clipboard.SetDataObject(item?.Text ?? string.Empty, true),
+                System.Windows.DataFormats.UnicodeText));
         }
 
         /// <summary>
         /// CF_DIB first (24-bpp, bottom-up, flattened on white — what Office/Paint/Win+V consume), then the stored
         /// PNG verbatim so editors that explicitly ask for PNG still see the alpha channel.
         /// </summary>
-        internal static void SetImageClipboard(byte[] png)
+        internal static bool SetImageClipboard(byte[] png)
         {
             var dib = BuildDib(png);
             var data = new System.Windows.DataObject();
             if (dib != null) data.SetData(System.Windows.DataFormats.Dib, new MemoryStream(dib));
             data.SetData("PNG", new MemoryStream(png));
-            ClipboardFormats.WithClipboardRetry(() => System.Windows.Clipboard.SetDataObject(data, true));
+            return ClipboardFormats.Write(() => System.Windows.Clipboard.SetDataObject(data, true), "PNG");
         }
 
         /// <summary>BITMAPINFOHEADER(40) + 24-bpp BGR rows, 4-byte stride, bottom-up, alpha composited over white.</summary>

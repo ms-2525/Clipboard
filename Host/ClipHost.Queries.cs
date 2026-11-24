@@ -277,36 +277,46 @@ FROM items i WHERE i.id IN ({string.Join(",", names)})";
         internal static void CopyToClipboard(ClipboardStore store, long id, bool plain)
         {
             string text = store.GetText(id) ?? "";
+            bool wrote;
             if (plain)
             {
-                ClipboardFormats.WithClipboardRetry(() => System.Windows.Clipboard.SetText(text));
-                return;
-            }
-
-            var image = store.GetImage(id);
-            var formats = store.GetFormats(id);
-            var rich = store.GetRich(id);
-
-            if (image?.Kind == "image" && image.Image != null)
-            {
-                PasteInjector.SetImageClipboard(image.Image);
-            }
-            else if (formats.Count > 0)
-            {
-                ClipboardFormats.Restore(formats);
-            }
-            else if (!string.IsNullOrEmpty(rich?.Rtf) || !string.IsNullOrEmpty(rich?.Html))
-            {
-                var data = new System.Windows.DataObject();
-                data.SetData(System.Windows.DataFormats.UnicodeText, text);
-                if (!string.IsNullOrEmpty(rich.Rtf)) data.SetData(System.Windows.DataFormats.Rtf, rich.Rtf);
-                if (!string.IsNullOrEmpty(rich.Html)) data.SetData(System.Windows.DataFormats.Html, rich.Html);
-                ClipboardFormats.WithClipboardRetry(() => System.Windows.Clipboard.SetDataObject(data, true));
+                wrote = ClipboardFormats.Write(() => System.Windows.Clipboard.SetText(text),
+                    System.Windows.DataFormats.UnicodeText);
             }
             else
             {
-                ClipboardFormats.WithClipboardRetry(() => System.Windows.Clipboard.SetText(text));
+                var image = store.GetImage(id);
+                var formats = store.GetFormats(id);
+                var rich = store.GetRich(id);
+
+                if (image?.Kind == "image" && image.Image != null)
+                {
+                    wrote = PasteInjector.SetImageClipboard(image.Image);
+                }
+                else if (formats.Count > 0)
+                {
+                    wrote = ClipboardFormats.Restore(formats);
+                }
+                else if (!string.IsNullOrEmpty(rich?.Rtf) || !string.IsNullOrEmpty(rich?.Html))
+                {
+                    var data = new System.Windows.DataObject();
+                    data.SetData(System.Windows.DataFormats.UnicodeText, text);
+                    if (!string.IsNullOrEmpty(rich.Rtf)) data.SetData(System.Windows.DataFormats.Rtf, rich.Rtf);
+                    if (!string.IsNullOrEmpty(rich.Html)) data.SetData(System.Windows.DataFormats.Html, rich.Html);
+                    wrote = ClipboardFormats.Write(() => System.Windows.Clipboard.SetDataObject(data, true),
+                        System.Windows.DataFormats.UnicodeText);
+                }
+                else
+                {
+                    wrote = ClipboardFormats.Write(() => System.Windows.Clipboard.SetText(text),
+                        System.Windows.DataFormats.UnicodeText);
+                }
             }
+
+            // A copy is Clip's own write: suppress the capture it would otherwise trigger (toast, re-stamped
+            // provenance, and a duplicate row when the clip lives in a tab, which skips dedupe). Not on a
+            // failed write: the sequence number then still belongs to whatever the user copied last.
+            if (wrote) SuppressCapture?.Invoke(ClipboardFormats.SequenceNumber());
         }
 
         // ---- DTO ------------------------------------------------------------------------------

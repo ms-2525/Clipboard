@@ -364,17 +364,23 @@ namespace Clip
         /// <summary>Applies the configured theme and returns the resolved "light"/"dark".</summary>
         string ApplyTheme(string theme)
         {
-            if (theme == "system")
-            {
-                var v = Registry.GetValue(
-                    @"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize",
-                    "AppsUseLightTheme", 1);
-                theme = v is int i && i == 0 ? "light" : "dark";
-            }
+            theme = ResolveTheme(theme, Registry.GetValue(
+                @"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize",
+                "AppsUseLightTheme", 1));
             var name = theme == "light" ? "Light" : "Dark";
             Resources.MergedDictionaries[0] =
                 new ResourceDictionary { Source = new Uri($"pack://application:,,,/UI/Themes/{name}.xaml") };
-            return theme == "light" ? "light" : "dark";
+            return theme;
+        }
+
+        /// <summary>
+        /// The one polarity (HKCU AppsUseLightTheme: 0 = dark, 1 = light); the value is passed in so both
+        /// branches are provable without changing the user's Windows theme. Same answer as the host's resolver.
+        /// </summary>
+        internal static string ResolveTheme(string choice, object appsUseLightTheme)
+        {
+            if (choice != "system") return choice == "light" ? "light" : "dark";
+            return appsUseLightTheme is int i && i == 0 ? "dark" : "light";
         }
 
         void ExitApp()

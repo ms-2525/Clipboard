@@ -21,8 +21,8 @@ namespace Clip.Host
         readonly Dictionary<long, ClipboardItem> _deleted = new Dictionary<long, ClipboardItem>();
 
         /// <summary>
-        /// Set by the v2 app: an injected paste is Clip's own clipboard write, not a new capture. Without it a
-        /// paste re-enters history and fires a toast for a clip the user already had.
+        /// Set by the v2 app: any clipboard write Clip performs (copy, paste) is its own, not a new capture.
+        /// Without it a write re-enters history and fires a toast for a clip the user already had.
         /// </summary>
         internal static Action<uint> SuppressCapture;
 
@@ -159,10 +159,11 @@ namespace Clip.Host
                 SuppressCapture?.Invoke(seq);
                 Reply(Ok(id, new { pasted = true }));
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 _show(); // the page's toast is invisible while the shell is hidden
-                Reply(Ok(id, new { pasted = false, error = "Could not paste: " + ex.Message }));
+                // The write runs before the chord, so a throw means nothing was injected: never claim a paste.
+                Reply(Ok(id, new { pasted = false, error = PasteInjector.ClipboardWriteError }));
             }
         }
 

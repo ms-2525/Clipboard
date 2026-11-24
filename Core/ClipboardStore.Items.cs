@@ -193,12 +193,14 @@ DELETE FROM item_formats WHERE item_id = $id";
         /// captured_at or drop the image's format blobs. Only an image row is touched, so a late result can
         /// never overwrite a text clip. Reads derive <see cref="ClipboardItem.TextLength"/> from length(text),
         /// so the row reports the full recognised length, never the preview.
+        /// Writes only while the image has no text: once the user edits the row, it is theirs, and a later
+        /// OCR pass (a re-copy of the same image enqueues one) must not replace it.
         /// </summary>
         public bool SetOcrText(long id, string text)
         {
             if (string.IsNullOrWhiteSpace(text)) return false;
             using var cmd = _conn.CreateCommand();
-            cmd.CommandText = "UPDATE items SET text = $text WHERE id = $id AND kind = 'image'";
+            cmd.CommandText = "UPDATE items SET text = $text WHERE id = $id AND kind = 'image' AND text IS NULL";
             cmd.Parameters.AddWithValue("$text", text);
             cmd.Parameters.AddWithValue("$id", id);
             return cmd.ExecuteNonQuery() == 1;

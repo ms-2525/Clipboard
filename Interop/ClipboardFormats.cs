@@ -57,14 +57,20 @@ namespace Clip.Interop
             return result;
         }
 
-        public static void Restore(List<(string fmt, byte[] bytes)> formats)
+        /// <summary>
+        /// Puts the stored format set back on the clipboard. False when nothing was written or the write did
+        /// not land, so a caller can refuse an action instead of using whatever the clipboard held before.
+        /// </summary>
+        public static bool Restore(List<(string fmt, byte[] bytes)> formats)
         {
-            if (formats == null || formats.Count == 0) return;
+            if (formats == null || formats.Count == 0) return false;
 
             var data = new System.Windows.DataObject();
+            string primary = null;
             foreach (var (fmt, bytes) in formats)
             {
                 if (string.IsNullOrEmpty(fmt) || bytes == null) continue;
+                primary ??= fmt; // the first stored format is the one a reader asks for first
                 switch (fmt)
                 {
                     case "UnicodeText":
@@ -87,25 +93,47 @@ namespace Clip.Interop
                 }
             }
 
-            WithClipboardRetry(() => System.Windows.Clipboard.SetDataObject(data, true));
+            if (primary == null) return false;
+            return Write(() => System.Windows.Clipboard.SetDataObject(data, true), primary);
         }
 
         /// <summary>
         /// The one home for the clipboard-busy policy: another process owning the clipboard rejects a write for a few
-        /// ms. Gives up silently after the window, leaving the previous clipboard content in place.
+        /// ms. False after the window, leaving the previous clipboard content in place.
         /// </summary>
-        internal static void WithClipboardRetry(Action set)
+        internal static bool WithClipboardRetry(Action set)
         {
             for (int attempt = 0; attempt < 5; attempt++)
             {
                 try
                 {
                     set();
-                    return;
+                    return true;
                 }
                 catch (COMException) { Thread.Sleep(30); } // still owned by another process: the next attempt, then give up
             }
+            return false;
         }
+
+        /// <summary>
+        /// Writes, then reads the expected format back: a returned write can still have dropped the data, and
+        /// a paste must never inject a chord over the previous clipboard content.
+        /// </summary>
+        internal static bool Write(Action set, string expectedFormat)
+        {
+            if (!WithClipboardRetry(set)) return false;
+            try
+            {
+                return System.Windows.Clipboard.ContainsData(expectedFormat);
+            }
+            catch (COMException)
+            {
+                return true; // another app took the clipboard right after our successful write: the write itself landed
+            }
+        }
+
+        /// <summary>The clipboard's change counter: lets the capture hook prove a write was Clip's own.</summary>
+        internal static uint SequenceNumber() => GetClipboardSequenceNumber();
 
         /// <summary>Registered formats start at 0xC000; below that only the known standard ids have names.</summary>
         static string FormatName(uint format)
@@ -172,6 +200,9 @@ namespace Clip.Interop
         }
 
         const uint GMEM_MOVEABLE = 0x0002;
+
+        [DllImport("user32.dll")]
+        static extern uint GetClipboardSequenceNumber();
 
         [DllImport("user32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
