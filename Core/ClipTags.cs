@@ -45,6 +45,38 @@ namespace Clip.Core
             @"^\s*<\?xml\b",
             RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
 
+        /// <summary>
+        /// Tags that are only proven by the whole body. A list row carries PreviewChars, and a cut
+        /// tail can turn a path followed by prose into "a path" or a partial JSON object into JSON.
+        /// The prefix shapes (html, xml, sql) and the line-anchored language rules survive a preview.
+        /// </summary>
+        static readonly string[] WholeTextTags =
+        {
+            "link", "email", "path", "color", "number", "json"
+        };
+
+        /// <summary>True when this tag may only be emitted for a row that carries the whole body.</summary>
+        static bool NeedsWholeText(string tag)
+        {
+            for (int i = 0; i < WholeTextTags.Length; i++)
+                if (string.Equals(WholeTextTags[i], tag, StringComparison.Ordinal)) return true;
+            return false;
+        }
+
+        /// <summary>The shape rules in §3.1 order; the first proven tag wins.</summary>
+        static readonly (string Tag, Func<string, bool> Test)[] ShapeRules =
+        {
+            ("link", IsSingleUrl),
+            ("email", EmailRe.IsMatch),
+            ("path", PathRe.IsMatch),
+            ("color", ColorRe.IsMatch),
+            ("number", IsNumber),
+            ("json", IsJson),
+            ("html", HtmlRe.IsMatch),
+            ("sql", SqlRe.IsMatch),
+            ("xml", XmlRe.IsMatch),
+        };
+
         // ---- language signatures --------------------------------------------------------------
         // A tag needs code shape, not code words. "Cheque status: void", "from bank import
         // statement" and "This function (callback) runs" are ordinary prose, so a keyword or a
@@ -143,25 +175,22 @@ namespace Clip.Core
             if (fileDrop) tags = Add(tags, "files");
             if (spreadsheet) tags = Add(tags, "spreadsheet");
 
-            // A list row carries only PreviewChars of the body. A cut-off tail turns a path plus
-            // prose into "a path", so no whole-text shape is trustworthy on a preview; formats and
-            // the image payload still prove their tags. Missing is allowed, a wrong tag is not.
-            if (item.IsTruncated) return Result(tags);
-
+            // A list row carries only PreviewChars of the body. Whole-text shapes are skipped on a
+            // preview because its cut tail can mint a path or a JSON document that the full body does
+            // not prove; formats, the image payload, the prefix shapes and the line-anchored
+            // language rules are still safe. Missing is allowed, a wrong tag is not.
             if (string.IsNullOrWhiteSpace(item.Text)) return Result(tags);
             string text = item.Text.Trim();
-            bool shape = true;
+            bool shape = false;
 
-            if (IsSingleUrl(text)) tags = Add(tags, "link");
-            else if (EmailRe.IsMatch(text)) tags = Add(tags, "email");
-            else if (PathRe.IsMatch(text)) tags = Add(tags, "path");
-            else if (ColorRe.IsMatch(text)) tags = Add(tags, "color");
-            else if (IsNumber(text)) tags = Add(tags, "number");
-            else if (IsJson(text)) tags = Add(tags, "json");
-            else if (HtmlRe.IsMatch(text)) tags = Add(tags, "html");
-            else if (SqlRe.IsMatch(text)) tags = Add(tags, "sql");
-            else if (XmlRe.IsMatch(text)) tags = Add(tags, "xml");
-            else shape = false;
+            for (int i = 0; i < ShapeRules.Length; i++)
+            {
+                if (item.IsTruncated && NeedsWholeText(ShapeRules[i].Tag)) continue;
+                if (!ShapeRules[i].Test(text)) continue;
+                tags = Add(tags, ShapeRules[i].Tag);
+                shape = true;
+                break;
+            }
 
             // One language only: a snippet is one language, and a structural tag already explains the
             // text (an HTML page with a script is html, not javascript).
