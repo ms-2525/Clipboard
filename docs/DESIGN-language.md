@@ -39,22 +39,59 @@ a selected row, and dark selection was a brown accent-wash over a neutral surfac
 
 Three levels per surface, maximum. A fourth grey is a bug.
 
-## 3. Row anatomy — the screen that matters
+## 3. Row anatomy — owner contract (25 Nov)
+
+Supersedes the v3 tile row at the owner's instruction: text first, index number instead of an app
+initial, provenance on every row, up to 10 lines.
 
 ```
-[ 28 initial tile ] [ 10 ] [ body, 3 lines max ] [ 10 ] [ chip +N ]
-                                                         [ clock   ]
+[ 01 ]  body — up to 10 lines, height fits content, 10-line ceiling
+        app · title ·····························  24 Nov 2026, 21:25  [ Spreadsheet ]
 ```
 
-- **Identity left:** 28×28 rounded tile, the source app's initial, `BadgeBackground` + `Fg55`.
-  Read before the text is: Excel/Word/Chrome are recognised, a row number never is.
-- **Facts right:** `+N` chip above the clock, both right-aligned in one column so numbers stack.
-  Never inline in the sentence.
-- **No per-row metadata line.** Provenance (app · title · time) lives in the bottom bar for the
-  selected row only.
-- **Selection** = `RowSelected` surface + 1 px `SelectionRing` + 3 px `SelectionRail`. No accent
-  wash (it turns brown over a neutral dark), no geometry change, no ring on unselected rows.
-- **List clamp:** `ClipRow.ListLinesMax = 3`. The full text is the outside tooltip.
+- **Index first:** zero-padded tabular digits (`01`…`99`), fixed 2ch column, right-aligned, `Fg35`.
+  It is the paste key — digits `1`–`9` already copy item N in the current app (`MainWindow.Keys.cs`
+  and the Ctrl+M picker), so the number is a promise, not decoration. No letter tile.
+- **Body is the row:** source text first, wrapped, `-webkit-line-clamp: 10`. Height = measured
+  content, **minimum 1 line, maximum 10**. Rows are variable height; the virtualizer measures every
+  row (no fixed row size). An empty or whitespace-only clip still occupies one line.
+- **Provenance line, every row:** `app · title · date time`, 11 px, `Fg55`, single line. The
+  `app · title` half is the ellipsizing part; **date and time never truncate** (right span,
+  `flex-shrink: 0`). Date `24 Nov 2026, 21:25`, honouring the 12 h/24 h setting.
+- **Tags right of the time:** machine-proven kinds only, max 2 shown, rest fold to `+N`. See §3.1.
+- **Facts:** `+N` extra-format chip stays. An image row puts its 96 px thumb left of the body,
+  capped to 3 lines of body height.
+- **Selection** unchanged from v3: `RowSelected` surface + 1 px `SelectionRing` + 3 px
+  `SelectionRail`, applied to the whole variable-height row. No accent wash, no geometry change.
+- **List clamp:** `ListLinesMax = 10` (was 3). The full text stays the outside tooltip.
+
+### 3.1 Tags — proven, never guessed
+
+Tags are derived at read time from formats and exact text shape; old clips gain them with **no
+migration**. A tag appears only on a positive test. A heuristic that can be wrong returns nothing.
+
+| Tag | Rule (all exact, no scoring) |
+|---|---|
+| Image | row carries an image payload |
+| Files | `CF_HDROP` present |
+| Spreadsheet | `Biff12` / `Biff8` / `Biff5` / `XML Spreadsheet` present |
+| Link | entire trimmed text is one `http(s)://` URL |
+| Email | entire text is one address |
+| Path | entire text is one drive/UNC path |
+| Colour | entire text is `#RGB`/`#RRGGBB`/`rgb()`/`hsl()` |
+| Number | entire text parses as one number |
+| JSON / HTML / SQL / XML | parses as JSON · starts with `<` + known tag · begins with a SQL verb · XML prolog |
+| …language | only with a signature (`#include`, `def `, `=>`, `function `, `<?php`, `fn main`, shebang) |
+
+Never tagged: passwords, tokens, prose, mixed clipboard content, anything ambiguous. A wrong tag is
+worse than a missing one.
+
+## 4. Toast auto-fit (25 Nov)
+
+The configured `Notification.Height` becomes the **maximum**; the toast height is content-driven up
+to it, so a one-line copy gets a short toast and a long one stops at `MaxLines`. Width, position,
+offset and `MaxLines` stay as configured. This supersedes the fixed-height rule from ACC-v2 §7.5 at
+the owner's request; it must be re-verified for tap-target size and edge clamping.
 
 ## 4. One grammar per control
 

@@ -82,7 +82,25 @@ none of them could fail any more. This file is the work that is actually open.
 - [ ] [L] **Acceptance at 1000 items**: scroll jank-free, search <50 ms end-to-end, cold start →
       popup <300 ms, idle RAM unchanged vs 200, `GetRecent(1000)` ≤10 ms.
 
-## 9. Deferred, tracked, not in scope (kept as decisions, not checks)
+## 9. v2 row contract (owner, 25 Nov)
+
+- [ ] [H] `ClipTags` fixture table (≥20 clips): image, files, spreadsheet, link, email, path, colour,
+      number, JSON, HTML, SQL, and 8 controls that must return **no** tag (prose, password, mixed
+      formats, ambiguous code). Zero false positives; every positive cites its rule.
+- [ ] [U] Row = index `01`, body up to 10 lines auto-height, then `app · title · date time` on every
+      row; time never truncates at 430 px width.
+- [ ] [L] Digit `1`–`9` copies the item whose **visible** index is that number, renumbering correctly
+      after search, tab switch and filter.
+- [ ] [U] A 1-line clip is shorter than a 10-line row, a 30-line clip clamps at 10, and the outside
+      tooltip still carries the full text (auto-fit, not a fixed row size).
+- [ ] [L] Mixed-height virtualizer: 1,000 items, scroll with no jump, selection stays on the same clip
+      across a filter.
+- [ ] [L] Toast auto-fits: 1 line is short, 30 lines stops at `MaxLines`/`Height`, and the toast stays
+      inside the work area at 150 % DPI.
+- [ ] [L] Web list keyboard matrix: ↑ ↓ Home End PageUp PageDown Enter Ctrl+Shift+V F2 Ctrl+F Esc
+      Ctrl+M `1`–`9`, with the Esc cascade order preserved.
+
+## 10. Deferred, tracked, not in scope (kept as decisions, not checks)
 
 Delayed-render IStream fallback · paste focus poll · CF_DIBV5 (only after the live matrix) ·
 per-app capture exclusion · OfficeIMO.Rtf as the RTF fallback · 1000-item product review.
