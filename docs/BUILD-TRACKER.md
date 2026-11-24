@@ -33,6 +33,8 @@ dual-axis audit (DB logic + UI/UX) is clean; memory inside the ceiling; docs upd
 | S3a | Search parser + tag filter + `search` bridge | `Core\ClipSearch.cs`, `Host\` | **DONE `ffc97aa`** | 15/15 grammar rows; 3–30 ms at 1k/2k, budget 50 ms |
 | S3b | Row contract + tags + real Inter + focus=selection | `UI\web\src\*` | IN PROGRESS | 10-line clamp, index `01`, provenance, 5 widths, fonts inlined |
 | S4 | Clip actions: paste, delete/undo, pin, move, live capture | `Host\`, `UI\web\src\*` | QUEUED | Paste into Notepad lands; undo restores; capture appears live |
+| S3c | **P0** truncation guard, corrupt-DB recovery, one search rule | `Core\`, `Host\`, `UI\ClipRow.cs`, `UI\EditorWindow*` | **DONE `5a7a285`** | 600-emoji fixture, write guard refuses preview save, corrupt DB recovers once |
+| S3d | Bridge off the UI thread, tab restore, id ordering, `_meta` reopen | `Host\`, `Core\ClipboardStore.Items.cs` | IN PROGRESS | 9.5k-row heartbeat, fixture table |
 | S5 | Rich rows: HTML/RTF/images/files, sanitizer, Word normalizer | `UI\web\src\*`, `Core\HtmlSanitize.cs` | QUEUED | Word + Excel + Chrome clips render; no network fetch |
 | S6 | Export clip to file | `Core\ClipExport.cs`, `Host\`, `UI\web\src\*` | QUEUED | CSV opens in Excel; PNG opens; names safe |
 | S7 | Settings + TipTap editor overlay | `UI\web\src\*`, `Host\` | QUEUED | Save round-trip keeps CF_HTML; zoom persists |
@@ -43,24 +45,23 @@ dual-axis audit (DB logic + UI/UX) is clean; memory inside the ceiling; docs upd
 
 ## Open defects / debt
 
-**From `docs\AUDIT-db-logic.md` (25 Nov) — blocking:**
-- **P0 truncation data loss.** `TextLength` counts SQLite code points; callers compare it to `Text.Length`
-  (UTF-16 units), so an emoji-heavy clip looks complete and F2 save overwrites the stored body with the
-  1,200-char preview. Five call sites. Fix: one `IsTruncated` helper in `Core\`. — **S3c**
-- **P1 corrupt page not detected**: opens, then every capture throws SQLITE_CORRUPT and the app
-  crash-loops; the `MoveAside` path is never reached. — **S3c**
-- **P1 two search rules disagree** (`Filter` OrdinalIgnoreCase finds `CAFÉ`, SQL `lower()` does not). — **S3c**
-- **P1 bridge search blocks the UI thread**: 48 ms at 1k, 531 ms at 9.5k. → run off the UI thread. — **S3e**
-- **P1** restore into a deleted tab leaves an invisible row; wall-clock stamps invert order in a DST
-  fall-back (order by id, display the time). — **S3d**
-- **P2** pinning an old clip lands at the bottom of Pinned; tag filters only see loaded rows in the old UI. — **S3d**
+**From `docs\AUDIT-db-logic.md` (25 Nov):**
+- **P0 truncation data loss — FIXED `5a7a285`.** One `IsTruncated`/`RemainingChars` home on the item;
+  `Update` refuses to write a preview; 600-emoji fixture proves the old test was wrong.
+- **P1 corrupt page — FIXED `5a7a285`.** One `Recover()` used by the constructor and every capture
+  write; renames aside, recreates, retries once, notifies once.
+- **P1 search disagreement — FIXED `5a7a285`.** One predicate (`SearchService.Matches`,
+  OrdinalIgnoreCase) registered as the SQLite function `clip_search_match`; `CAFÉ` now 168/168.
+- **P1 bridge blocks the UI thread** — S3d.
+- **P1** restore into a deleted tab; wall-clock ordering in a DST fall-back — S3d.
+- **P2** pinning an old clip lands at the bottom of Pinned. Deferred; revisit after use.
 
 **Carried:**
 - `USER_GUIDE.md` must state: OCR cannot be trusted for **amounts** (₹ is unreadable by both engines,
   Indian grouping is lost); CSV opens correctly but Excel reinterprets `007` and `=1+1` on open.
-- `moreCount` means remaining characters; rename to `remainingChars` + a real `truncated` flag. — S3c
-- Rows still show 3 lines + ISO times in the real host build; the row contract lands in S3b.
-- `UI\web\` is untracked in git — commit it with S2 once the audit stops editing it.
+- `UI\EditorWindow.xaml.cs` is 414 lines, over the 400 budget (pre-existing, +7 for the save guard).
+- The v2 shell has no `CorruptionRecovered` handler yet (no writer until S4).
+- Rows still show 3 lines + ISO times until S3b lands.
 - Warm/hidden startup not wired (window shows immediately). — S8.
 - The old WPF `UI\` stays the fallback until S8 cutover; do not delete early.
 
