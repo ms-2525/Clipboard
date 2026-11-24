@@ -441,6 +441,15 @@ a {
   background: currentColor;
   opacity: 0.7;
 }
+/* An unknown tag is searched as text; say so without moving the list. */
+.tag-hint {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--fg48);
+}
 
 .list-wrap {
   position: relative;
@@ -509,8 +518,8 @@ a {
 /* Row anatomy, DESIGN-language §3: index, body (1–10 lines), provenance line.
    The row height is measured by the virtualizer — never fixed here. */
 .row-index {
-  flex: 0 0 2ch;
-  width: 2ch;
+  flex: 0 0 auto;
+  min-width: 2ch;
   padding-top: 1px;
   font-size: 12px;
   line-height: 18px;
@@ -753,6 +762,14 @@ a {
   align-items: flex-start;
   gap: 12px;
   flex-shrink: 0;
+}
+.dialog.confirm {
+  width: 400px;
+}
+.confirm-icon {
+  color: var(--danger);
+  display: inline-flex;
+  margin-top: 2px;
 }
 .dialog-head .grow {
   flex: 1;

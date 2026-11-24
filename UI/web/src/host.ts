@@ -70,6 +70,14 @@ export interface ItemsQuery {
   query?: string
 }
 
+/** `search` answers over the whole history; `total` is every hit, not the page. */
+export interface SearchResult {
+  total: number
+  items: ClipItem[]
+  /** Tag names the query used that Core does not know; they were searched as text. */
+  unknownTags: string[]
+}
+
 /** getItem returns the full body, not a list row. */
 export interface ClipBody {
   text: string | null
@@ -83,14 +91,27 @@ export interface HostEvent {
   data?: unknown
 }
 
+/** Paste can answer `ok` and still report that nothing was injected (no target app). */
+export interface PasteResult {
+  pasted: boolean
+  error?: string
+}
+
 export interface Host {
   readonly mode: 'host' | 'mock'
   init(): Promise<InitResult>
   getItems(query?: ItemsQuery): Promise<ClipItem[]>
+  search(query: ItemsQuery & { query: string }): Promise<SearchResult>
   getItem(id: number): Promise<ClipBody | null>
   getThumb(id: number): Promise<string | null>
   copy(params: { id: number; plain?: boolean }): Promise<void>
-  paste(params: { id: number; plain?: boolean }): Promise<void>
+  paste(params: { id: number; plain?: boolean }): Promise<PasteResult>
+  delete(params: { id: number }): Promise<void>
+  restore(params: { id: number }): Promise<void>
+  togglePin(params: { id: number }): Promise<void>
+  moveToTab(params: { id: number; tabId: number | null }): Promise<void>
+  hide(): Promise<void>
+  exportClip(params: { id: number; format: string }): Promise<void>
   onEvent(listener: (event: HostEvent) => void): () => void
 }
 
@@ -168,7 +189,13 @@ class WebViewHost implements Host {
     if (!message || typeof message !== 'object') return
 
     if (typeof message.event === 'string') {
-      for (const listener of this.listeners) listener({ event: message.event, data: message.data })
+      // A captured row is the same DTO as a list row; normalize it once here so the page
+      // can prepend it without a second shape to defend against.
+      const data =
+        message.event === 'captured' && message.data && typeof message.data === 'object'
+          ? normalizeItem(message.data as ClipItem)
+          : message.data
+      for (const listener of this.listeners) listener({ event: message.event, data })
       return
     }
 
@@ -224,6 +251,20 @@ class WebViewHost implements Host {
 
   getItem = (id: number) => this.send<ClipBody | null>('getItem', { id })
 
+  search = async (query: ItemsQuery & { query: string }): Promise<SearchResult> => {
+    const result = await this.send<{ total?: number; items?: ClipItem[]; unknownTags?: string[] }>('search', {
+      tabId: query.tabId ?? null,
+      offset: query.offset ?? 0,
+      limit: query.limit ?? 500,
+      query: query.query,
+    })
+    return {
+      total: result?.total ?? 0,
+      items: (result?.items ?? []).map(normalizeItem),
+      unknownTags: result?.unknownTags ?? [],
+    }
+  }
+
   getThumb = async (id: number): Promise<string | null> => {
     const result = await this.send<unknown>('getThumb', { id })
     const dataUrl =
@@ -240,8 +281,37 @@ class WebViewHost implements Host {
     await this.send('copy', { id: params.id, plain: params.plain ?? false })
   }
 
-  paste = async (params: { id: number; plain?: boolean }) => {
-    await this.send('paste', { id: params.id, plain: params.plain ?? false })
+  paste = async (params: { id: number; plain?: boolean }): Promise<PasteResult> => {
+    const result = await this.send<{ pasted?: boolean; error?: string } | null>('paste', {
+      id: params.id,
+      plain: params.plain ?? false,
+    })
+    // A host that answers without the flag still ran the command; only an explicit false fails.
+    return { pasted: result?.pasted !== false, error: result?.error }
+  }
+
+  delete = async (params: { id: number }) => {
+    await this.send('delete', { id: params.id })
+  }
+
+  restore = async (params: { id: number }) => {
+    await this.send('restore', { id: params.id })
+  }
+
+  togglePin = async (params: { id: number }) => {
+    await this.send('togglePin', { id: params.id })
+  }
+
+  moveToTab = async (params: { id: number; tabId: number | null }) => {
+    await this.send('moveToTab', { id: params.id, tabId: params.tabId })
+  }
+
+  hide = async () => {
+    await this.send('hide')
+  }
+
+  exportClip = async (params: { id: number; format: string }) => {
+    await this.send('export', { id: params.id, format: params.format })
   }
 
   onEvent = (listener: (event: HostEvent) => void) => {

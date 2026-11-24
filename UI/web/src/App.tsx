@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as Tabs from '@radix-ui/react-tabs'
 import * as Tooltip from '@radix-ui/react-tooltip'
-import { ClipList } from './ClipList'
+import { ClipList, type ClipListHandle } from './ClipList'
+import { DeleteConfirm } from './DeleteConfirm'
 import { EditorOverlay } from './EditorOverlay'
 import { SettingsDialog } from './SettingsDialog'
-import { createHost, type ClipItem, type InitResult } from './host'
-import { formatTime, type TimeFormat } from './format'
+import { createHost, type ClipItem, type InitResult, type SearchResult } from './host'
+import { useClipboardKeys } from './useClipboardKeys'
+import type { TimeFormat } from './format'
 import {
   IconCheck,
   IconClipboard,
@@ -27,7 +29,23 @@ interface Toast {
   error: boolean
 }
 
+/** The last search answer, kept while the next one is pending so the rows never flash blank. */
+interface SearchView extends SearchResult {
+  query: string
+}
+
 const messageOf = (error: unknown) => (error instanceof Error ? error.message : String(error))
+
+/** The next-slice bridge methods answer "unknown method"; that is a gap, not a failure. */
+const isNotReady = (error: unknown) => /unknown method|not wired|not ready|phase 2/i.test(messageOf(error))
+
+/** A re-copied clip keeps its id; the store moves it to the top, so the row must move too. */
+function moveToTop(rows: ClipItem[], item: ClipItem): ClipItem[] {
+  const at = rows.findIndex((row) => row.id === item.id)
+  if (at < 0) return [item, ...rows]
+  if (at === 0) return [item, ...rows.slice(1)]
+  return [item, ...rows.slice(0, at), ...rows.slice(at + 1)]
+}
 
 export default function App() {
   const [host] = useState(createHost)
@@ -41,15 +59,22 @@ export default function App() {
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(previewUi && params.get('surface') === 'settings')
   const [editorOpen, setEditorOpen] = useState(previewUi && params.get('surface') === 'editor')
+  const [confirm, setConfirm] = useState<ClipItem | null>(null)
   const [toasts, setToasts] = useState<Toast[]>([])
   const [init, setInit] = useState<InitResult | null>(null)
   const [items, setItems] = useState<ClipItem[]>([])
+  const [found, setFound] = useState<SearchView | null>(null)
+  const [searching, setSearching] = useState(false)
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
   const [loadError, setLoadError] = useState('')
 
   const toastId = useRef(0)
   const tabSeq = useRef(0)
+  const searchSeq = useRef(0)
+  const lastQuery = useRef('')
+  const lastDeleted = useRef<{ clip: ClipItem; index: number } | null>(null)
   const searchRef = useRef<HTMLInputElement>(null)
+  const listRef = useRef<ClipListHandle>(null)
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
@@ -98,15 +123,66 @@ export default function App() {
     load()
   }, [load])
 
+  const focusSearch = useCallback(() => {
+    setSearchOpen(true)
+    window.setTimeout(() => {
+      const input = searchRef.current
+      input?.focus()
+      input?.setSelectionRange(input.value.length, input.value.length)
+    }, 0)
+  }, [])
+
   useEffect(() => {
-    const timer = window.setTimeout(() => setQuery(search.trim().toLowerCase()), 120)
+    const timer = window.setTimeout(() => setQuery(search.trim()), 120)
     return () => window.clearTimeout(timer)
   }, [search])
+
+  // Search is a query over the whole history, not a filter of the loaded page.
+  useEffect(() => {
+    if (!query) {
+      searchSeq.current++
+      setSearching(false)
+      if (!lastQuery.current) return
+      lastQuery.current = ''
+      setFound(null)
+      const seq = ++tabSeq.current
+      host
+        .getItems({ tabId: tab, offset: 0, limit: 1000 })
+        .then((rows) => {
+          if (seq !== tabSeq.current) return
+          setItems(rows)
+          setSelectedId((current) => (current != null && rows.some((row) => row.id === current) ? current : rows[0]?.id ?? null))
+        })
+        .catch((error) => {
+          if (seq === tabSeq.current) showToast('Could not reload history', messageOf(error), true)
+        })
+      return
+    }
+
+    lastQuery.current = query
+    const seq = ++searchSeq.current
+    setSearching(true)
+    host
+      .search({ query, tabId: tab, limit: 500 })
+      .then((result) => {
+        if (seq !== searchSeq.current) return
+        setFound({ query, ...result })
+        setSearching(false)
+      })
+      .catch((error) => {
+        if (seq !== searchSeq.current) return
+        setSearching(false)
+        setFound({ query, items: [], total: 0, unknownTags: [] })
+        showToast('Search failed', messageOf(error), true)
+      })
+  }, [query, tab, host, showToast])
 
   const selectTab = useCallback(
     (next: number | null) => {
       const previous = tab
       setTab(next)
+      setFound(null)
+      searchSeq.current++
       const seq = ++tabSeq.current
       host
         .getItems({ tabId: next, offset: 0, limit: 1000 })
@@ -140,38 +216,28 @@ export default function App() {
     return rows
   }, [init, allCount])
 
-  const filtered = useMemo(() => {
-    if (!query) return items
-    // The real grammar lives in Core\ClipSearch.cs; here only the canonical `id:` form
-    // the page can emit is matched, against the tags the host already resolved.
-    const tagQuery = /^([a-z0-9-]+):$/.exec(query)
-    if (tagQuery) return items.filter((clip) => clip.tags.includes(tagQuery[1]))
-    return items.filter(
-      (clip) =>
-        clip.title.toLowerCase().includes(query) ||
-        clip.text.toLowerCase().includes(query) ||
-        clip.app.toLowerCase().includes(query) ||
-        clip.formats.some((format) => format.toLowerCase().includes(query)),
-    )
-  }, [items, query])
+  const visible = found?.items ?? items
+  const visibleRef = useRef(visible)
+  visibleRef.current = visible
 
   useEffect(() => {
-    if (selectedId == null) return
-    if (filtered.some((clip) => clip.id === selectedId)) return
-    setSelectedId(filtered[0]?.id ?? null)
-  }, [filtered, selectedId])
+    if (selectedId != null && visible.some((clip) => clip.id === selectedId)) return
+    setSelectedId(visible[0]?.id ?? null)
+  }, [visible, selectedId])
 
-  const selected = items.find((clip) => clip.id === selectedId) ?? null
+  const selected = visible.find((clip) => clip.id === selectedId) ?? null
   const tabLabel = tabs.find((entry) => entry.id === tab)?.label ?? 'All'
-  const tabCount = tabs.find((entry) => entry.id === tab)?.count ?? filtered.length
+  const tabCount = tabs.find((entry) => entry.id === tab)?.count ?? visible.length
   const today = init?.counts?.today
   const timeFormat: TimeFormat = init?.config?.timeFormat === '12h' ? '12h' : '24h'
+  const searchActive = query !== ''
+  const activeSearch = found?.query === query ? found : null
 
   const copyItem = useCallback(
     async (clip: ClipItem) => {
       try {
         await host.copy({ id: clip.id, plain: false })
-        showToast('Copied to clipboard', `${clip.app || 'Unknown'} · ${clip.title}`)
+        showToast('Copied to clipboard', `${clip.app} · ${clip.title}`)
       } catch (error) {
         showToast('Copy failed', messageOf(error), true)
       }
@@ -179,53 +245,168 @@ export default function App() {
     [host, showToast],
   )
 
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (editorOpen || settingsOpen) return
-      const el = event.target as HTMLElement
-      const typing = el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
-        event.preventDefault()
-        setSearchOpen(true)
-        window.setTimeout(() => searchRef.current?.focus(), 0)
-        return
+  const pasteItem = useCallback(
+    async (clip: ClipItem, plain: boolean) => {
+      try {
+        const result = await host.paste({ id: clip.id, plain })
+        if (result && result.pasted === false) throw new Error(result.error || 'Paste did not run')
+        showToast(plain ? 'Pasted as plain text' : 'Pasted', `${clip.app} · ${clip.title}`)
+      } catch (error) {
+        // Paste is the newest bridge action; if it cannot run, the clip still goes to the
+        // clipboard and the toast says which of the two happened.
+        try {
+          await host.copy({ id: clip.id, plain })
+          showToast(
+            'Copied instead',
+            isNotReady(error) ? `Paste is not ready yet - ${clip.app} · ${clip.title}` : messageOf(error),
+          )
+        } catch (copyError) {
+          showToast('Paste failed', messageOf(copyError), true)
+        }
       }
-      if (typing) return
-      if (el.closest('button, a, [role="tab"]')) return
+    },
+    [host, showToast],
+  )
 
-      if (event.key === 'F2') {
-        if (selected) {
-          event.preventDefault()
-          setEditorOpen(true)
-        }
-        return
-      }
-      if (event.key === 'Enter') {
-        if (selected) {
-          event.preventDefault()
-          void copyItem(selected)
-        }
-        return
-      }
-      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-        if (!filtered.length) return
-        event.preventDefault()
-        const index = filtered.findIndex((clip) => clip.id === selectedId)
-        const next =
-          index < 0
-            ? 0
-            : Math.min(filtered.length - 1, Math.max(0, index + (event.key === 'ArrowDown' ? 1 : -1)))
-        setSelectedId(filtered[next].id)
-        return
-      }
-      if (event.key === 'Escape') {
-        if (search) setSearch('')
-        else setSelectedId(null)
-      }
+  const reload = useCallback(async (): Promise<ClipItem[]> => {
+    if (query) {
+      const result = await host.search({ query, tabId: tab, limit: 500 })
+      setFound({ query, ...result })
+      return result.items
     }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [editorOpen, settingsOpen, selected, selectedId, filtered, search, copyItem])
+    const rows = await host.getItems({ tabId: tab, offset: 0, limit: 1000 })
+    setItems(rows)
+    return rows
+  }, [host, query, tab])
+
+  const undoDelete = useCallback(async () => {
+    const entry = lastDeleted.current
+    if (!entry) {
+      showToast('Nothing to undo', 'Delete a clip first.')
+      return
+    }
+    try {
+      await host.restore({ id: entry.clip.id })
+      lastDeleted.current = null
+      await reload()
+      setSelectedId(entry.clip.id)
+      showToast('Restored', `${entry.clip.app} · ${entry.clip.title}`)
+    } catch (error) {
+      showToast(isNotReady(error) ? 'Undo not ready yet' : 'Restore failed', messageOf(error), true)
+    }
+  }, [host, reload, showToast])
+
+  const pinItem = useCallback(async () => {
+    if (!selected) return
+    try {
+      await host.togglePin({ id: selected.id })
+      await reload()
+      setSelectedId(selected.id)
+      showToast(selected.pinned ? 'Unpinned' : 'Pinned', `${selected.app} · ${selected.title}`)
+    } catch (error) {
+      showToast(isNotReady(error) ? 'Pin not ready yet' : 'Pin failed', messageOf(error), true)
+    }
+  }, [host, reload, selected, showToast])
+
+  const hideWindow = useCallback(async () => {
+    try {
+      await host.hide()
+    } catch (error) {
+      showToast(isNotReady(error) ? 'Hide not ready yet' : 'Hide failed', messageOf(error), true)
+    }
+  }, [host, showToast])
+
+  const confirmDelete = useCallback(async () => {
+    const clip = confirm
+    if (!clip) return
+    setConfirm(null)
+    const index = visibleRef.current.findIndex((row) => row.id === clip.id)
+    lastDeleted.current = { clip, index }
+    try {
+      await host.delete({ id: clip.id })
+      // The host also emits `deleted`; removing here keeps the row gone even when it does not.
+      setItems((rows) => rows.filter((row) => row.id !== clip.id))
+      setFound((current) =>
+        current ? { ...current, items: current.items.filter((row) => row.id !== clip.id), total: Math.max(0, current.total - 1) } : current,
+      )
+      if (index >= 0) {
+        const rows = visibleRef.current.filter((row) => row.id !== clip.id)
+        setSelectedId((current) => (current === clip.id ? rows[Math.min(index, rows.length - 1)]?.id ?? null : current))
+      }
+      showToast('Deleted', 'Press Ctrl+Z to bring it back')
+    } catch (error) {
+      lastDeleted.current = null
+      showToast(isNotReady(error) ? 'Delete not ready yet' : 'Delete failed', messageOf(error), true)
+    }
+  }, [confirm, host, showToast])
+
+  useClipboardKeys({
+    enabled: !editorOpen && !settingsOpen && confirm == null,
+    rows: visible,
+    selectedId,
+    search,
+    searchRef,
+    onSelect: setSelectedId,
+    onSearch: setSearch,
+    onSearchFocus: focusSearch,
+    onPage: (direction) => listRef.current?.pageBy(direction),
+    onPaste: (clip, plain) => void pasteItem(clip, plain),
+    onEdit: () => selected && setEditorOpen(true),
+    onDelete: () => selected && setConfirm(selected),
+    onRestore: () => void undoDelete(),
+    onPin: () => void pinItem(),
+    onHide: () => void hideWindow(),
+  })
+
+  // Live capture must not disturb someone reading further down the history.
+  useEffect(
+    () =>
+      host.onEvent(({ event, data }) => {
+        if (event === 'captured') {
+          const item = data as ClipItem | undefined
+          if (!item || typeof item.id !== 'number') return
+          const belongs = tab === null ? item.tabId == null : item.tabId === tab
+          if (!belongs) return
+          // A copy that already exists is reordered by the store; move that row and refresh its
+          // fields instead of ignoring it. Selection is a separate id, so it does not move.
+          setItems((rows) => moveToTop(rows, item))
+          // A query is a view over the same rows: only reorder the row when the results hold it.
+          setFound((current) =>
+            current && current.items.some((row) => row.id === item.id)
+              ? { ...current, items: moveToTop(current.items, item) }
+              : current,
+          )
+          return
+        }
+        if (event === 'skipped') {
+          const reason = (data as { reason?: string } | undefined)?.reason
+          showToast('Skipped', reason || 'The image was too large to capture.')
+          return
+        }
+        if (event === 'hotkeyFailed') {
+          const combo = (data as { combo?: string } | undefined)?.combo
+          showToast(
+            'Hotkey unavailable',
+            combo ? `${combo} is already used by another app.` : 'That shortcut is already used by another app.',
+          )
+          return
+        }
+        if (event === 'deleted') {
+          const id = (data as { id?: number } | undefined)?.id
+          if (typeof id !== 'number') return
+          const at = visibleRef.current.findIndex((row) => row.id === id)
+          if (at >= 0) {
+            const rows = visibleRef.current.filter((row) => row.id !== id)
+            setSelectedId((current) => (current === id ? rows[Math.min(at, rows.length - 1)]?.id ?? null : current))
+          }
+          setItems((rows) => rows.filter((row) => row.id !== id))
+          setFound((current) =>
+            current ? { ...current, items: current.items.filter((row) => row.id !== id), total: Math.max(0, current.total - 1) } : current,
+          )
+        }
+      }),
+    [host, tab, showToast],
+  )
 
   return (
     <Tooltip.Provider delayDuration={350}>
@@ -339,7 +520,7 @@ export default function App() {
           </Tabs.Root>
           <span className="tabs-hint t-meta">
             <span className="keycap">↑↓</span> move
-            <span className="keycap" style={{ marginLeft: 6 }}>Enter</span> copy
+            <span className="keycap" style={{ marginLeft: 6 }}>Enter</span> paste
           </span>
         </div>
 
@@ -348,10 +529,18 @@ export default function App() {
             <div className="card-title">
               <span className="t-title">{tabLabel} clips</span>
               <span className="chip">{tabCount.toLocaleString()}</span>
-              {query && <span className="chip accent">Filtered</span>}
+              {searchActive && <span className="chip accent">Filtered</span>}
+              {activeSearch && activeSearch.unknownTags.length > 0 && (
+                <span
+                  className="tag-hint"
+                  title={`No tag named ${activeSearch.unknownTags.map((tag) => `“${tag}”`).join(', ')} — searched as text`}
+                >
+                  no tag named {activeSearch.unknownTags.map((tag) => `“${tag}”`).join(', ')} — searched as text
+                </span>
+              )}
             </div>
             <span className="spacer" />
-            <span className="t-meta shown-count">{filtered.length.toLocaleString()} shown</span>
+            <span className="t-meta shown-count">{visible.length.toLocaleString()} shown</span>
             <button className="btn sm" onClick={() => setEditorOpen(true)} disabled={!selected} title="Preview the selected clip in the editor">
               <IconEdit />
               Edit clip
@@ -390,21 +579,29 @@ export default function App() {
 
           {status === 'ready' && (
             <ClipList
-              clips={filtered}
+              ref={listRef}
+              clips={visible}
               selectedId={selectedId}
               timeFormat={timeFormat}
               onSelect={setSelectedId}
               onCopy={copyItem}
               onTag={(id) => {
                 setSearch(`${id}:`)
-                setSearchOpen(true)
-                window.setTimeout(() => searchRef.current?.focus(), 0)
+                focusSearch()
               }}
               getThumb={host.getThumb}
-              emptyTitle={query ? 'No clips match' : tab === null ? 'No clips yet' : 'This tab is empty'}
+              emptyTitle={
+                searching && visible.length === 0
+                  ? 'Searching…'
+                  : searchActive
+                    ? `Nothing matches “${query}”`
+                    : tab === null
+                      ? 'No clips yet'
+                      : 'This tab is empty'
+              }
               emptySub={
-                query
-                  ? 'Try a different search or clear it.'
+                searchActive
+                  ? 'Try a different search, or clear it with Esc.'
                   : 'Copy something and it will appear here.'
               }
             />
@@ -412,22 +609,20 @@ export default function App() {
 
           <div className="footer">
             <div className="footer-left">
-              {selected ? (
-                <span className="t-meta sel">
-                  <strong style={{ fontWeight: 600, color: 'var(--fg55)' }}>{selected.app || 'Unknown'}</strong> ·{' '}
-                  {selected.title} · {formatTime(selected.time, timeFormat)}
-                </span>
-              ) : (
-                <span className="t-meta">Nothing selected</span>
-              )}
+              <span className="t-meta">{searchActive ? `Results for “${query}”` : `${tabLabel} history`}</span>
             </div>
             <span className="spacer" />
             <div className="footer-mid">
-              <span className="t-meta">{filtered.length.toLocaleString()} clips</span>
+              <span className="t-meta">
+                {searchActive ? `${(found?.total ?? 0).toLocaleString()} found` : `${tabCount.toLocaleString()} clips`}
+              </span>
             </div>
             <div className="footer-right">
               <span className="hint">
-                <span className="keycap">Esc</span> {search ? 'clear' : 'deselect'}
+                <span className="keycap">Ctrl Shift V</span> plain
+              </span>
+              <span className="hint">
+                <span className="keycap">Esc</span> {search ? 'clear' : 'hide'}
               </span>
             </div>
           </div>
@@ -435,6 +630,8 @@ export default function App() {
       </div>
 
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} theme={theme} setTheme={setTheme} />
+
+      <DeleteConfirm clip={confirm} onCancel={() => setConfirm(null)} onConfirm={() => void confirmDelete()} />
 
       {editorOpen && selected && (
         <EditorOverlay

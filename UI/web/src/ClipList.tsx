@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import type { ClipItem } from './host'
 import { formatStamp, type TimeFormat } from './format'
@@ -19,6 +19,11 @@ interface Props {
   getThumb: (id: number) => Promise<string | null>
   emptyTitle: string
   emptySub: string
+}
+
+/** PageUp/PageDown must move by what is actually on screen, which only the list knows. */
+export interface ClipListHandle {
+  pageBy: (direction: 1 | -1) => void
 }
 
 function Thumb({ id, getThumb }: { id: number; getThumb: (id: number) => Promise<string | null> }) {
@@ -48,11 +53,17 @@ function Thumb({ id, getThumb }: { id: number; getThumb: (id: number) => Promise
   return <img className="thumb" src={src} alt="" draggable={false} />
 }
 
-export function ClipList({ clips, selectedId, timeFormat, onSelect, onCopy, onTag, getThumb, emptyTitle, emptySub }: Props) {
+export const ClipList = forwardRef<ClipListHandle, Props>(function ClipList(
+  { clips, selectedId, timeFormat, onSelect, onCopy, onTag, getThumb, emptyTitle, emptySub },
+  ref,
+) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
   const rowEls = useRef(new Map<number, HTMLDivElement | null>())
   const hadFocus = useRef(false)
+  const anchor = useRef<{ id: number; offset: number } | null>(null)
+  const previous = useRef<{ first: number | null; length: number }>({ first: null, length: 0 })
+  const dataMoved = useRef(false)
 
   const virt = useVirtualizer({
     count: clips.length,
@@ -62,14 +73,72 @@ export function ClipList({ clips, selectedId, timeFormat, onSelect, onCopy, onTa
     getItemKey: (i) => clips[i].id,
   })
 
-  useEffect(() => {
-    scrollRef.current?.scrollTo({ top: 0 })
-  }, [clips])
+  // Live capture: remember which row is at the top of the viewport, so a prepend can be
+  // absorbed without moving what the user is reading.
+  const rememberAnchor = () => {
+    const el = scrollRef.current
+    const top = virt.getVirtualItems()[0]
+    if (!el || !top) return
+    const clip = clips[top.index]
+    if (clip) anchor.current = { id: clip.id, offset: top.start - el.scrollTop }
+  }
+
+  useLayoutEffect(() => {
+    const el = scrollRef.current
+    const before = previous.current
+    const first = clips[0]?.id ?? null
+    previous.current = { first, length: clips.length }
+    const singlePrepend = before.first != null && clips.length === before.length + 1 && clips[1]?.id === before.first
+    // A re-copied row moves from somewhere in the list to index 0 without changing the count.
+    const reordered =
+      before.first != null &&
+      clips.length === before.length &&
+      clips[0]?.id !== before.first &&
+      clips[1]?.id === before.first
+    dataMoved.current = singlePrepend || reordered
+    if (!el || !(singlePrepend || reordered) || el.scrollTop <= 8) return
+    const saved = anchor.current
+    if (!saved) return
+    // The anchor itself is the row that moved to the top; leave the viewport where it is.
+    if (saved.id === clips[0]?.id) return
+    const index = clips.findIndex((clip) => clip.id === saved.id)
+    if (index < 0) return
+    const target = virt.getOffsetForIndex(index, 'start')
+    // saved.offset is the anchor's top relative to the viewport top (negative when it starts
+    // above it); keep that same visual position after the new row pushes it down.
+    if (!target) return
+    const place = () => {
+      el.scrollTop = target[0] - saved.offset
+    }
+    place()
+    // The new row is measured after this commit; re-apply once the sizes have settled.
+    const frame = requestAnimationFrame(place)
+    return () => cancelAnimationFrame(frame)
+  }, [clips, virt])
 
   useEffect(() => {
     if (selectedId == null) return
+    // A capture (prepend or reorder) must not drag the list to the selection; a filter or tab
+    // change must.
+    if (dataMoved.current) {
+      dataMoved.current = false
+      return
+    }
     const idx = clips.findIndex((clip) => clip.id === selectedId)
-    if (idx >= 0) virt.scrollToIndex(idx, { align: 'auto' })
+    if (idx < 0) return
+    const viewport = scrollRef.current?.clientHeight ?? 0
+    const offset = virt.scrollOffset ?? 0
+    const item = virt.getVirtualItems().find((entry) => entry.index === idx)
+    if (item && viewport > 0) {
+      // A row taller than the viewport can never be fully shown; show its beginning, not its end.
+      if (item.size > viewport) {
+        virt.scrollToIndex(idx, { align: 'start' })
+        return
+      }
+      // Moving inside what is already on screen must not move the list.
+      if (item.start >= offset && item.end <= offset + viewport) return
+    }
+    virt.scrollToIndex(idx, { align: 'auto' })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId, clips])
 
@@ -88,6 +157,11 @@ export function ClipList({ clips, selectedId, timeFormat, onSelect, onCopy, onTa
   // that owns focus, so a keyboard user can never hit Enter on a clip they cannot see.
   useEffect(() => {
     if (!hadFocus.current || selectedId == null) return
+    const existing = rowEls.current.get(selectedId)
+    if (existing) {
+      existing.focus({ preventScroll: true })
+      return
+    }
     let frame = 0
     let tries = 0
     const step = () => {
@@ -96,18 +170,37 @@ export function ClipList({ clips, selectedId, timeFormat, onSelect, onCopy, onTa
         el.focus({ preventScroll: true })
         return
       }
-      if (tries++ < 4) frame = requestAnimationFrame(step)
+      if (tries++ < 8) frame = requestAnimationFrame(step)
     }
     frame = requestAnimationFrame(step)
     return () => cancelAnimationFrame(frame)
   }, [selectedId, clips])
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      pageBy: (direction) => {
+        if (clips.length === 0) return
+        // The span is the measured rows actually on screen (overscan excluded), not a fixed count.
+        const viewport = scrollRef.current?.clientHeight ?? 0
+        const top = virt.scrollOffset ?? 0
+        const shown = virt.getVirtualItems().filter((entry) => entry.end > top && entry.start < top + viewport)
+        const span = shown.length > 1 ? Math.max(1, shown[shown.length - 1].index - shown[0].index) : 1
+        const index = clips.findIndex((clip) => clip.id === selectedId)
+        const from = index < 0 ? 0 : index
+        const next = Math.max(0, Math.min(clips.length - 1, from + direction * span))
+        onSelect(clips[next].id)
+      },
+    }),
+    [clips, selectedId, onSelect, virt],
+  )
 
   const selectedIndex = clips.findIndex((clip) => clip.id === selectedId)
   const tabbableId = selectedIndex >= 0 ? selectedId : clips[0]?.id ?? null
 
   return (
     <div className="list-wrap" ref={wrapRef}>
-      <div className="list" ref={scrollRef} role="listbox" aria-label="Clipboard history">
+      <div className="list" ref={scrollRef} onScroll={rememberAnchor} role="listbox" aria-label="Clipboard history">
         {clips.length === 0 ? (
           <div className="empty">
             <div>
@@ -196,4 +289,4 @@ export function ClipList({ clips, selectedId, timeFormat, onSelect, onCopy, onTa
       </div>
     </div>
   )
-}
+})
