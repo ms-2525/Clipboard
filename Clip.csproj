@@ -10,6 +10,7 @@
     <AssemblyName>Clip</AssemblyName>
     <RootNamespace>Clip</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\clip.ico</ApplicationIcon>
   </PropertyGroup>
 
   <!-- _fonttest is a scratch experiment, not part of the app -->
@@ -23,11 +24,13 @@
     <Resource Remove="Ortu Reference\**" />
   </ItemGroup>
 
-  <!-- Static Manrope faces: WPF cannot drive a variable font's wght axis, so 400/500/600 ship as three files. -->
+  <!-- Static faces: WPF cannot drive a variable font's wght axis, so 400/500/600 ship as three files.
+       Inter (SIL OFL) is the owner-picked face; IBM Plex Mono renders the row-number chips. -->
   <ItemGroup>
-    <Resource Include="Assets\Fonts\Manrope-Regular.ttf" />
-    <Resource Include="Assets\Fonts\Manrope-Medium.ttf" />
-    <Resource Include="Assets\Fonts\Manrope-SemiBold.ttf" />
+    <Resource Include="Assets\Fonts\Inter-Regular.ttf" />
+    <Resource Include="Assets\Fonts\Inter-Medium.ttf" />
+    <Resource Include="Assets\Fonts\Inter-SemiBold.ttf" />
+    <Resource Include="Assets\Fonts\IBMPlexMono-Regular.ttf" />
   </ItemGroup>
 
   <ItemGroup>

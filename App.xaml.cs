@@ -7,8 +7,6 @@ using System.Text;
 using System.Threading;
 using System.Windows;
 using System.Windows.Interop;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using Clip.Core;
 using Clip.Interop;
@@ -19,7 +17,6 @@ using Application = System.Windows.Application;
 using Clipboard = System.Windows.Clipboard;
 using ContextMenu = System.Windows.Controls.ContextMenu;
 using MenuItem = System.Windows.Controls.MenuItem;
-using MessageBox = System.Windows.MessageBox;
 
 namespace Clip
 {
@@ -49,7 +46,8 @@ namespace Clip
             _mutex = new Mutex(true, $"{Product}.SingleInstance", out bool first);
             if (!first)
             {
-                MessageBox.Show($"{Product} is already running. Open it from the notification area.", Product);
+                // Exit at once: a modal "already running" box kept a second process (and a dialog) alive,
+                // and the first copy's tray icon is the app's only surface anyway.
                 Shutdown();
                 return;
             }
@@ -279,7 +277,7 @@ namespace Clip
         {
             _tray = new TaskbarIcon
             {
-                Icon = DrawTrayIcon(),
+                Icon = TrayIcon.Create(),
                 ToolTipText = $"{Product}: clipboard history"
             };
             _tray.TrayLeftMouseUp += (s, e) => _main.ShowPopup();
@@ -287,48 +285,6 @@ namespace Clip
             _tray.TrayRightMouseUp += (s, e) => OpenTrayMenu();
             _tray.TrayKeyboardContextMenu += (s, e) => OpenTrayMenu();
             _tray.ForceCreate();
-        }
-
-        /// <summary>Drawn clipboard mark (same shape as the UI icon), monochrome against the taskbar theme.</summary>
-        static System.Drawing.Icon DrawTrayIcon()
-        {
-            var ink = IsLightTaskbar()
-                ? System.Drawing.Color.FromArgb(0x20, 0x20, 0x20)
-                : System.Drawing.Color.FromArgb(0xE8, 0xE8, 0xE8);
-            using var bitmap = new System.Drawing.Bitmap(32, 32, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
-            using (var g = System.Drawing.Graphics.FromImage(bitmap))
-            {
-                g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-                g.Clear(System.Drawing.Color.Transparent);
-                using var pen = new System.Drawing.Pen(ink, 2.4f)
-                {
-                    StartCap = System.Drawing.Drawing2D.LineCap.Round,
-                    EndCap = System.Drawing.Drawing2D.LineCap.Round,
-                    LineJoin = System.Drawing.Drawing2D.LineJoin.Round
-                };
-                g.DrawRectangle(pen, 6, 8, 20, 19);
-                g.DrawRectangle(pen, 12, 4, 8, 5);
-                g.DrawLine(pen, 11, 15, 21, 15);
-                g.DrawLine(pen, 11, 20, 17, 20);
-            }
-
-            // Clone so the managed icon owns its copy, then release the GDI handle.
-            IntPtr handle = bitmap.GetHicon();
-            using var temp = System.Drawing.Icon.FromHandle(handle);
-            var icon = (System.Drawing.Icon)temp.Clone();
-            DestroyIcon(handle);
-            return icon;
-        }
-
-        [DllImport("user32.dll", SetLastError = true)]
-        static extern bool DestroyIcon(IntPtr handle);
-
-        static bool IsLightTaskbar()
-        {
-            var value = Registry.GetValue(
-                @"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize",
-                "SystemUsesLightTheme", 0);
-            return value is int i && i == 1;
         }
 
         /// <summary>Opened by hand: H.NotifyIcon's own ShowContextMenu routing failed on Win11 (spike).</summary>

@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Windows;
 using System.Windows.Controls.Primitives;
 using System.Windows.Documents;
 using System.Windows.Media;
+using Clip.Core;
 
 namespace Clip.UI
 {
@@ -14,7 +16,9 @@ namespace Clip.UI
     /// </summary>
     public partial class EditorWindow
     {
-        static readonly double[] Sizes = { 10, 11, 12, 13, 14, 16, 18, 20, 24, 28, 32, 40 };
+        int _caseIndex = -1;
+
+        static readonly double[] Sizes = { 12, 14, 16, 18, 20, 22, 24, 28, 32, 40 };
 
         /// <summary>RTF sizes are points; WPF text properties are DIPs (96/72).</summary>
         const double DipPerPoint = 96.0 / 72.0;
@@ -72,11 +76,10 @@ namespace Clip.UI
 
             if (Prop(selection, TextElement.ForegroundProperty) is Brush ink) ColorBar.Background = ink;
 
-            // A hollow chip means "no highlight", so the slash is what tells the two apart.
+            // The bar carries the caret's highlight; an empty bar reads as "no highlight".
             var mark = Prop(selection, TextElement.BackgroundProperty) as Brush;
             bool noMark = !(mark is SolidColorBrush solid) || solid.Color.A == 0;
             MarkChip.Background = noMark ? Brushes.Transparent : mark;
-            MarkSlash.Visibility = noMark ? Visibility.Visible : Visibility.Collapsed;
         }
 
         /// <summary>
@@ -161,7 +164,7 @@ namespace Clip.UI
 
         void StepSize(int delta)
         {
-            double current = Prop(RichBox.Selection, TextElement.FontSizeProperty) is double size ? size / DipPerPoint : 13;
+            double current = Prop(RichBox.Selection, TextElement.FontSizeProperty) is double size ? size / DipPerPoint : 16;
             int index = 0;
             for (int i = 0; i < Sizes.Length; i++)
                 if (Math.Abs(Sizes[i] - current) < Math.Abs(Sizes[index] - current)) index = i;
@@ -193,6 +196,217 @@ namespace Clip.UI
         void OnColorButtonClick(object sender, RoutedEventArgs e) => OpenAt(ColorPopup);
 
         void OnMarkButtonClick(object sender, RoutedEventArgs e) => OpenAt(MarkPopup);
+
+        /// <summary>Join the whole clip into one line: every paragraph/line break becomes one space.</summary>
+        void OnSingleLineClick(object sender, RoutedEventArgs e)
+        {
+            var doc = RichBox.Document;
+            // Exotic blocks (lists/tables) have no inline-move path: plain-text join instead.
+            if (doc.Blocks.Any(b => b is not Paragraph))
+            {
+                DocumentText(JoinLines(Body().Text));
+                AfterSingleLine();
+                return;
+            }
+            var paras = doc.Blocks.OfType<Paragraph>().ToList();
+            if (paras.Count == 0) return;
+            var nonEmpty = paras.Where(p => !string.IsNullOrWhiteSpace(new TextRange(p.ContentStart, p.ContentEnd).Text)).ToList();
+            if (nonEmpty.Count == 0) { DocumentText(""); AfterSingleLine(); return; }
+
+            RichBox.BeginChange();
+            try
+            {
+                if (nonEmpty.Count == 1)
+                {
+                    var only = nonEmpty[0];
+                    foreach (var lb in only.Inlines.OfType<LineBreak>().ToList())
+                    {
+                        only.Inlines.InsertBefore(lb, new Run(" "));
+                        only.Inlines.Remove(lb);
+                    }
+                    TrimParaEdges(only);
+                }
+                else
+                {
+                    var single = new Paragraph { Margin = new Thickness(0) };
+                    bool first = true;
+                    foreach (var p in nonEmpty)
+                    {
+                        TrimParaEdges(p);
+                        if (!first) single.Inlines.Add(new Run(" "));
+                        first = false;
+                        foreach (var inline in p.Inlines.ToList())
+                        {
+                            if (inline is LineBreak) { single.Inlines.Add(new Run(" ")); continue; }
+                            p.Inlines.Remove(inline);
+                            single.Inlines.Add(inline);
+                        }
+                    }
+                    TrimParaEdges(single);
+                    doc.Blocks.Clear();
+                    doc.Blocks.Add(single);
+                }
+            }
+            finally { RichBox.EndChange(); }
+            AfterSingleLine();
+        }
+
+        /// <summary>Each line trimmed, blank lines dropped, joined with one space.</summary>
+        static string JoinLines(string text) =>
+            string.Join(" ", (text ?? "").Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => s.Trim()).Where(s => s.Length > 0));
+
+        /// <summary>Trim the edge runs so joined paragraphs get exactly one separator space.</summary>
+        static void TrimParaEdges(Paragraph p)
+        {
+            if (p.Inlines.FirstInline is Run first)
+            {
+                first.Text = first.Text.TrimStart();
+                if (first.Text.Length == 0 && first.NextInline != null) p.Inlines.Remove(first);
+            }
+            if (p.Inlines.LastInline is Run last)
+            {
+                last.Text = last.Text.TrimEnd();
+                if (last.Text.Length == 0 && last.PreviousInline != null) p.Inlines.Remove(last);
+            }
+        }
+
+        void AfterSingleLine()
+        {
+            RichBox.CaretPosition = RichBox.Document.ContentEnd;
+            RichBox.Focus();
+        }
+
+        void OnCaseClick(object sender, RoutedEventArgs e)
+        {
+            // Nothing selected: the whole clip is the target, the same scope as Clear and Single line.
+            bool whole = RichBox.Selection.IsEmpty;
+            var range = whole
+                ? new TextRange(RichBox.Document.ContentStart, RichBox.Document.ContentEnd)
+                : RichBox.Selection;
+            var start = range.Start;
+            var end = range.End;
+
+            _caseIndex = (_caseIndex + 1) % TextCase.Variants;
+            int variant = _caseIndex;
+
+            _reflecting = true;
+            RichBox.BeginChange();
+            try { RewriteRuns(RichBox.Document, range, text => TextCase.Apply(text, variant)); }
+            finally { RichBox.EndChange(); _reflecting = false; }
+
+            // Keep the same words selected, so the second and third press cycle them rather than
+            // suddenly reaching the whole clip.
+            if (!whole)
+            {
+                try { RichBox.Selection.Select(start, end); }
+                catch (ArgumentException)
+                {
+                    // The plain-text fallback replaced the range; its old end points are gone.
+                }
+            }
+            RichBox.Focus();
+            Reflect();
+        }
+
+        /// <summary>
+        /// Rewrite the text the range covers one run at a time, so bold/italic/links survive. The
+        /// transform sees the whole selection at once: Title Case must not restart at every formatting
+        /// boundary. Paragraphs are separated by a newline in that text so two paragraphs never read as
+        /// one word. Every run is collected before the first write - editing inside a live WPF text
+        /// enumerator is what made this throw "Collection was modified".
+        /// </summary>
+        static void RewriteRuns(FlowDocument doc, TextRange range, Func<string, string> transform)
+        {
+            if (doc == null) return;
+
+            var parts = new List<(Run Run, int Skip, int Take, int At)>();
+            var text = new StringBuilder();
+            Paragraph lastParagraph = null;
+
+            foreach (Run run in RunsIn(doc.Blocks))
+            {
+                var os = run.ContentStart.CompareTo(range.Start) < 0 ? range.Start : run.ContentStart;
+                var oe = run.ContentEnd.CompareTo(range.End) > 0 ? range.End : run.ContentEnd;
+                if (os.CompareTo(oe) >= 0) continue;
+
+                string whole = run.Text;
+                int skip = Math.Clamp(run.ContentStart.GetOffsetToPosition(os), 0, whole.Length);
+                int take = Math.Clamp(run.ContentStart.GetOffsetToPosition(oe), skip, whole.Length) - skip;
+                if (take == 0) continue;
+
+                Paragraph paragraph = ParagraphOf(run);
+                if (lastParagraph != null && paragraph != lastParagraph) text.Append('\n');
+                lastParagraph = paragraph;
+
+                parts.Add((run, skip, take, text.Length));
+                text.Append(whole, skip, take);
+            }
+            if (parts.Count == 0) return;
+
+            string before = text.ToString();
+            string after = transform(before);
+            // A variant that changed the length would smear one run's share into the next: an exotic
+            // clip takes the plain-text path instead of losing formatting silently.
+            if (after.Length != before.Length)
+            {
+                range.Text = after;
+                return;
+            }
+
+            foreach (var (run, skip, take, at) in parts)
+            {
+                string whole = run.Text;
+                run.Text = whole.Substring(0, skip) + after.Substring(at, take) + whole.Substring(skip + take);
+            }
+        }
+
+        static Paragraph ParagraphOf(TextElement element)
+        {
+            while (element != null && element is not Paragraph) element = element.Parent as TextElement;
+            return element as Paragraph;
+        }
+
+        /// <summary>Every run in reading order, nesting through spans, lists and table cells.</summary>
+        static IEnumerable<Run> RunsIn(BlockCollection blocks)
+        {
+            foreach (Block block in blocks.ToList())
+                foreach (Run run in RunsIn(block))
+                    yield return run;
+        }
+
+        static IEnumerable<Run> RunsIn(Block block)
+        {
+            switch (block)
+            {
+                case Paragraph p:
+                    foreach (Run run in RunsIn(p.Inlines)) yield return run;
+                    break;
+                case Section s:
+                    foreach (Run run in RunsIn(s.Blocks)) yield return run;
+                    break;
+                case List list:
+                    foreach (ListItem item in list.ListItems.ToList())
+                        foreach (Run run in RunsIn(item.Blocks)) yield return run;
+                    break;
+                case Table table:
+                    foreach (TableRowGroup group in table.RowGroups.ToList())
+                        foreach (TableRow row in group.Rows.ToList())
+                            foreach (TableCell cell in row.Cells.ToList())
+                                foreach (Run run in RunsIn(cell.Blocks)) yield return run;
+                    break;
+            }
+        }
+
+        static IEnumerable<Run> RunsIn(InlineCollection inlines)
+        {
+            foreach (Inline inline in inlines.ToList())
+            {
+                if (inline is Run run) yield return run;
+                else if (inline is Span span)
+                    foreach (Run nested in RunsIn(span.Inlines)) yield return nested;
+            }
+        }
 
         void OpenAt(Popup popup)
         {

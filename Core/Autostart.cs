@@ -20,10 +20,10 @@ namespace Clip.Core
                                 ?? Registry.CurrentUser.CreateSubKey(RunKey);
                 if (key == null) return;
 
-                // On .NET, Assembly.Location is the managed .dll; the Run key needs the
-                // launchable apphost .exe (Environment.ProcessPath).
+                // ProcessPath is the launchable .exe; Assembly.Location is empty in a
+                // single-file build, so there is no useful fallback.
                 string exe = Environment.ProcessPath;
-                if (string.IsNullOrEmpty(exe)) exe = asm.Location;
+                if (string.IsNullOrEmpty(exe)) return;
 
                 if (enable) key.SetValue(name, exe);
                 else key.DeleteValue(name, false); // missing value is fine

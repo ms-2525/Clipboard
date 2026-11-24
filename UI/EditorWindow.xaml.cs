@@ -48,7 +48,16 @@ namespace Clip.UI
 
             Loaded += (s, e) =>
             {
-                Shell.BeginAnimation(OpacityProperty, Motion.Linear(1, 150));
+                // HoldEnd would keep an opacity clock alive and the whole document greyscale:
+                // clear it the moment the fade lands so ClearType returns for the session.
+                var fadeIn = Motion.Linear(1, 150);
+                fadeIn.FillBehavior = FillBehavior.Stop;
+                fadeIn.Completed += (a, b) =>
+                {
+                    Shell.BeginAnimation(OpacityProperty, null);
+                    Shell.Opacity = 1;
+                };
+                Shell.BeginAnimation(OpacityProperty, fadeIn);
                 RichBox.Focus();
                 RichBox.CaretPosition = RichBox.Document.ContentEnd;
                 // The default 5 DIP page padding would double the 8 DIP content rail; set it last

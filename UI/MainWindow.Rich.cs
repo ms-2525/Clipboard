@@ -31,7 +31,12 @@ namespace Clip.UI
                     Dispatcher.BeginInvoke(new Action(() => PulseRow(row, retries - 1)), DispatcherPriority.Loaded);
                 return;
             }
-            layer.BeginAnimation(OpacityProperty, Motion.Pulse());
+            // PulseLayer sits behind the row text (a sibling, not an ancestor), so its clock
+            // cannot rasterise the glyphs — but a held HoldEnd clock is still a leak: clear it.
+            var pulse = Motion.Pulse();
+            pulse.FillBehavior = FillBehavior.Stop;
+            pulse.Completed += (s, e) => layer.BeginAnimation(OpacityProperty, null);
+            layer.BeginAnimation(OpacityProperty, pulse);
         }
 
         /// <summary>The row's top edge inside the list, or null when it is not realised.</summary>
@@ -70,11 +75,16 @@ namespace Clip.UI
                 menu.PlacementTarget = (FrameworkElement)ContainerOf(row) ?? History;
                 menu.Placement = PlacementMode.Bottom;
             }
+            // 4 DIP air from the pointer / row edge so the menu never sits flush on the clip.
+            menu.HorizontalOffset = 4;
+            menu.VerticalOffset = 4;
 
             AddMenu(menu, "Paste", () => RequestPaste(row, false));
             AddMenu(menu, "Paste as plain text", () => RequestPaste(row, true));
+            menu.Items.Add(new Separator());
             AddMenu(menu, "Copy", () => { CopyRequested?.Invoke(row.Item); PulseRow(row); });
             AddMenu(menu, "Edit", () => OpenEditor(row));
+            menu.Items.Add(new Separator());
             bool pinned = row.Item.TabId == _store.PinnedTabId;
             AddMenu(menu, pinned ? "Unpin" : "Pin", () => { History.SelectedItem = row; TogglePin(); });
             AddMenu(menu, "Move to tab\u2026", () => { History.SelectedItem = row; OpenPicker(); });

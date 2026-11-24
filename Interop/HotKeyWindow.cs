@@ -12,6 +12,7 @@ namespace Clip.Interop
 
         readonly HwndSource _src;
         readonly Action _pressed;
+        readonly bool _maskModifier;
 
         public bool Registered { get; }
         public string Combo { get; }
@@ -24,6 +25,7 @@ namespace Clip.Interop
             _src = new HwndSource(p);
 
             Parse(Combo, out uint mods, out uint vk);
+            _maskModifier = (mods & (MOD_ALT | MOD_WIN)) != 0;
             // A modifier-less or key-less binding is a settings error, not something to silently register.
             if (mods != 0 && vk != 0)
                 Registered = RegisterHotKey(_src.Handle, 1, mods, vk);
@@ -117,6 +119,9 @@ namespace Clip.Interop
         {
             if (msg == WM_HOTKEY && wParam.ToInt64() == 1)
             {
+                // Before the popup takes focus: the menu Alt is about to open belongs to the window that
+                // has focus right now (Alt+V then Down opened that window's system menu).
+                if (_maskModifier) PasteInjector.ReleaseHotkeyModifiers();
                 _pressed?.Invoke();
                 handled = true;
             }

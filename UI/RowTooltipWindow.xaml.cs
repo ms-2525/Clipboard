@@ -17,8 +17,11 @@ namespace Clip.UI
         const int GWL_EXSTYLE = -20;
         const int WS_EX_TOOLWINDOW = 0x80;
         const int WS_EX_NOACTIVATE = 0x08000000;
-        // 340 DIP: fits beside the centred 550 DIP popup on a 1280 DIP-wide screen (365 DIP free).
-        const double TipWidth = 340;
+        // 390 DIP is the comfortable reading width; narrower screens get whatever room is left.
+        const double TipWidth = 390;
+        // Air between the tip, the popup and the screen edges (DIP).
+        const double Gap = 12;
+        const double TipMinWidth = 200;
 
         [DllImport("user32.dll")]
         static extern int GetWindowLong(IntPtr hWnd, int nIndex);
@@ -40,34 +43,50 @@ namespace Clip.UI
             SetWindowLong(h, GWL_EXSTYLE, ex | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW);
         }
 
-        /// <summary>Shows full text beside the popup, its left edge on the popup's right edge.</summary>
+        /// <summary>Shows full text beside the popup, in the free side, never off the screen.</summary>
         internal void ShowFor(Window owner, ClipRow row, double rowTop)
         {
             Body.Text = row?.Tooltip ?? "";
-            Width = TipWidth;
-            MaxHeight = Math.Max(160, owner.ActualHeight);
-            Scroller.ScrollToTop();
-
-            if (!IsVisible) Show();
-            UpdateLayout();
 
             var handle = new WindowInteropHelper(owner).Handle;
             var screen = handle != IntPtr.Zero ? WF.Screen.FromHandle(handle) : WF.Screen.FromPoint(WF.Cursor.Position);
             double scale = ScreenDpi.Scale(screen);
             var work = screen.WorkingArea;
-            double left = owner.Left + owner.ActualWidth;
-            double rightEdge = work.Right / scale;
-            if (left + TipWidth > rightEdge) left = owner.Left - TipWidth;
+            double leftEdge = work.Left / scale + Gap;
+            double rightEdge = work.Right / scale - Gap;
+            double topEdge = work.Top / scale + Gap;
+            double bottomEdge = work.Bottom / scale - Gap;
 
-            double top = owner.Top + rowTop;
-            double bottomEdge = work.Bottom / scale;
-            if (top + ActualHeight > bottomEdge) top = bottomEdge - ActualHeight;
-            double topEdge = work.Top / scale;
-            if (top < topEdge) top = topEdge;
-            if (left < work.Left / scale) left = work.Left / scale;
+            // The popup owns the middle of the screen, so the tip takes the wider free side and
+            // shrinks to it instead of clamping back over the list.
+            double ownerRight = owner.Left + owner.ActualWidth;
+            double rightRoom = rightEdge - ownerRight - Gap;
+            double leftRoom = owner.Left - Gap - leftEdge;
+            bool onRight = rightRoom >= leftRoom;
+            double room = Math.Max(TipMinWidth, Math.Max(0, onRight ? rightRoom : leftRoom));
+            Width = Math.Min(TipWidth, room);
 
-            Left = left;
-            Top = top;
+            // Anchored on the row it explains: grow down from the row's top, or up when there is
+            // no useful room below. The cap keeps it inside the working area.
+            double rowTopDip = owner.Top + rowTop;
+            double below = bottomEdge - rowTopDip;
+            double above = rowTopDip - topEdge;
+            bool growUp = below < 240 && above > below;
+            MaxHeight = Math.Max(160, growUp ? above : below);
+
+            if (!IsVisible) Show();
+            UpdateLayout();
+            Scroller.ScrollToTop();
+
+            double left = onRight ? ownerRight + Gap : owner.Left - Gap - ActualWidth;
+            left = Math.Min(Math.Max(left, leftEdge), rightEdge - ActualWidth);
+
+            double top = Math.Min(Math.Max(growUp ? rowTopDip - ActualHeight : rowTopDip, topEdge),
+                bottomEdge - ActualHeight);
+            // Pixel snap like the popup/toast: a fractional DIP origin blurs the whole tip.
+            double tipScale = ScreenDpi.Scale(screen);
+            Left = Math.Round(Math.Min(Math.Max(left, leftEdge), rightEdge - ActualWidth) * tipScale) / tipScale;
+            Top = Math.Round(Math.Max(topEdge, top) * tipScale) / tipScale;
         }
 
         internal void Dismiss()

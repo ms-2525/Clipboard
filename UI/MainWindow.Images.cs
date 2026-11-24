@@ -32,9 +32,9 @@ namespace Clip.UI
                 ImagesPane.Visibility = Visibility.Visible;
                 History.ItemsPanel = (ItemsPanelTemplate)FindResource("ImageStripPanel");
                 History.ItemTemplate = (DataTemplate)FindResource("ImageTileTemplate");
-                History.Padding = new Thickness(6, 4, 6, 4);
+                History.Padding = new Thickness(8, 6, 8, 6);
                 History.Margin = new Thickness(0, 0, 0, 6);
-                History.Height = 112;
+                History.Height = 132;
                 History.VerticalAlignment = VerticalAlignment.Bottom;
                 ScrollViewer.SetHorizontalScrollBarVisibility(History, ScrollBarVisibility.Hidden);
                 ScrollViewer.SetVerticalScrollBarVisibility(History, ScrollBarVisibility.Disabled);
@@ -46,7 +46,7 @@ namespace Clip.UI
             ImagesPane.Visibility = Visibility.Collapsed;
             History.ItemsPanel = (ItemsPanelTemplate)FindResource("ClipListPanel");
             History.ItemTemplate = (DataTemplate)FindResource("ClipRowTemplate");
-            History.Padding = new Thickness(2, 6, 2, 6);
+            History.Padding = new Thickness(2, 8, 2, 8);
             History.Margin = new Thickness(0);
             History.Height = double.NaN;
             History.VerticalAlignment = VerticalAlignment.Stretch;

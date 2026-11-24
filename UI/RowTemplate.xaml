@@ -28,12 +28,12 @@
         <TranslateTransform/>
       </StackPanel.RenderTransform>
 
-      <Grid x:Name="SectionBand" Margin="8,0,8,8" Visibility="{Binding ShowSection, Converter={StaticResource BoolToVis}}">
+      <Grid x:Name="SectionBand" Margin="2,0,10,10" Visibility="{Binding ShowSection, Converter={StaticResource BoolToVis}}">
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="Auto"/>
           <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
-        <TextBlock Text="{Binding SectionLabel}" FontSize="10" LineHeight="14" FontWeight="SemiBold"
+        <TextBlock Text="{Binding SectionLabel}" FontSize="10" LineHeight="16" FontWeight="SemiBold"
                    Foreground="{DynamicResource Fg48}"/>
         <Border Grid.Column="1" Height="1" Margin="8,0,0,0" VerticalAlignment="Center"
                 Background="{DynamicResource Divider}"/>
@@ -60,35 +60,56 @@
                   BorderBrush="{DynamicResource PulseRing}" BorderThickness="1"
                   CornerRadius="12" Opacity="0" IsHitTestVisible="False"/>
 
-          <Grid Margin="8,8">
+          <Grid Margin="2,10,10,10">
             <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="22"/>
-              <ColumnDefinition Width="10"/>
+              <ColumnDefinition Width="Auto"/>
+              <ColumnDefinition Width="6"/>
               <ColumnDefinition Width="*"/>
               <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
 
-            <!-- The gutter: 1..N of the visible list, right-aligned at x = 40; 10+ are labels only. -->
-            <TextBlock x:Name="NumberText" Grid.Column="0" Text="{Binding Number}"
-                       Width="22" Height="18" VerticalAlignment="Top"
-                       FontSize="11" LineHeight="18" FontWeight="SemiBold" TextAlignment="Right"
-                       Foreground="{DynamicResource Fg55}" Typography.NumeralAlignment="Tabular"/>
+            <!-- The gutter: 1..N of the visible list in a code-chip box; 10+ are labels only. -->
+            <Border Grid.Column="0" MinWidth="26" Height="20" Padding="6,0" Margin="0,1,0,0"
+                    CornerRadius="6" VerticalAlignment="Top"
+                    Background="{DynamicResource BadgeBackground}">
+              <TextBlock x:Name="NumberText" Text="{Binding Number}"
+                         FontFamily="{StaticResource MonoFont}" FontSize="10" LineHeight="14"
+                         FontWeight="Normal" TextAlignment="Center"
+                         VerticalAlignment="Center"
+                         Foreground="{DynamicResource Fg48}"/>
+            </Border>
 
             <TextBlock x:Name="Body" Grid.Column="2" Height="{Binding TextHeight}"
-                       FontFamily="Segoe UI" FontSize="13" LineHeight="18" FontWeight="Normal"
-                       Foreground="{DynamicResource Fg55}"
+                       FontFamily="{StaticResource UiFont}" FontSize="14" LineHeight="20" FontWeight="Normal"
+                       Foreground="{DynamicResource Fg}"
                        TextWrapping="Wrap" TextTrimming="CharacterEllipsis"
                        LineStackingStrategy="BlockLineHeight" ClipToBounds="True"
                        ui:RowContent.Row="{Binding}" ui:RowContent.Query="{Binding Query}"/>
 
-            <Border x:Name="Badge" Grid.Column="3" Height="18" Padding="6,0" CornerRadius="9"
-                    Margin="8,0,0,0" VerticalAlignment="Top"
+            <Border x:Name="Badge" Grid.Column="3" Height="22" Padding="8,0" CornerRadius="11"
+                    Margin="10,0,0,0" VerticalAlignment="Top"
                     Background="{DynamicResource BadgeBackground}"
                     Visibility="{Binding MoreVisibility}">
-              <TextBlock Text="{Binding More}" FontSize="11" LineHeight="14" FontWeight="SemiBold"
+              <TextBlock Text="{Binding More}" FontSize="10" LineHeight="16" FontWeight="SemiBold"
                          Foreground="{DynamicResource Fg55}" VerticalAlignment="Center"
                          Typography.NumeralAlignment="Tabular"/>
             </Border>
+
+            <!-- Owner request: provenance under every clip — app · date time · window title,
+                 set off from the body by a hairline. ClipRow.RowHeight reserves this block
+                 so selection still moves no geometry. -->
+            <Border Grid.Row="1" Grid.Column="2" Grid.ColumnSpan="2" Height="1" Margin="0,8,0,0"
+                    Background="{DynamicResource Divider}"/>
+            <TextBlock Grid.Row="2" Grid.Column="2" Grid.ColumnSpan="2"
+                       Text="{Binding Item.Meta}" Height="18" Margin="0,6,0,0"
+                       FontSize="10" LineHeight="16" Foreground="{DynamicResource Fg48}"
+                       TextTrimming="CharacterEllipsis"
+                       Typography.NumeralAlignment="Tabular"/>
           </Grid>
         </Grid>
       </Border>
@@ -147,8 +168,8 @@
             </Storyboard>
           </BeginStoryboard>
         </DataTrigger.ExitActions>
-        <Setter TargetName="Body" Property="Foreground" Value="{DynamicResource Fg75}"/>
-        <Setter TargetName="NumberText" Property="Foreground" Value="{DynamicResource Fg75}"/>
+        <Setter TargetName="Body" Property="Foreground" Value="{DynamicResource Fg}"/>
+        <Setter TargetName="NumberText" Property="Foreground" Value="{DynamicResource Fg55}"/>
       </DataTrigger>
     </DataTemplate.Triggers>
   </DataTemplate>
@@ -177,21 +198,21 @@
     the stored 96 px PNG decoded once per row; selection and hover change brushes only, 100 ms.
   -->
   <DataTemplate x:Key="ImageTileTemplate">
-    <Border x:Name="Tile" Width="104" Height="104" Margin="0,0,8,0" CornerRadius="8"
+    <Border x:Name="Tile" Width="120" Height="120" Margin="0,0,10,0" CornerRadius="10"
             Background="{DynamicResource Field}" ClipToBounds="True">
       <Grid>
-        <Grid Margin="4">
+        <Grid Margin="5">
           <Image Source="{Binding Thumb}" Stretch="Uniform"
                  RenderOptions.BitmapScalingMode="HighQuality"
                  HorizontalAlignment="Center" VerticalAlignment="Center"/>
 
           <!-- A tile that cannot decode says so: a blank grey box is not a state (AUDIT-s3-visual P1-3). -->
           <StackPanel x:Name="NoThumb" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center">
-            <Viewbox Width="20" Height="20">
+            <Viewbox Width="22" Height="22">
               <Path Data="{DynamicResource IconPicture}" Stroke="{DynamicResource Fg40}" StrokeThickness="1.5"
                     StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
             </Viewbox>
-            <TextBlock Text="No preview" FontSize="11" LineHeight="14" Foreground="{DynamicResource Fg48}"
+            <TextBlock Text="No preview" FontSize="10" LineHeight="16" Foreground="{DynamicResource Fg48}"
                        HorizontalAlignment="Center" Margin="0,6,0,0"/>
           </StackPanel>
         </Grid>
@@ -202,11 +223,11 @@
                 CornerRadius="8" Opacity="0" IsHitTestVisible="False"/>
 
         <!-- The number is the Ctrl+1..9 affordance; an opaque pill reads over any image (§1.4). -->
-        <Border Height="16" Padding="4,0" CornerRadius="4" Background="{DynamicResource App}"
-                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="4" IsHitTestVisible="False">
-          <TextBlock Text="{Binding Number}" FontSize="11" LineHeight="14" FontWeight="SemiBold"
-                     Foreground="{DynamicResource Fg75}" VerticalAlignment="Center"
-                     Typography.NumeralAlignment="Tabular"/>
+        <Border Height="20" Padding="5,0" CornerRadius="5" Background="{DynamicResource App}"
+                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="5" IsHitTestVisible="False">
+          <TextBlock Text="{Binding Number}" FontFamily="{StaticResource MonoFont}" FontSize="10"
+                     LineHeight="14" FontWeight="Normal"
+                     Foreground="{DynamicResource Fg75}" VerticalAlignment="Center"/>
         </Border>
       </Grid>
     </Border>

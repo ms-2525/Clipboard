@@ -22,6 +22,8 @@ namespace Clip.UI
         const int WS_EX_TOOLWINDOW = 0x80;
         const int WS_EX_NOACTIVATE = 0x08000000;
         const int IdleHideMs = 4000;
+        // Matches the real toast's screen-edge inset (DIP).
+        const double EdgeGap = 12;
 
         [DllImport("user32.dll")]
         static extern int GetWindowLong(IntPtr hWnd, int nIndex);
@@ -133,17 +135,25 @@ namespace Clip.UI
 
             Left = _position switch
             {
-                "top-right" or "bottom-right" => (wa.Right - n.OffsetX) / sc - w,
+                "top-right" or "bottom-right" => wa.Right / sc - n.OffsetX - w,
                 "center" => wa.Left / sc + (wa.Width / sc - w) / 2,
                 _ => wa.Left / sc + n.OffsetX,
             };
 
             Top = _position switch
             {
-                "bottom-left" or "bottom-right" => (wa.Bottom - n.OffsetY) / sc - h,
+                "bottom-left" or "bottom-right" => wa.Bottom / sc - n.OffsetY - h,
                 "center" => wa.Top / sc + (wa.Height / sc - h) / 2,
                 _ => wa.Top / sc + n.OffsetY,
             };
+
+            // Same breathing room as the real toast, so the preview never lies about placement.
+            Left = Math.Min(Math.Max(Left, wa.Left / sc + EdgeGap), wa.Right / sc - w - EdgeGap);
+            Top = Math.Min(Math.Max(Top, wa.Top / sc + EdgeGap), wa.Bottom / sc - h - EdgeGap);
+
+            // Pixel snap like the popup/toast: a fractional DIP origin blurs the whole ghost.
+            Left = Math.Round(Left * sc) / sc;
+            Top = Math.Round(Top * sc) / sc;
         }
 
         /// <summary>The monitor the Settings window is on, not the mouse's.</summary>
@@ -182,12 +192,12 @@ namespace Clip.UI
             double w = ActualWidth > 0 ? ActualWidth : Width;
             double h = ActualHeight > 0 ? ActualHeight : Height;
 
-            // Inverse of Place(): right/bottom offsets are physical pixels, left/top are DIPs.
+            // Inverse of Place(): both axes are DIP now.
             int ox = _position == "top-right" || _position == "bottom-right"
-                ? (int)Math.Round(wa.Right - sc * (Left + w))
+                ? (int)Math.Round(wa.Right / sc - (Left + w))
                 : (int)Math.Round(Left - wa.Left / sc);
             int oy = _position == "bottom-left" || _position == "bottom-right"
-                ? (int)Math.Round(wa.Bottom - sc * (Top + h))
+                ? (int)Math.Round(wa.Bottom / sc - (Top + h))
                 : (int)Math.Round(Top - wa.Top / sc);
 
             Dragged?.Invoke(ox, oy);

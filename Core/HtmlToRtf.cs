@@ -23,7 +23,10 @@ namespace Clip.Core
             var renderer = new Renderer(body);
             renderer.Run(html);
             var sb = new StringBuilder(body.Length + 128);
-            sb.Append(@"{\rtf1\ansi\deff0{\fonttbl{\f0 Segoe UI;}{\f1 Consolas;}}");
+            sb.Append(@"{\rtf1\ansi\deff0{\fonttbl{\f0 Segoe UI;}{\f1 Consolas;");
+            for (int f = 0; f < renderer.Fonts.Count; f++) // f0/f1 reserved → collected fonts start at f2
+                sb.Append(@"{\f").Append(f + 2).Append(' ').Append(renderer.Fonts[f]).Append(@";}");
+            sb.Append('}');
             if (renderer.Colours.Count > 0)
             {
                 sb.Append(@"{\colortbl ;"); // slot 0 is \auto
@@ -42,6 +45,7 @@ namespace Clip.Core
             {
                 public bool Bold, Italic, Underline, Strike, Mono, Pre;
                 public int Size, Fg, Bg, Indent; // half-points; colour index (0 = auto); highlight index (0 = none); twips
+                public string Family; // collected font-table name (null = default f0)
             }
 
             readonly record struct Frame(string Name, Style Saved);
@@ -49,9 +53,11 @@ namespace Clip.Core
 
             readonly StringBuilder _out;
             readonly Dictionary<int, int> _colourIndex = new Dictionary<int, int>();
+            readonly Dictionary<string, int> _fontIndex = new Dictionary<string, int>();
             readonly List<Frame> _stack = new List<Frame>();
             readonly List<ListState> _lists = new List<ListState>();
             public List<int> Colours { get; } = new List<int>();
+            public List<string> Fonts { get; } = new List<string>();
 
             Style _style;
             bool _wroteAny, _paraOpen, _spacePending;
@@ -226,6 +232,7 @@ namespace Clip.Core
                 if (_style.Underline) _out.Append("\\ul ");
                 if (_style.Strike) _out.Append("\\strike ");
                 if (_style.Mono) _out.Append("\\f1 ");
+                if (_style.Family != null) _out.Append("\\f").Append(_fontIndex[_style.Family] + 1).Append(' ');
                 if (_style.Size > 0) _out.Append("\\fs").Append(_style.Size).Append(' ');
                 if (_style.Fg > 0) _out.Append("\\cf").Append(_style.Fg).Append(' ');
                 if (_style.Bg > 0) _out.Append("\\highlight").Append(_style.Bg).Append(' ');
@@ -288,10 +295,20 @@ namespace Clip.Core
                         }
                     }
                     else if (key == "font-size") { int size = Size(value); if (size > 0) _style.Size = size; }
-                    // Only the monospace cue survives â€” the synthesis forbids honouring families.
-                    else if (key == "font-family" && (value.Contains("mono") || value.Contains("courier") ||
-                             value.Contains("consolas") || value.Contains("menlo") || value.Contains("monaco")))
-                        _style.Mono = true;
+                    // First family only: monospace maps to \f1, generics are ignored, the rest join the font table.
+                    else if (key == "font-family")
+                    {
+                        string first = value.Split(',')[0].Trim().Trim('"', '\'').Trim();
+                        var name = new StringBuilder(first.Length);
+                        foreach (char ch in first)
+                            if (ch == ' ' || ch == '-' || (ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9')) name.Append(ch);
+                        string family = name.ToString().Trim();
+                        if (family.Contains("mono") || family.Contains("courier") || family.Contains("consolas") ||
+                            family.Contains("menlo") || family.Contains("monaco")) { _style.Mono = true; _style.Family = null; }
+                        else if (family.Length > 0 && family is not "serif" and not "sans-serif" and not "cursive" and not "fantasy"
+                            and not "system-ui" && !family.StartsWith("ui-", StringComparison.Ordinal))
+                        { FontIndex(family); _style.Family = family; }
+                    }
                     else if (key == "white-space" && value.Contains("pre")) _style.Pre = true;
                 }
             }
@@ -301,6 +318,13 @@ namespace Clip.Core
                 Colours.Add(rgb);
                 _colourIndex[rgb] = Colours.Count;
                 return Colours.Count;
+            }
+            int FontIndex(string name)
+            {
+                if (_fontIndex.TryGetValue(name, out int index)) return index;
+                Fonts.Add(name);
+                _fontIndex[name] = Fonts.Count;
+                return Fonts.Count;
             }
 
             static int Colour(string value) // â†’ 0xRRGGBB, or -1 for inherit / transparent / unknown

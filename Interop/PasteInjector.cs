@@ -18,6 +18,7 @@ namespace Clip.Interop
         const ushort VK_V = 0x56;
         const ushort VK_LWIN = 0x5B;
         const ushort VK_RWIN = 0x5C;
+        const ushort VK_MASK = 0xE8; // unassigned: no character, no accelerator, nothing to react
 
         /// <summary>Places text on the clipboard, sends Ctrl+V, returns the sequence number so the caller can suppress self-capture.</summary>
         public static uint CopyAndPaste(string text)
@@ -129,6 +130,23 @@ namespace Clip.Interop
 
         /// <summary>One channel composited over white: opaque keeps its colour, fully transparent becomes white.</summary>
         static byte Flatten(byte channel, int alpha) => (byte)((channel * alpha + 255 * (255 - alpha) + 127) / 255);
+
+        /// <summary>
+        /// An Alt/Win hotkey leaves its modifier logically down in the window that had focus, and that
+        /// window's Alt release with no key in between reads as a bare Alt press — which opens its menu.
+        /// An unassigned-key tap before the release (AutoHotkey's menu-mask trick) makes the release
+        /// harmless. Called inside WM_HOTKEY, before the popup takes focus, so it reaches that window.
+        /// </summary>
+        internal static void ReleaseHotkeyModifiers()
+        {
+            var inputs = new[]
+            {
+                Key(VK_MASK, 0), Key(VK_MASK, KEYEVENTF_KEYUP),
+                Key(VK_CONTROL, KEYEVENTF_KEYUP), Key(VK_MENU, KEYEVENTF_KEYUP),
+                Key(VK_SHIFT, KEYEVENTF_KEYUP), Key(VK_LWIN, KEYEVENTF_KEYUP), Key(VK_RWIN, KEYEVENTF_KEYUP)
+            };
+            SendInput((uint)inputs.Length, inputs, Marshal.SizeOf<INPUT>());
+        }
 
         /// <summary>The exact key sequence for Ctrl+V: modifier key-ups first, then the chord.</summary>
         internal static List<(ushort vk, uint flags)> PasteInputSequence() => new List<(ushort vk, uint flags)>

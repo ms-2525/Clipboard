@@ -17,6 +17,7 @@ Layering that HOLDS: `UI → Core|Interop` only; nothing imports `UI`; `App` imp
 ## Gates (this project's own commands)
 
 - Compile: `dotnet build -c Release` — 0 errors, 0 warnings is the bar.
+- Owner build: double-click `build-release.cmd` → one self-contained exe at `dist\Clip.exe` (no .NET runtime needed on the target machine; `dist/` is gitignored).
 - Component verification: scratch harness in `%TEMP%\opencode` linking the REAL files; every `[H]` checklist item needs observed values.
 - Visual verification: a FRESH `deepseek-v4.1-flash#high` sub-agent takes and reads its own screenshots; builders never mark `[U]` items.
 - Pre-release: `ca-milestone-audit` dual-axis pass over both checklists.

@@ -10,11 +10,11 @@
 
   <!-- The outside-docked full text: only shown for a row that is actually truncated, never over the list. -->
   <Border Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Hairline}"
-          BorderThickness="1" CornerRadius="8" Padding="12,10">
+          BorderThickness="1" CornerRadius="10" Padding="14,12">
     <ScrollViewer x:Name="Scroller" VerticalScrollBarVisibility="Auto"
                   HorizontalScrollBarVisibility="Disabled" Focusable="False">
-      <TextBlock x:Name="Body" TextWrapping="Wrap" LineHeight="18"
-                 FontFamily="Segoe UI" FontSize="12" Foreground="{DynamicResource Fg75}"/>
+      <TextBlock x:Name="Body" TextWrapping="Wrap" LineHeight="20"
+                 FontFamily="{StaticResource UiFont}" FontSize="14" Foreground="{DynamicResource Fg75}"/>
     </ScrollViewer>
   </Border>
 </Window>

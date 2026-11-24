@@ -20,12 +20,11 @@ namespace Clip.UI
 
         /// <summary>
         /// The estimator's chars-per-line, never measured per row: a measured height would twitch on
-        /// font fallback and undo the frozen-geometry contract (§1.2). Calibrated for the NEW content
-        /// font: Segoe UI 13 in the 482 px text column measures 79 chars for typical prose, 72 for
-        /// URLs/digits (FormattedText, 150 % DPI); 62 was the Manrope-era figure and left a blank line
-        /// on most rows. 77 = measured prose minus two chars of safety.
+        /// font fallback and undo the frozen-geometry contract (§1.2). Calibrated for the content size:
+        /// Inter 14 in the 610 px text column (660 DIP popup) measures 95 chars for typical
+        /// prose (FormattedText, 150 % DPI). 92 = measured minus three chars of safety.
         /// </summary>
-        public const double CharsPerLine = 77;
+        public const double CharsPerLine = 92;
 
         readonly ClipboardStore _store;
         readonly string _text;
@@ -52,8 +51,8 @@ namespace Clip.UI
             Preview = preview;
             Tooltip = IsImage ? null : Truncate(IsFiles ? Paths(item) : _text, TooltipCap);
 
-            TextHeight = visible * 18;
-            RowHeight = TextHeight + 16;
+            TextHeight = visible * 20;
+            RowHeight = TextHeight + 20 + FooterHeight;
 
             int hidden = _totalLines - visible;
             if (!IsFiles && !IsImage && preview.Length < _text.Length && hidden < 1) hidden = 1;
@@ -114,6 +113,9 @@ namespace Clip.UI
 
         public double TextHeight { get; }
         public double RowHeight { get; }
+
+        /// <summary>Divider block under the body: 8 px gap + 1 px line + 6 px gap + 16 px status (RowTemplate.xaml).</summary>
+        const double FooterHeight = 31;
 
         public bool IsImage { get; }
         public bool IsFiles { get; }

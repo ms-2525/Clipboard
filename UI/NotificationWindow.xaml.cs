@@ -23,6 +23,8 @@ namespace Clip.UI
         const int WM_NCHITTEST = 0x0084;
         const int HTTRANSPARENT = -1;
         const int HTCLIENT = 1;
+        // Breathing room between a toast and the working area's edge, in DIP.
+        const double EdgeGap = 12;
 
         [DllImport("user32.dll")]
         static extern int GetWindowLong(IntPtr hWnd, int nIndex);
@@ -186,24 +188,42 @@ namespace Clip.UI
             var wa = s.WorkingArea;
             string pos = (n.Position ?? "").ToLowerInvariant();
 
+            // Offsets are DIP so the 16 DIP gap stays a gap at every display scale.
             Left = pos switch
             {
-                "top-right" or "bottom-right" => (wa.Right - n.OffsetX) / sc - Width,
+                "top-right" or "bottom-right" => wa.Right / sc - n.OffsetX - Width,
                 "center" => wa.Left / sc + (wa.Width / sc - Width) / 2,
                 _ => wa.Left / sc + n.OffsetX,
             };
 
             Top = pos switch
             {
-                "bottom-left" or "bottom-right" => (wa.Bottom - n.OffsetY) / sc - Height,
+                "bottom-left" or "bottom-right" => wa.Bottom / sc - n.OffsetY - Height,
                 "center" => wa.Top / sc + (wa.Height / sc - Height) / 2,
                 _ => wa.Top / sc + n.OffsetY,
             };
 
+            // Breathing room: an extreme offset can never pin the toast to (or past) a screen edge.
+            Left = Math.Min(Math.Max(Left, wa.Left / sc + EdgeGap), wa.Right / sc - Width - EdgeGap);
+            Top = Math.Min(Math.Max(Top, wa.Top / sc + EdgeGap), wa.Bottom / sc - Height - EdgeGap);
+
+            // Same pixel snap as the popup: a fractional DIP origin blurs the whole toast.
+            Left = Math.Round(Left * sc) / sc;
+            Top = Math.Round(Top * sc) / sc;
+
             Root.Opacity = 0;
             Show();
 
-            Root.BeginAnimation(OpacityProperty, Motion.Linear(1, 150));
+            // A held opacity clock keeps the subtree greyscale even at 1.0: clear it the
+            // moment the fade lands so ClearType returns for the rest of the toast's life.
+            var fadeIn = Motion.Linear(1, 150);
+            fadeIn.FillBehavior = FillBehavior.Stop;
+            fadeIn.Completed += (s, e) =>
+            {
+                Root.BeginAnimation(OpacityProperty, null);
+                Root.Opacity = 1;
+            };
+            Root.BeginAnimation(OpacityProperty, fadeIn);
 
             _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(n.DurationMs) };
             _timer.Tick += (o, e) =>

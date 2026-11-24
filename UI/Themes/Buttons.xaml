@@ -6,7 +6,7 @@
     Primary (accent fill + OnAccent ink), Secondary (Raised + ControlLine), Ghost (transparent →
     4 % hover), Danger (Error border/ink). States: hover 4 % tint, pressed 8 %, disabled Fg48,
     keyboard-only 2 px AccentText ring (FocusVisualStyle is what WPF shows for keyboard focus only).
-    Heights 32 default / 28 in a bar / 24 toolbar and icon. Radius 8. Colours live in the themes.
+    Heights 36 default / 32 in a bar / 28 toolbar and icon. Radius 8. Colours live in the themes.
   -->
 
   <Style x:Key="FocusRing">
@@ -21,9 +21,9 @@
   </Style>
 
   <Style x:Key="BtnBase" TargetType="Button">
-    <Setter Property="Height" Value="32"/>
-    <Setter Property="Padding" Value="12,0"/>
-    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="Height" Value="36"/>
+    <Setter Property="Padding" Value="14,0"/>
+    <Setter Property="FontSize" Value="14"/>
     <Setter Property="FontWeight" Value="SemiBold"/>
     <Setter Property="Foreground" Value="{DynamicResource Fg75}"/>
     <Setter Property="Background" Value="{DynamicResource Raised}"/>
@@ -74,8 +74,8 @@
   </Style>
 
   <Style x:Key="Ghost" TargetType="Button" BasedOn="{StaticResource BtnBase}">
-    <Setter Property="Height" Value="28"/>
-    <Setter Property="Padding" Value="10,0"/>
+    <Setter Property="Height" Value="32"/>
+    <Setter Property="Padding" Value="12,0"/>
     <Setter Property="FontWeight" Value="Medium"/>
     <Setter Property="Background" Value="Transparent"/>
     <Setter Property="BorderBrush" Value="Transparent"/>
@@ -90,21 +90,21 @@
 
   <!-- Bar/row sizes: one step down from the default surface height. -->
   <Style x:Key="PrimarySmall" TargetType="Button" BasedOn="{StaticResource Primary}">
-    <Setter Property="Height" Value="28"/><Setter Property="Padding" Value="10,0"/>
+    <Setter Property="Height" Value="32"/><Setter Property="Padding" Value="12,0"/>
   </Style>
   <Style x:Key="SecondarySmall" TargetType="Button" BasedOn="{StaticResource Secondary}">
-    <Setter Property="Height" Value="28"/><Setter Property="Padding" Value="10,0"/>
+    <Setter Property="Height" Value="32"/><Setter Property="Padding" Value="12,0"/>
   </Style>
   <Style x:Key="GhostSmall" TargetType="Button" BasedOn="{StaticResource Ghost}">
-    <Setter Property="Height" Value="28"/><Setter Property="Padding" Value="10,0"/>
+    <Setter Property="Height" Value="32"/><Setter Property="Padding" Value="12,0"/>
   </Style>
   <Style x:Key="DangerSmall" TargetType="Button" BasedOn="{StaticResource Danger}">
-    <Setter Property="Height" Value="28"/><Setter Property="Padding" Value="10,0"/>
+    <Setter Property="Height" Value="32"/><Setter Property="Padding" Value="12,0"/>
   </Style>
 
   <!-- A bare 24 px icon target (✕, +): transparent, 4 % hover tint, no chrome. -->
   <Style x:Key="IconButton" TargetType="Button" BasedOn="{StaticResource BtnBase}">
-    <Setter Property="Width" Value="24"/><Setter Property="Height" Value="24"/>
+    <Setter Property="Width" Value="28"/><Setter Property="Height" Value="28"/>
     <Setter Property="Padding" Value="0"/>
     <Setter Property="Background" Value="Transparent"/>
     <Setter Property="BorderBrush" Value="Transparent"/>
@@ -113,9 +113,9 @@
 
   <!-- Toggle grammar: unchecked = Ghost, checked = the surface's affirmative (accent fill). -->
   <Style x:Key="ToggleGhost" TargetType="ToggleButton">
-    <Setter Property="Height" Value="28"/>
-    <Setter Property="Padding" Value="10,0"/>
-    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="Height" Value="32"/>
+    <Setter Property="Padding" Value="12,0"/>
+    <Setter Property="FontSize" Value="14"/>
     <Setter Property="FontWeight" Value="Medium"/>
     <Setter Property="Foreground" Value="{DynamicResource Fg55}"/>
     <Setter Property="Background" Value="Transparent"/>
@@ -153,15 +153,15 @@
     </Setter>
   </Style>
 
-  <!-- Toolbar grammar: 24 px, transparent, hover tint. -->
+  <!-- Toolbar grammar: 28 px, boxed (owner request), every content on one 20 px line block. -->
   <Style x:Key="ToolButton" TargetType="Button">
-    <Setter Property="Height" Value="24"/>
-    <Setter Property="MinWidth" Value="26"/>
-    <Setter Property="Padding" Value="5,0"/>
-    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="Height" Value="28"/>
+    <Setter Property="MinWidth" Value="30"/>
+    <Setter Property="Padding" Value="6,0"/>
+    <Setter Property="FontSize" Value="16"/>
     <Setter Property="Foreground" Value="{DynamicResource Fg75}"/>
     <Setter Property="Background" Value="Transparent"/>
-    <Setter Property="BorderBrush" Value="Transparent"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource ControlLine}"/>
     <Setter Property="BorderThickness" Value="1"/>
     <Setter Property="Cursor" Value="Hand"/>
     <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}"/>
@@ -194,14 +194,16 @@
     </Setter>
   </Style>
 
-  <!-- A toolbar toggle reads as an active format: Surface fill + 1 px accent line when checked. -->
+  <!-- A toolbar toggle reads as an active format: Surface fill + 1 px accent line when checked;
+       unchecked shows the same ControlLine box as every other toolbar button. -->
   <Style x:Key="ToolToggle" TargetType="ToggleButton">
-    <Setter Property="Height" Value="24"/>
-    <Setter Property="MinWidth" Value="26"/>
-    <Setter Property="Padding" Value="5,0"/>
+    <Setter Property="Height" Value="28"/>
+    <Setter Property="MinWidth" Value="30"/>
+    <Setter Property="Padding" Value="6,0"/>
+    <Setter Property="FontSize" Value="16"/>
     <Setter Property="Foreground" Value="{DynamicResource Fg75}"/>
     <Setter Property="Background" Value="Transparent"/>
-    <Setter Property="BorderBrush" Value="Transparent"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource ControlLine}"/>
     <Setter Property="BorderThickness" Value="1"/>
     <Setter Property="Cursor" Value="Hand"/>
     <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}"/>

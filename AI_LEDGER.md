@@ -21,7 +21,7 @@
 - A modal MessageBox inside `OnStartup` blocks tray creation → defer via Dispatcher (S0).
 - CF_HTML offsets are UTF-8 BYTE offsets; a sloppy producer may split a multibyte char — degrade to clean prefix, never throw (spike).
 - 24-bpp DIB rows are DWORD-stride aligned; use `DataFormats.Dib` (id 8), not the "DeviceIndependentBitmap" string, which registers a custom format (image sprint).
-- Still holding the hotkey's Alt turns injected Ctrl+V into Ctrl+Alt+V → always send modifier key-UPs first (core-fix).
+- Still holding the hotkey's Alt turns injected Ctrl+V into Ctrl+Alt+V → always send modifier key-UPs first (core-fix). Same Alt also opens the focused window's menu on the next key (Alt+V then Down showed *that* window's Close/Minimise menu): `HotKeyWindow` now calls `PasteInjector.ReleaseHotkeyModifiers` inside WM_HOTKEY, which taps unassigned VK 0xE8 (AutoHotkey's menu-mask key) before the modifier releases — without the tap the bare Alt release IS the menu command.
 - Office/browser copies arrive half-published → debounce capture ~100 ms; re-check suppression inside the debounced path (core-fix).
 - Shell screenshots are DPI-unaware → `SetProcessDpiAwarenessContext(-4)` before CopyFromScreen (S0).
 - On .NET, `Assembly.Location` is the DLL → autostart and any "exe path" need `Environment.ProcessPath` (S2).

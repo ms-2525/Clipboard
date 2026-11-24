@@ -211,7 +211,7 @@ namespace Clip.UI
             }
         }
 
-        /// <summary>A table cannot be laid out in an 18 px line: one line per row, cells tab-joined.</summary>
+        /// <summary>A table cannot be laid out in a 20 px line: one line per row, cells tab-joined.</summary>
         static void AddTable(Table table, Sink sink)
         {
             var fmt = default(Fmt);
@@ -239,9 +239,10 @@ namespace Clip.UI
                         sink.Text(run.Text, Merge(fmt, run));
                         break;
                     case Hyperlink link:
-                        // Text only, accent-coloured: a row click pastes, so a live link would lie.
+                        // Text only, original colour kept; uncoloured links use the content
+                        // layer's link blue (never the app accent) — a row click pastes.
                         var linkFmt = Merge(fmt, link);
-                        linkFmt.Fg = RowContent.ThemeBrush("AccentText");
+                        if (linkFmt.Fg == null) linkFmt.Fg = RowContent.ContentBrush("ContentLink");
                         linkFmt.Underline = true;
                         AddInlines(link.Inlines, linkFmt, sink);
                         break;
@@ -268,7 +269,12 @@ namespace Clip.UI
             if (element.ReadLocalValue(TextElement.FontStyleProperty) is FontStyle style)
                 fmt.Italic = style != FontStyles.Normal;
             if (element.ReadLocalValue(TextElement.FontSizeProperty) is double size) fmt.Size = size;
-            if (element.ReadLocalValue(TextElement.FontFamilyProperty) is FontFamily family) fmt.Mono = IsMono(family);
+            if (element.ReadLocalValue(TextElement.BackgroundProperty) is Brush bg) fmt.Bg = bg;
+            if (element.ReadLocalValue(TextElement.FontFamilyProperty) is FontFamily family)
+            {
+                fmt.Mono = IsMono(family);
+                if (!family.Source.Contains("Segoe UI", StringComparison.OrdinalIgnoreCase)) fmt.Family = family;
+            }
             if (element is Inline inline &&
                 inline.ReadLocalValue(Inline.TextDecorationsProperty) is TextDecorationCollection decorations)
             {
@@ -293,26 +299,36 @@ namespace Clip.UI
                    name.IndexOf("Mono", StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
+        /// <summary>True for near-white glyphs with no backing: they vanish on the light canvas.</summary>
+        static bool IsLight(Brush brush)
+        {
+            if (brush is SolidColorBrush solid)
+            {
+                var c = solid.Color;
+                double lum = (0.2126 * c.R + 0.7152 * c.G + 0.0722 * c.B) / 255.0;
+                return lum > 0.75;
+            }
+            return false;
+        }
+
         // ---- document state → run records -----------------------------------
 
         struct Fmt
         {
             public Brush Fg;
+            public Brush Bg;
+            public FontFamily Family;
             public bool Bold, Italic, Underline, Strike, Mono;
             public double Size; // 0 = the document default
         }
 
         sealed class Sink
         {
-            readonly double _appLuma;
-            readonly Brush _fg75;
             int _chars;
 
             public Sink(double baseSize)
             {
                 BaseSize = baseSize <= 0 ? 16 : baseSize;
-                _appLuma = RowContent.Luma(RowContent.ThemeColor("App"));
-                _fg75 = RowContent.ThemeBrush("Fg75");
             }
 
             public readonly List<RowContent.RichRun> Runs = new();
@@ -326,12 +342,25 @@ namespace Clip.UI
                 if (_chars + text.Length > RowContent.MaxChars) text = text.Substring(0, RowContent.MaxChars - _chars);
                 _chars += text.Length;
 
-                // Sizes are normalised to the row's own 13/18 type: a 12 pt body becomes 13 px, a
-                // heading stays proportionally larger. Clamped 11–16 so no glyph outgrows its line.
-                double size = fmt.Size <= 0 ? RowContent.RowSize : Math.Clamp(fmt.Size * (RowContent.RowSize / BaseSize), 11, 16);
-                Brush fg = RowContent.Legible(fmt.Fg, _appLuma, _fg75);
+                // Sizes are normalised to the row's own 14/20 type: a 12 pt body becomes 14 px, a
+                // heading stays proportionally larger. Clamped 10–20 so no glyph outgrows its line.
+                double size = fmt.Size <= 0 ? RowContent.RowSize : Math.Clamp(fmt.Size * (RowContent.RowSize / BaseSize), 10, 20);
+                // Styled content keeps its own colours: an uncoloured run inside styled content
+                // is ContentInk (the content layer's document default); fully unstyled runs stay null
+                // and inherit the row's UI styling (Layer-1 ownership).
+                Brush fg = fmt.Fg;
+                if (fg == null && (fmt.Bold || fmt.Italic || fmt.Underline || fmt.Strike || fmt.Mono ||
+                    fmt.Bg != null || fmt.Family != null ||
+                    (fmt.Size > 0 && Math.Abs(fmt.Size - BaseSize) > 0.5))) fg = RowContent.ContentBrush("ContentInk");
+
+                // White-on-dark source inside the light app canvas: keep the glyph colour,
+                // park it on a dark pill so it stays legible without altering the format.
+                Brush bg = fmt.Bg;
+                if (bg == null && fg != null && IsLight(fg))
+                    bg = RowContent.ContentBrush("ContentDarkBg");
 
                 if (fmt.Bold || fmt.Italic || fmt.Underline || fmt.Strike || fmt.Mono || fg != null ||
+                    fmt.Bg != null || fmt.Family != null ||
                     (fmt.Size > 0 && Math.Abs(fmt.Size - BaseSize) > 0.5))
                     Formatted = true;
 
@@ -344,6 +373,8 @@ namespace Clip.UI
                     {
                         Text = lines[i],
                         Fg = fg,
+                        Bg = bg,
+                        Family = fmt.Family,
                         Bold = fmt.Bold,
                         Italic = fmt.Italic,
                         Underline = fmt.Underline,

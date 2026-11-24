@@ -7,6 +7,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
+using System.Windows.Media.Animation;
 using System.Windows.Media;
 using System.Windows.Threading;
 using Clip.Core;
@@ -99,10 +100,16 @@ namespace Clip.UI
             double sc = ScreenDpi.Scale(s);
             var wa = s.WorkingArea;
             double maxH = Math.Max(320, wa.Height / sc - 16);
-            Height = Math.Min(520, maxH);
+            Height = Math.Min(640, maxH);
 
             Left = wa.Left / sc + (wa.Width / sc - Width) / 2;
             Top = Math.Max(wa.Top / sc, wa.Top / sc + (wa.Height / sc - Height) / 2 - 40);
+
+            // Snap the window origin to a physical pixel: a fractional DIP origin
+            // (unavoidable from centring math at 125 %/150 %) rasterises every glyph
+            // off-grid and reads as app-wide blur. Interior rounding cannot fix this.
+            Left = Math.Round(Left * sc) / sc;
+            Top = Math.Round(Top * sc) / sc;
 
             Show();
             WindowChrome.Raise(this);
@@ -129,12 +136,12 @@ namespace Clip.UI
             if (IsVisible) return;
             Reload();
 
-            var host = new StackPanel { Width = 534 };
+            var host = new StackPanel { Width = 644 };
             var template = (DataTemplate)FindResource("ClipRowTemplate");
             for (int i = 0; i < Math.Min(4, _visible.Count); i++)
                 host.Children.Add(new ContentPresenter { Content = _visible[i], ContentTemplate = template });
-            host.Measure(new Size(534, double.PositiveInfinity));
-            host.Arrange(new Rect(0, 0, 534, host.DesiredSize.Height));
+            host.Measure(new Size(644, double.PositiveInfinity));
+            host.Arrange(new Rect(0, 0, 644, host.DesiredSize.Height));
             host.UpdateLayout();
         }
 
@@ -400,9 +407,18 @@ namespace Clip.UI
         {
             // No opacity fade: any opacity below 1 rasterises the subtree and greys the type it is
             // meant to sharpen. An 8 DIP settle reads as the same arrival and keeps ClearType on.
+            // FillBehavior.Stop + Completed clearing: a held animation clock keeps the subtree in
+            // an intermediate bitmap and ClearType never comes back, even at Y = 0.
             if (!Motion.On) { ShellShift.Y = 0; return; }
             ShellShift.Y = 8;
-            ShellShift.BeginAnimation(TranslateTransform.YProperty, Motion.Spline(0, 140, 0, 0, 0, 1));
+            var anim = Motion.Spline(0, 140, 0, 0, 0, 1);
+            anim.FillBehavior = FillBehavior.Stop;
+            anim.Completed += (s, e) =>
+            {
+                ShellShift.BeginAnimation(TranslateTransform.YProperty, null);
+                ShellShift.Y = 0;
+            };
+            ShellShift.BeginAnimation(TranslateTransform.YProperty, anim);
         }
 
         void ClosePopup(bool handoff)

@@ -59,26 +59,33 @@ namespace Clip.UI
             };
 
             _loading = false;
-            ShowTab(false);
+            ShowTab(0);
         }
 
         // ---- tabs ----------------------------------------------------------
 
-        void OnGeneralTab(object sender, MouseButtonEventArgs e) => ShowTab(false);
+        void OnGeneralTab(object sender, MouseButtonEventArgs e) => ShowTab(0);
 
-        void OnNotificationTab(object sender, MouseButtonEventArgs e) => ShowTab(true);
+        void OnNotificationTab(object sender, MouseButtonEventArgs e) => ShowTab(1);
 
-        void ShowTab(bool notification)
+        void OnGalleryTab(object sender, MouseButtonEventArgs e) => ShowTab(2);
+
+        void ShowTab(int tab)
         {
-            PanelGeneral.Visibility = notification ? Visibility.Collapsed : Visibility.Visible;
+            bool general = tab == 0, notification = tab == 1, gallery = tab == 2;
+            PanelGeneral.Visibility = general ? Visibility.Visible : Visibility.Collapsed;
             PanelNotification.Visibility = notification ? Visibility.Visible : Visibility.Collapsed;
+            PanelGallery.Visibility = gallery ? Visibility.Visible : Visibility.Collapsed;
 
-            TabGeneralText.FontWeight = notification ? FontWeights.Normal : FontWeights.SemiBold;
-            TabGeneralText.Foreground = (Brush)FindResource(notification ? "Muted" : "Fg");
-            TabGeneralBar.Visibility = notification ? Visibility.Collapsed : Visibility.Visible;
+            TabGeneralText.FontWeight = general ? FontWeights.SemiBold : FontWeights.Normal;
+            TabGeneralText.Foreground = (Brush)FindResource(general ? "Fg" : "Muted");
+            TabGeneralBar.Visibility = general ? Visibility.Visible : Visibility.Collapsed;
             TabNotificationText.FontWeight = notification ? FontWeights.SemiBold : FontWeights.Normal;
             TabNotificationText.Foreground = (Brush)FindResource(notification ? "Fg" : "Muted");
             TabNotificationBar.Visibility = notification ? Visibility.Visible : Visibility.Collapsed;
+            TabGalleryText.FontWeight = gallery ? FontWeights.SemiBold : FontWeights.Normal;
+            TabGalleryText.Foreground = (Brush)FindResource(gallery ? "Fg" : "Muted");
+            TabGalleryBar.Visibility = gallery ? Visibility.Visible : Visibility.Collapsed;
 
             if (notification)
             {
@@ -345,21 +352,21 @@ namespace Clip.UI
                     ? "That is already the shortcut for Open the list." : null;
             if (hotkeyError != null)
             {
-                ShowTab(false);
+                ShowTab(0);
                 ShowHotkeyError(hotkeyError);
                 return;
             }
 
             if (Bad(MaxItemsBox, MaxItemsError, 10, 10000, out int maxItems))
             {
-                ShowTab(false);
+                ShowTab(0);
                 MaxItemsBox.Focus();
                 MaxItemsBox.SelectAll();
                 return;
             }
             if (Bad(PreviewLinesBox, PreviewLinesError, 1, 100, out int previewLines))
             {
-                ShowTab(false);
+                ShowTab(0);
                 PreviewLinesBox.Focus();
                 PreviewLinesBox.SelectAll();
                 return;
@@ -372,7 +379,7 @@ namespace Clip.UI
                 Bad(OffsetXBox, OffsetXError, -2000, 2000, out int offsetX) ||
                 Bad(OffsetYBox, OffsetYError, -2000, 2000, out int offsetY))
             {
-                ShowTab(true);
+                ShowTab(1);
                 FirstBadNotificationBox().Focus();
                 return;
             }
