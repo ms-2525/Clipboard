@@ -110,6 +110,9 @@ namespace Clip.Host
                     CopyToClipboard(_store, Long(p, "id"), Bool(p, "plain"));
                     return new { copied = true };
 
+                case "export":
+                    return Export(p);
+
                 case "paste":
                     throw new InvalidOperationException("phase 2");
 
