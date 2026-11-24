@@ -26,7 +26,8 @@ dual-axis audit (DB logic + UI/UX) is clean; memory inside the ceiling; docs upd
 
 | # | Slice | Files (owner) | Status | Evidence required |
 |---|---|---|---|---|
-| S1 | `ClipTags` classifier + `tags[]` DTO | `Core\ClipTags.cs`, `Host\ClipHost.Queries.cs` | **DONE `1b57ecd`** | 27/27 fixtures, 0 false positives; real rows tagged |
+| S1 | `ClipTags` classifier + `tags[]` DTO | `Core\ClipTags.cs`, `Host\ClipHost.Queries.cs` | **DONE `1b57ecd`, then FAILED audit → S3f** | 27/27 fixtures, but prose tagged as TS/Python |
+| S3f | Kill tag false positives, truncation rule, one search rule | `Core\ClipTags.cs`, `Core\SearchService.cs`, `Core\ClipSearch.cs` | IN PROGRESS | Audit's prose list all untagged; parity table |
 | S2 | Visual audit + contrast tokens | `UI\web\src\styles.css`, `icons.tsx` | **DONE `0d0b666`** | 16/20; 62+62 pairs, 0 failures; lowest 4.62 / 4.82 |
 | R1 | OCR research (engine, cost, storage) | scratch only | **DONE** — Windows.Media.Ocr, +25.4 MB exe, zero schema change | Accuracy table, per-image ms, migration cost |
 | R2 | Export + tag-query research | scratch only | **DONE** — CSV byte-identical, BOM yes, `sep=` never | CSV proof on real clip, 15-query grammar |
@@ -57,6 +58,9 @@ dual-axis audit (DB logic + UI/UX) is clean; memory inside the ceiling; docs upd
 - **P2** pinning an old clip lands at the bottom of Pinned. Deferred; revisit after use.
 
 **Carried:**
+- `docs\AUDIT-search-tags.md` (25 Nov): prose tagged as TS/Python/JS (S3f), truncated previews minting
+  tags (S3f), two search rules (S3f), `Meta()` losing formats at 32k ids (S3d), a second client-side
+  classifier `UI\web\src\tags.ts` (S3b, deleting it).
 - `USER_GUIDE.md` must state: OCR cannot be trusted for **amounts** (₹ is unreadable by both engines,
   Indian grouping is lost); CSV opens correctly but Excel reinterprets `007` and `=1+1` on open.
 - `UI\EditorWindow.xaml.cs` is 414 lines, over the 400 budget (pre-existing, +7 for the save guard).
