@@ -11,6 +11,8 @@
     <RootNamespace>Clip</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\clip.ico</ApplicationIcon>
+    <!-- The editor page's npm install is a build-time-only dependency, never app content. -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);scripts\editor\node_modules\**</DefaultItemExcludes>
   </PropertyGroup>
 
   <!-- _fonttest is a scratch experiment, not part of the app -->
@@ -33,9 +35,17 @@
     <Resource Include="Assets\Fonts\IBMPlexMono-Regular.ttf" />
   </ItemGroup>
 
+  <!-- The editor page ships inside the exe: the host serves these three over https://clip/. -->
+  <ItemGroup>
+    <EmbeddedResource Include="Assets\editor\editor.html" LogicalName="clip.assets.editor.html" />
+    <EmbeddedResource Include="Assets\editor\editor.css" LogicalName="clip.assets.editor.css" />
+    <EmbeddedResource Include="Assets\editor\editor.bundle.js" LogicalName="clip.assets.editor.bundle.js" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.Sqlite" Version="11.0.0" />
     <PackageReference Include="H.NotifyIcon.Wpf" Version="2.4.1" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2903.40" />
     <PackageReference Include="Syncfusion.SfRichTextBoxAdv.WPF" Version="35.2.13" />
   </ItemGroup>
 

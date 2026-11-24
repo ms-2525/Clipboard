@@ -5,3 +5,4 @@ dist/
 .vs/
 .cla/
 Ortu Reference/
+scripts/editor/node_modules/

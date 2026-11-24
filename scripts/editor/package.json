@@ -1,0 +1,24 @@
+{
+  "name": "clip-editor",
+  "private": true,
+  "description": "Builds Assets/editor/editor.bundle.js — the TipTap page asset hosted by EditorWindow.",
+  "scripts": {
+    "build": "esbuild src/clip-editor.js --bundle --format=iife --minify --outfile=../../Assets/editor/editor.bundle.js"
+  },
+  "dependencies": {
+    "@tiptap/core": "3.35.0",
+    "@tiptap/extension-image": "3.35.0",
+    "@tiptap/extension-link": "3.35.0",
+    "@tiptap/extension-placeholder": "3.35.0",
+    "@tiptap/extension-table": "3.35.0",
+    "@tiptap/extension-task-item": "3.35.0",
+    "@tiptap/extension-task-list": "3.35.0",
+    "@tiptap/extension-text-style": "3.35.0",
+    "@tiptap/extension-typography": "3.35.0",
+    "@tiptap/extension-underline": "3.35.0",
+    "@tiptap/starter-kit": "3.35.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  }
+}
