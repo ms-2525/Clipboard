@@ -1,8 +1,9 @@
 import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import type { ClipItem } from './host'
+import type { ClipBody, ClipItem } from './host'
 import { formatStamp, type TimeFormat } from './format'
 import { IconPin } from './icons'
+import { isRich, loadBody, RowBody } from './rich'
 
 const thumbCache = new Map<number, string | null>()
 
@@ -17,6 +18,7 @@ interface Props {
   onCopy: (clip: ClipItem) => void
   onTag: (id: string) => void
   getThumb: (id: number) => Promise<string | null>
+  getItem: (id: number) => Promise<ClipBody | null>
   emptyTitle: string
   emptySub: string
 }
@@ -49,12 +51,22 @@ function Thumb({ id, getThumb }: { id: number; getThumb: (id: number) => Promise
     }
   }, [id, getThumb])
 
-  if (!src) return <div className="thumb" aria-hidden="true" />
+  if (!src) {
+    return (
+      <div className="thumb thumb-empty" aria-hidden="true">
+        <svg width="22" height="22" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round">
+          <rect x="2" y="3" width="12" height="10" rx="2" />
+          <path d="M2.6 11 6 7.6l2.3 2.2L11 6.6l2.3 4" />
+          <circle cx="10.4" cy="5.4" r="0.9" />
+        </svg>
+      </div>
+    )
+  }
   return <img className="thumb" src={src} alt="" draggable={false} />
 }
 
 export const ClipList = forwardRef<ClipListHandle, Props>(function ClipList(
-  { clips, selectedId, timeFormat, onSelect, onCopy, onTag, getThumb, emptyTitle, emptySub },
+  { clips, selectedId, timeFormat, onSelect, onCopy, onTag, getThumb, getItem, emptyTitle, emptySub },
   ref,
 ) {
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -142,6 +154,13 @@ export const ClipList = forwardRef<ClipListHandle, Props>(function ClipList(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId, clips])
 
+  // The selected row is fetched even before the virtualizer measures it, so selection never
+  // shows a plain preview that an on-screen row would already have replaced.
+  useEffect(() => {
+    const clip = clips.find((entry) => entry.id === selectedId)
+    if (clip && isRich(clip)) void loadBody(clip.id, getItem)
+  }, [clips, selectedId, getItem])
+
   // hadFocus = "the focused element is inside the list". Read from focusin rather than
   // focusout: a virtualized row can unmount and drop focus to <body> with a null
   // relatedTarget, and that is exactly when the next selected row must take focus back.
@@ -216,6 +235,10 @@ export const ClipList = forwardRef<ClipListHandle, Props>(function ClipList(
               const clip = clips[v.index]
               const selected = clip.id === selectedId
               const tags = clip.tags
+              const richOnly = clip.hasRtf && !clip.hasHtml
+              // The row's tag slot keeps the 2-chip ceiling; the RTF marker takes one slot.
+              const shownTags = tags.slice(0, richOnly ? 1 : 2)
+              const hiddenTags = tags.length - shownTags.length
               const extra = clip.truncated ? Math.max(0, clip.remainingChars) : 0
               return (
                 <div
@@ -241,7 +264,7 @@ export const ClipList = forwardRef<ClipListHandle, Props>(function ClipList(
                   <div className="row-content">
                     <div className="row-body">
                       {clip.hasImage && <Thumb id={clip.id} getThumb={getThumb} />}
-                      <div className="row-text">{clip.text || clip.title}</div>
+                      <RowBody clip={clip} getItem={getItem} />
                     </div>
                     <div className="row-prov">
                       <span className="prov-what">
@@ -253,7 +276,12 @@ export const ClipList = forwardRef<ClipListHandle, Props>(function ClipList(
                         <span className="prov-app">{clip.app}</span> · {clip.title}
                       </span>
                       <span className="prov-time">{formatStamp(clip.time, timeFormat)}</span>
-                      {tags.slice(0, 2).map((id) => (
+                      {richOnly && (
+                        <span className="chip" title="Rich text (RTF) — the list shows its plain text">
+                          Rich text
+                        </span>
+                      )}
+                      {shownTags.map((id) => (
                         <button
                           key={id}
                           type="button"
@@ -269,9 +297,9 @@ export const ClipList = forwardRef<ClipListHandle, Props>(function ClipList(
                           {id}
                         </button>
                       ))}
-                      {tags.length > 2 && (
-                        <span className="chip" title={tags.slice(2).join(', ')}>
-                          +{tags.length - 2}
+                      {hiddenTags > 0 && (
+                        <span className="chip" title={tags.slice(shownTags.length).join(', ')}>
+                          +{hiddenTags}
                         </span>
                       )}
                       {extra > 0 && (

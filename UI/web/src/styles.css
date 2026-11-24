@@ -605,6 +605,166 @@ a {
   object-fit: cover;
   background: var(--field);
 }
+.thumb-empty {
+  display: grid;
+  place-items: center;
+  color: var(--fg48);
+}
+/* ---------- rich row body (DESIGN-language §3: 10-line ceiling) ---------- */
+/* Source formatting keeps the row's own tokens: no source size larger than 16px, no source
+   colour that is not proven against its own background (see rich.tsx). */
+.row-text.clip-rich {
+  display: block;
+  white-space: normal;
+  line-height: 20px;
+  max-height: calc(10 * 20px);
+  overflow: hidden;
+}
+.clip-rich > :first-child {
+  margin-top: 0;
+}
+.clip-rich > :last-child {
+  margin-bottom: 0;
+}
+.clip-rich p,
+.clip-rich div,
+.clip-rich ul,
+.clip-rich ol,
+.clip-rich pre,
+.clip-rich blockquote,
+.clip-rich table {
+  margin: 0 0 4px;
+}
+.clip-rich b,
+.clip-rich strong {
+  font-weight: 600;
+}
+.clip-rich h1,
+.clip-rich h2,
+.clip-rich h3,
+.clip-rich h4 {
+  font-size: 15px;
+  line-height: 20px;
+  font-weight: 600;
+  margin: 2px 0 1px;
+}
+.clip-rich ul,
+.clip-rich ol {
+  padding-left: 18px;
+}
+.clip-rich li {
+  margin: 0;
+}
+.clip-rich li::marker {
+  color: var(--fg55);
+}
+.clip-rich blockquote {
+  padding: 2px 8px;
+  border: 1px solid var(--divider);
+  border-radius: 6px;
+}
+.clip-rich hr {
+  border: 0;
+  border-top: 1px solid var(--hairline);
+  margin: 4px 0;
+}
+/* Links are text in a row: readable, never a navigation target. */
+.clip-rich a {
+  color: var(--accent-text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  pointer-events: none;
+}
+.clip-rich pre,
+.clip-rich code {
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 20px;
+}
+.clip-rich code {
+  background: var(--field);
+  border-radius: 4px;
+  padding: 0 3px;
+}
+.clip-rich pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.clip-rich pre code {
+  background: none;
+  padding: 0;
+}
+/* A wide table scrolls inside the row; it can never widen the row or the page. */
+.clip-rich table {
+  border-collapse: collapse;
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  font-size: inherit;
+  line-height: 20px;
+}
+.clip-rich td,
+.clip-rich th {
+  padding: 0 10px 0 0;
+  vertical-align: top;
+}
+.clip-rich th {
+  font-weight: 600;
+  text-align: left;
+}
+.clip-rich img {
+  display: block;
+  max-width: 100%;
+  max-height: 160px;
+  border-radius: 4px;
+  margin: 2px 0;
+}
+.rich-img-ph {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 20px;
+  padding: 0 6px;
+  border: 1px dashed var(--control);
+  border-radius: 4px;
+  background: var(--field);
+  color: var(--fg48);
+  font-size: 11px;
+  vertical-align: middle;
+}
+/* Files rows: the folder part ellipsizes in the middle, the file name stays readable. */
+.row-files {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 18px;
+  max-height: calc(10 * 18px);
+}
+.file-path {
+  display: flex;
+  max-width: 100%;
+  min-width: 0;
+}
+.file-dir {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--fg55);
+}
+.file-name {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  color: var(--fg);
+}
+.row-files .chip {
+  margin-top: 2px;
+}
 .empty {
   position: absolute;
   inset: 0;

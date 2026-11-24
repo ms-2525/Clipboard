@@ -596,6 +596,7 @@ export default function App() {
                 focusSearch()
               }}
               getThumb={host.getThumb}
+              getItem={host.getItem}
               emptyTitle={
                 searching && visible.length === 0
                   ? 'Searching…'

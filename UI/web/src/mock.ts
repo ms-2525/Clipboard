@@ -1,5 +1,6 @@
 import { makeClips, MOCK_TABS, mockThumb } from './data'
-import type { ClipItem, Host, HostEvent, ItemsQuery, SearchResult } from './host'
+import { REAL_CLIPS } from './realClips'
+import type { ClipBody, ClipItem, Host, HostEvent, ItemsQuery, SearchResult } from './host'
 
 /**
  * Mock-only tag ids. The real host classifies in Core\ClipTags.cs; the page never
@@ -22,7 +23,35 @@ const KNOWN_TAGS = new Set([
 
 /** Deterministic 1,000-clip fixture for `npm run dev` and screenshots. Never used in WebView2. */
 export function createMockHost(): Host {
-  let clips: ClipItem[] = makeClips(1000).map((clip, index) => ({ ...clip, tags: MOCK_TAGS[index] ?? [] }))
+  // `?mock=real` serves the owner's six real captures (rich HTML, RTF-only, files, image);
+  // `?mock=1` is the 1,000-row fixture the virtualiser and keyboard checks use;
+  // `?mock=1000` keeps every row in the All tab, for the 1,000-row render measurement.
+  const params = new URLSearchParams(window.location.search)
+  const real = params.get('mock') === 'real'
+  const flat = params.get('mock') === '1000'
+  // `?rich=1` makes every row of the 1,000-row fixture rich: the 10-mounted-rich-row measurement.
+  const richAll = params.get('rich') === '1'
+  const realBodies = new Map<number, ClipBody>(
+    REAL_CLIPS.map((clip) => [
+      clip.item.id,
+      { text: clip.text, html: clip.html, rtf: clip.rtf, formats: clip.item.formats },
+    ]),
+  )
+  const realThumbs = new Map<number, string>(
+    REAL_CLIPS.filter((clip) => clip.thumb).map((clip) => [clip.item.id, clip.thumb as string]),
+  )
+  let clips: ClipItem[] = real
+    ? REAL_CLIPS.map((clip) => clip.item)
+    : makeClips(1000).map((clip, index) => ({
+        ...clip,
+        tags: MOCK_TAGS[index] ?? [],
+        tabId: flat ? null : clip.tabId,
+        hasHtml: richAll ? true : clip.hasHtml,
+      }))
+  // The bridge has no cancel path; counting calls here proves only mounted rows ask for a body.
+  const counter = window as unknown as { __mockGetItemCalls?: number; __mockGetItemIds?: number[] }
+  counter.__mockGetItemCalls = 0
+  counter.__mockGetItemIds = []
   const deleted: { clip: ClipItem; index: number }[] = []
   const listeners = new Set<(event: HostEvent) => void>()
   const tabs = MOCK_TABS.map((tab) => ({
@@ -130,6 +159,9 @@ export function createMockHost(): Host {
       return wait({ ...result, items: result.items.slice(0, limit) })
     },
     getItem: async (id: number) => {
+      counter.__mockGetItemCalls = (counter.__mockGetItemCalls ?? 0) + 1
+      counter.__mockGetItemIds?.push(id)
+      if (real && realBodies.has(id)) return wait(realBodies.get(id) ?? null)
       const clip = clips.find((entry) => entry.id === id)
       return wait(
         clip
@@ -137,7 +169,7 @@ export function createMockHost(): Host {
           : null,
       )
     },
-    getThumb: async (id: number) => wait<string | null>(mockThumb(id)),
+    getThumb: async (id: number) => wait<string | null>(real ? realThumbs.get(id) ?? null : mockThumb(id)),
     copy: async () => wait(undefined),
     paste: async () => wait({ pasted: false, error: 'Paste is not wired yet' }),
     delete: async ({ id }) => {
