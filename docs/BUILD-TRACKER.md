@@ -34,13 +34,13 @@ dual-axis audit (DB logic + UI/UX) is clean; memory inside the ceiling; docs upd
 | S3a | Search parser + tag filter + `search` bridge | `Core\ClipSearch.cs`, `Host\` | **DONE `ffc97aa`** | 15/15 grammar rows; 3–30 ms at 1k/2k, budget 50 ms |
 | S3b | Row contract + tags + real Inter + focus=selection | `UI\web\src\*` | **DONE `2131962`** | 10-line clamp (65→245 px rows), index `01`, provenance, 5 widths 0 overflow, Inter 400/500/600 inlined |
 | S4a | Keyboard matrix + host search + live capture in the UI | `UI\web\src\*` | IN PROGRESS | key→action table, unknown-tag hint, selection stable |
-| S4b | Clip actions in the host: paste, delete, undo, pin, move | `Host\`, `Core\` | QUEUED (after S6a) | Paste into Notepad lands; undo restores |
+| S4b | Clip actions in the host: paste, delete, undo, pin, move | `Host\`, `UI\ShellWindow.xaml.cs` | IN PROGRESS | Paste into Notepad lands; undo restores |
 | S4 | Clip actions: paste, delete/undo, pin, move, live capture | `Host\`, `UI\web\src\*` | QUEUED | Paste into Notepad lands; undo restores; capture appears live |
 | S3c | **P0** truncation guard, corrupt-DB recovery, one search rule | `Core\`, `Host\`, `UI\ClipRow.cs`, `UI\EditorWindow*` | **DONE `5a7a285`** | 600-emoji fixture, write guard refuses preview save, corrupt DB recovers once |
 | S3d | Bridge off the UI thread, tab restore, id ordering, `_meta` reopen | `Host\`, `Core\ClipboardStore.Items.cs` | **DONE `552e648`** | 35/35; UI gap 192 → 41.5 ms; 9.5k scope fixed |
 | S3g | Monotonic sort key: re-copy returns to top; recovery race | `Core\ClipboardStore*.cs` | **DONE `8dcdff0`** | 45/45; A,B → copy A → A,B after reload; 38-row migration lossless |
 | S5 | Rich rows: HTML/RTF/images/files, sanitizer, Word normalizer | `UI\web\src\*`, `Core\HtmlSanitize.cs` | QUEUED | Word + Excel + Chrome clips render; no network fetch |
-| S6 | Export clip to file | `Core\ClipExport.cs`, `Host\`, `UI\web\src\*` | IN PROGRESS (S6a core+host) | CSV opens in Excel; PNG opens; names safe |
+| S6 | Export clip to file | `Core\ClipExport.cs`, `Host\`, `UI\web\src\*` | **S6a DONE `8cda936`** (core+host); UI menu queued | CSV/PNG byte-identical; 24 name cases |
 | S7 | Settings + TipTap editor overlay | `UI\web\src\*`, `Host\` | QUEUED | Save round-trip keeps CF_HTML; zoom persists |
 | S8 | Native edges + cutover: tray, hotkey, toast, paste, single instance, autostart, DPI | `UI\ShellWindow*`, `App.xaml.cs`, `Core\Config.cs` | QUEUED | Alt+V 150 ms; toast auto-fits; reboot autostart |
 | S9a | OCR engine: retarget TFM, `Core\OcrService.cs`, store into the clip text, search | `Clip.csproj`, `Core\Ocr*.cs`, `Core\ClipboardStore*` | QUEUED | Real screenshot text found by search; 40 ms warm; single worker |
