@@ -34,23 +34,20 @@ dual-axis audit (DB logic + UI/UX) is clean; memory inside the ceiling; docs upd
 | S3a | Search parser + tag filter + `search` bridge | `Core\ClipSearch.cs`, `Host\` | **DONE `ffc97aa`** | 15/15 grammar rows; 3–30 ms at 1k/2k, budget 50 ms |
 | S3b | Row contract + tags + real Inter + focus=selection | `UI\web\src\*` | **DONE `2131962`** | 10-line clamp (65→245 px rows), index `01`, provenance, 5 widths 0 overflow, Inter 400/500/600 inlined |
 | S4a | Keyboard matrix + host search + live capture in the UI | `UI\web\src\*` | **DONE** (commits in `src`, evidence `docs\design-evidence\s4a`) | full key→action table; unknown-tag hint; recapture reorders without scroll jump |
-| S5 | Rich rows: sanitized HTML, Word normalizer, files, placeholders | `UI\web\src\*` | IN PROGRESS | adversarial sanitizer table; 0 network requests; 10-line clamp |
+| S5 | Rich rows: sanitized HTML, Word normalizer, files, placeholders | `UI\web\src\*` | **DONE `5ee4ac8`** | 12/12 adversarial payloads neutralised; 0 requests; 200 px clamp; 4 getItem calls for 1,000 rows |
 | S4b | Clip actions in the host: paste, delete, undo, pin, move | `Host\`, `UI\ShellWindow.xaml.cs` | **DONE `99339dc`** | Notepad got all 4 kinds; plain paste drops rich formats; 600-emoji body pasted whole |
 | S8a | Make `--v2` a real app: tray, hotkey, capture, single instance, autostart | `App.V2.cs`, `UI\ShellWindow*` | **DONE `5d56b53`** | Warm show 17.2 ms median; 6 live captures; second launch focuses first |
-| S8b | Native toast auto-fit, Ctrl+Shift+V hotkey, Clear history, elevation guard | `App.V2.cs`, `NotificationWindow*`, `Host\ClipHost.Actions.cs` | IN PROGRESS | Toast heights 1/5/30 lines; elevated paste refused loudly |
-| S4 | Clip actions: paste, delete/undo, pin, move, live capture | `Host\`, `UI\web\src\*` | QUEUED | Paste into Notepad lands; undo restores; capture appears live |
+| S8b | Native toast auto-fit, Ctrl+Shift+V hotkey, Clear history, elevation guard | `App.V2.cs`, `NotificationWindow*`, `Host\ClipHost.Actions.cs` | **DONE `7a65194`** | Toast 77→160 px by content; plain paste proven; elevated target refused with a message |
+| S8c | Audit blockers: copy self-capture, theme polarity, silent clipboard failure, OCR overwrite | `Host\`, `App.xaml.cs`, `Core\*` (narrow) | IN PROGRESS | copy → 0 captured events; theme table; failed write never injects |
 | S3c | **P0** truncation guard, corrupt-DB recovery, one search rule | `Core\`, `Host\`, `UI\ClipRow.cs`, `UI\EditorWindow*` | **DONE `5a7a285`** | 600-emoji fixture, write guard refuses preview save, corrupt DB recovers once |
 | S3d | Bridge off the UI thread, tab restore, id ordering, `_meta` reopen | `Host\`, `Core\ClipboardStore.Items.cs` | **DONE `552e648`** | 35/35; UI gap 192 → 41.5 ms; 9.5k scope fixed |
 | S3g | Monotonic sort key: re-copy returns to top; recovery race | `Core\ClipboardStore*.cs` | **DONE `8dcdff0`** | 45/45; A,B → copy A → A,B after reload; 38-row migration lossless |
-| S5 | Rich rows: sanitized HTML, Word normalizer, files, placeholders | `UI\web\src\*` | **DONE `5ee4ac8`** | 12/12 adversarial payloads neutralised; 0 requests; 200 px clamp; 4 getItem calls for 1,000 rows |
+| S6a | Export core + host Save dialog | `Core\ClipExport.cs`, `Host\ClipHost.Export.cs` | **DONE `8cda936`** | CSV/PNG byte-identical; 24 name cases |
+| S6b | Export in the UI: menu item, saved/cancelled feedback, open folder | `UI\web\src\*` | QUEUED | Export a clip from the page; toast names the file |
 | S7 | Settings wired + real editor overlay | `UI\web\src\*`, `Host\ClipHost.Settings.cs` | IN PROGRESS | config persists; CF_HTML round-trip valid; discard leaves body intact |
-| S6 | Export clip to file | `Core\ClipExport.cs`, `Host\`, `UI\web\src\*` | **S6a DONE `8cda936`** (core+host); UI menu queued | CSV/PNG byte-identical; 24 name cases |
-| S7 | Settings + TipTap editor overlay | `UI\web\src\*`, `Host\` | QUEUED | Save round-trip keeps CF_HTML; zoom persists |
-| S8 | Native edges + cutover: tray, hotkey, toast, paste, single instance, autostart, DPI | `UI\ShellWindow*`, `App.xaml.cs`, `Core\Config.cs` | QUEUED | Alt+V 150 ms; toast auto-fits; reboot autostart |
-| S8b | Native toast auto-fit, Ctrl+Shift+V hotkey, Clear history, elevation guard | `App.V2.cs`, `NotificationWindow*`, `Host\ClipHost.Actions.cs` | **DONE `7a65194`** | Toast 77→160 px by content; plain paste proven; elevated target refused with a message |
 | S9a | OCR: retarget TFM, `Core\OcrService.cs`, store into the clip text | `Clip.csproj`, `Core\` | **DONE `a3dee2b`** | 93.7 % chars on clip 356; search finds it; plain paste still the picture; +25.5 MB exe |
-| S9b | OCR in the UI: show extracted text, language notice, money caveat | `UI\web\src\*`, `Host\` | QUEUED | Image row shows its text; plain paste still pastes the picture |
-| S10 | Packaging + release audit | `Clip.csproj`, `build-release.cmd`, docs | QUEUED | One exe runs on a clean profile; checklists pass |
+| S9b | OCR in the UI: show extracted text, language notice, money caveat | `UI\web\src\*`, `Host\` | QUEUED | Image row shows its text; search reveals it |
+| S10 | Packaging + cutover: embed `dist`, flip the default launch, checklists, release audit | `Clip.csproj`, `build-release.cmd`, `App.xaml.cs`, docs | QUEUED | One exe runs the new UI on a clean profile; checklists pass |
 
 ## Open defects / debt
 
