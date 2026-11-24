@@ -33,7 +33,8 @@ dual-axis audit (DB logic + UI/UX) is clean; memory inside the ceiling; docs upd
 | R2 | Export + tag-query research | scratch only | **DONE** — CSV byte-identical, BOM yes, `sep=` never | CSV proof on real clip, 15-query grammar |
 | S3a | Search parser + tag filter + `search` bridge | `Core\ClipSearch.cs`, `Host\` | **DONE `ffc97aa`** | 15/15 grammar rows; 3–30 ms at 1k/2k, budget 50 ms |
 | S3b | Row contract + tags + real Inter + focus=selection | `UI\web\src\*` | **DONE `2131962`** | 10-line clamp (65→245 px rows), index `01`, provenance, 5 widths 0 overflow, Inter 400/500/600 inlined |
-| S4a | Keyboard matrix + host search + live capture in the UI | `UI\web\src\*` | IN PROGRESS | key→action table, unknown-tag hint, selection stable |
+| S4a | Keyboard matrix + host search + live capture in the UI | `UI\web\src\*` | **DONE** (commits in `src`, evidence `docs\design-evidence\s4a`) | full key→action table; unknown-tag hint; recapture reorders without scroll jump |
+| S5 | Rich rows: sanitized HTML, Word normalizer, files, placeholders | `UI\web\src\*` | IN PROGRESS | adversarial sanitizer table; 0 network requests; 10-line clamp |
 | S4b | Clip actions in the host: paste, delete, undo, pin, move | `Host\`, `UI\ShellWindow.xaml.cs` | **DONE `99339dc`** | Notepad got all 4 kinds; plain paste drops rich formats; 600-emoji body pasted whole |
 | S8a | Make `--v2` a real app: tray, hotkey, capture, single instance, autostart | `App.V2.cs`, `UI\ShellWindow*` | **DONE `5d56b53`** | Warm show 17.2 ms median; 6 live captures; second launch focuses first |
 | S8b | Native toast auto-fit, Ctrl+Shift+V hotkey, Clear history, elevation guard | `App.V2.cs`, `NotificationWindow*`, `Host\ClipHost.Actions.cs` | IN PROGRESS | Toast heights 1/5/30 lines; elevated paste refused loudly |
