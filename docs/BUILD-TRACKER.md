@@ -18,6 +18,9 @@ dual-axis audit (DB logic + UI/UX) is clean; memory inside the ceiling; docs upd
 6. Commit at the end of each slice on `v2-phase1`; audit runs against that commit.
 7. After each slice, a separate agent audits it (DB/logic + UI/UX) → `docs\AUDIT-slice-<n>.md`.
    Findings are fixed before the next slice starts, unless noted as accepted debt.
+8. **Build lock:** while any agent has the app running from `bin\Release\net10.0-windows\`, the default
+   build fails at the final copy (the exe is held). Build with `-o %TEMP%\opencode\build-<slice>` in
+   that case; a lock is not a code error. Close the app before the slice's final gate build.
 
 ## Slice board
 
@@ -27,7 +30,7 @@ dual-axis audit (DB logic + UI/UX) is clean; memory inside the ceiling; docs upd
 | S2 | Visual audit + contrast tokens | `UI\web\src\styles.css`, `icons.tsx` | IN PROGRESS | Computed ratio table light+dark, screenshots |
 | R1 | OCR research (engine, cost, storage) | scratch only | IN PROGRESS | Accuracy table, per-image ms, migration cost |
 | R2 | Export + tag-query research | scratch only | IN PROGRESS | CSV proof on real clip, 15-query grammar |
-| S3a | Search parser + tag filter + `search` bridge | `Core\ClipSearch.cs`, `Host\` | IN PROGRESS | `image:`/`excel:`/`-x:` parsed; 15-query table; <50 ms at 1k |
+| S3a | Search parser + tag filter + `search` bridge | `Core\ClipSearch.cs`, `Host\` | **DONE `ffc97aa`** | 15/15 grammar rows; 3–30 ms at 1k/2k, budget 50 ms |
 | S3b | Row contract + keyboard matrix in the UI | `UI\web\src\*` | QUEUED (waits on S2) | 10-line clamp, index `01`, provenance, digits 1–9 |
 | S4 | Clip actions: paste, delete/undo, pin, move, live capture | `Host\`, `UI\web\src\*` | QUEUED | Paste into Notepad lands; undo restores; capture appears live |
 | S5 | Rich rows: HTML/RTF/images/files, sanitizer, Word normalizer | `UI\web\src\*`, `Core\HtmlSanitize.cs` | QUEUED | Word + Excel + Chrome clips render; no network fetch |
