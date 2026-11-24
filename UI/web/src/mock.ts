@@ -200,8 +200,22 @@ export function createMockHost(): Host {
       return wait(undefined)
     },
     hide: async () => wait(undefined),
-    exportClip: async () => {
-      throw new Error('Export is not wired yet')
+    // Preview-only: the fixture writes nothing. It answers the same shape as the host so the
+    // toast path can be seen in a browser; the real file is only ever written by Clip.Host.
+    exportClip: async ({ id, format }) => {
+      const clip = clips.find((entry) => entry.id === id)
+      if (!clip) throw new Error('Clip not found')
+      if (clip.kind === 'files') throw new Error('A file list is not a document, so there is nothing to save.')
+      const ext =
+        format !== 'auto'
+          ? format
+          : clip.hasImage
+            ? 'png'
+            : clip.tags.includes('spreadsheet')
+              ? 'csv'
+              : 'txt'
+      const name = clip.title.replace(/[\\/:*?"<>|]/g, ' ').trim() || 'Clip'
+      return wait({ saved: true, path: `C:\\Users\\Owner\\Documents\\${name}.${ext}` })
     },
     saveConfig: async (patch: SettingsPatch) => {
       const next: typeof settings = {

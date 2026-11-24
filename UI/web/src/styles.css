@@ -610,6 +610,22 @@ a {
   place-items: center;
   color: var(--fg48);
 }
+/* OCR words (step plan 3): the picture stays the payload, the text is the body. */
+.row-ocr {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.ocr-mark {
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--fg48);
+  margin-bottom: 2px;
+}
+.row-text.ocr-none {
+  color: var(--fg55);
+}
 /* ---------- rich row body (DESIGN-language §3: 10-line ceiling) ---------- */
 /* Source formatting keeps the row's own tokens: no source size larger than 16px, no source
    colour that is not proven against its own background (see rich.tsx). */
@@ -1415,6 +1431,14 @@ a {
 }
 .popover .pop-item:hover {
   background: var(--field);
+}
+.popover .pop-item .keycap {
+  margin-left: auto;
+}
+.export-pop {
+  top: 34px;
+  right: 0;
+  left: auto;
 }
 .colours {
   display: grid;

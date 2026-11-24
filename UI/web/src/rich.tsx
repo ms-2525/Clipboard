@@ -289,6 +289,20 @@ export function RowBody({ clip, getItem }: { clip: ClipItem; getItem: GetItem })
     )
   }
 
+  // OCR text is stored as the clip's text (step plan 3), so the words are the row body while the
+  // picture stays the payload. No OCR text (older clip, or no language pack) still shows a line.
+  if (clip.hasImage) {
+    const words = clip.text.trim()
+    return (
+      <div className="row-ocr">
+        {words && <div className="ocr-mark">Text read from image</div>}
+        <div className={'row-text' + (words ? '' : ' ocr-none')} title={title}>
+          {words || 'No text found in this image'}
+        </div>
+      </div>
+    )
+  }
+
   if (rich && safe) {
     return <div className="row-text clip-rich" title={title} dangerouslySetInnerHTML={{ __html: safe }} />
   }

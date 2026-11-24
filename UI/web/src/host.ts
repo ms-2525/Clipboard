@@ -99,6 +99,13 @@ export interface PasteResult {
   error?: string
 }
 
+/** `export` answers a cancel without an error; the cancellation reason lives only in `cancelled`. */
+export interface ExportResult {
+  saved: boolean
+  cancelled?: boolean
+  path?: string
+}
+
 export interface Host {
   readonly mode: 'host' | 'mock'
   init(): Promise<InitResult>
@@ -113,7 +120,7 @@ export interface Host {
   togglePin(params: { id: number }): Promise<void>
   moveToTab(params: { id: number; tabId: number | null }): Promise<void>
   hide(): Promise<void>
-  exportClip(params: { id: number; format: string }): Promise<void>
+  exportClip(params: { id: number; format: string }): Promise<ExportResult>
   saveConfig(patch: SettingsPatch): Promise<SaveConfigResult>
   saveEditor(params: { id: number; html: string; text: string }): Promise<EditorSaveResult>
   clearHistory(): Promise<void>
@@ -213,13 +220,13 @@ class WebViewHost implements Host {
     else waiting.resolve(message.result)
   }
 
-  private send<T>(method: string, params: unknown = {}): Promise<T> {
+  private send<T>(method: string, params: unknown = {}, timeoutMs = REQUEST_TIMEOUT_MS): Promise<T> {
     const id = ++this.seq
     return new Promise<T>((resolve, reject) => {
       const timer = window.setTimeout(() => {
         this.pending.delete(id)
         reject(new Error(`Clip host did not answer ${method}`))
-      }, REQUEST_TIMEOUT_MS)
+      }, timeoutMs)
       this.pending.set(id, { resolve: resolve as (value: unknown) => void, reject, timer })
       this.bridge.postMessage({ id, method, params })
     })
@@ -316,7 +323,11 @@ class WebViewHost implements Host {
   }
 
   exportClip = async (params: { id: number; format: string }) => {
-    await this.send('export', { id: params.id, format: params.format })
+    // The owner types in the Save dialog before this answers; the ordinary request timeout is
+    // far shorter than a person choosing a name.
+    const result = await this.send<ExportResult | null>('export', { id: params.id, format: params.format }, 10 * 60 * 1000)
+    // A host that answers without the flag saved nothing; never claim a file we did not confirm.
+    return { saved: result?.saved === true, cancelled: result?.cancelled === true, path: result?.path }
   }
 
   saveConfig = async (patch: SettingsPatch): Promise<SaveConfigResult> => {

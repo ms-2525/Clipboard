@@ -157,6 +157,8 @@ export function makeClips(count = 1000): ClipItem[] {
     title: 'Screenshot 2026-11-24 143012.png',
     formats: ['PNG', 'Biff12'],
     hasImage: true,
+    // No OCR text: the older-clip / no-language case the row must still answer with a placeholder.
+    text: '',
     truncated: false,
     remainingChars: 0,
   })

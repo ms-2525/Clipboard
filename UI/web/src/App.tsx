@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import * as Tabs from '@radix-ui/react-tabs'
 import * as Tooltip from '@radix-ui/react-tooltip'
 import { ClipList, type ClipListHandle } from './ClipList'
@@ -13,6 +13,7 @@ import {
   IconClipboard,
   IconClose,
   IconEdit,
+  IconFile,
   IconMoon,
   IconSearch,
   IconSettings,
@@ -27,6 +28,19 @@ interface Toast {
   title: string
   sub: string
   error: boolean
+  /** Full text for the native tooltip (an export's absolute path does not fit the toast). */
+  hint?: string
+}
+
+/** Formats the host accepts for this clip; a file list has none, because the host refuses it. */
+function exportOptions(clip: ClipItem | null): { format: string; label: string }[] {
+  if (!clip || clip.kind === 'files') return []
+  if (clip.hasImage) return [{ format: 'png', label: 'PNG (.png)' }]
+  if (clip.tags.includes('spreadsheet')) return [{ format: 'csv', label: 'CSV (.csv)' }]
+  return [
+    { format: 'txt', label: 'Text (.txt)' },
+    { format: 'md', label: 'Markdown (.md)' },
+  ]
 }
 
 /** The last search answer, kept while the next one is pending so the rows never flash blank. */
@@ -66,6 +80,7 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(previewUi && params.get('surface') === 'settings')
   const [editorOpen, setEditorOpen] = useState(previewUi && params.get('surface') === 'editor')
   const [confirm, setConfirm] = useState<ClipItem | null>(null)
+  const [exportOpen, setExportOpen] = useState(false)
   const [toasts, setToasts] = useState<Toast[]>([])
   const [init, setInit] = useState<InitResult | null>(null)
   const [items, setItems] = useState<ClipItem[]>([])
@@ -81,14 +96,16 @@ export default function App() {
   const lastDeleted = useRef<{ clip: ClipItem; index: number } | null>(null)
   const searchRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<ClipListHandle>(null)
+  const exportRef = useRef<HTMLDivElement>(null)
+  const exportReturn = useRef<HTMLElement | null>(null)
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
   }, [theme])
 
-  const showToast = useCallback((title: string, sub: string, error = false) => {
+  const showToast = useCallback((title: string, sub: string, error = false, hint?: string) => {
     const id = ++toastId.current
-    setToasts((current) => [...current.slice(-2), { id, title, sub, error }])
+    setToasts((current) => [...current.slice(-2), { id, title, sub, error, hint }])
     window.setTimeout(() => setToasts((current) => current.filter((toast) => toast.id !== id)), 2600)
   }, [])
 
@@ -330,6 +347,60 @@ export default function App() {
     }
   }, [host, showToast])
 
+  const closeExport = useCallback((restoreFocus: boolean) => {
+    setExportOpen(false)
+    if (restoreFocus) exportReturn.current?.focus?.()
+  }, [])
+
+  const openExport = useCallback(() => {
+    if (!selected || exportOptions(selected).length === 0) return
+    exportReturn.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    setExportOpen(true)
+  }, [selected])
+
+  /** The host owns the dialog, the name and the bytes; the page only reports what came back. */
+  const saveClip = useCallback(
+    async (clip: ClipItem, format: string) => {
+      setExportOpen(false)
+      try {
+        const result = await host.exportClip({ id: clip.id, format })
+        if (!result.saved) return // cancelled: no toast, no error
+        const path = result.path ?? ''
+        const name = path.split(/[\\/]/).pop() || 'Clip'
+        showToast(`Saved “${name}”`, path || 'The file was saved.', false, path)
+      } catch (error) {
+        showToast('Export failed', messageOf(error), true)
+      }
+    },
+    [host, showToast],
+  )
+
+  // The menu is a small popover: Escape closes it, arrows walk its items, and a click outside closes it.
+  const onExportKey = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      closeExport(true)
+      return
+    }
+    if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return
+    event.preventDefault()
+    const items = Array.from(exportRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])
+    if (items.length === 0) return
+    const at = items.indexOf(document.activeElement as HTMLElement)
+    items[(at + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length]?.focus()
+  }
+
+  useEffect(() => {
+    if (!exportOpen) return
+    const onDown = (event: MouseEvent) => {
+      if (!exportRef.current?.contains(event.target as Node)) setExportOpen(false)
+    }
+    window.addEventListener('mousedown', onDown)
+    return () => window.removeEventListener('mousedown', onDown)
+  }, [exportOpen])
+
+  useEffect(() => setExportOpen(false), [selectedId])
+
   const zoomRef = useRef(settings.uiZoom)
   zoomRef.current = settings.uiZoom
   const zoomSeq = useRef(0)
@@ -417,7 +488,7 @@ export default function App() {
   }, [confirm, host, showToast])
 
   useClipboardKeys({
-    enabled: !editorOpen && !settingsOpen && confirm == null,
+    enabled: !editorOpen && !settingsOpen && !exportOpen && confirm == null,
     rows: visible,
     selectedId,
     search,
@@ -428,6 +499,7 @@ export default function App() {
     onPage: (direction) => listRef.current?.pageBy(direction),
     onPaste: (clip, plain) => void pasteItem(clip, plain),
     onEdit: () => selected && setEditorOpen(true),
+    onExport: openExport,
     onDelete: () => selected && setConfirm(selected),
     onRestore: () => void undoDelete(),
     onPin: () => void pinItem(),
@@ -638,6 +710,38 @@ export default function App() {
               Edit clip
               <span className="keycap edit-key">F2</span>
             </button>
+            {exportOptions(selected).length > 0 && (
+              <div className="tool-wrap" ref={exportRef}>
+                <button
+                  className="btn sm"
+                  onClick={() => (exportOpen ? closeExport(false) : openExport())}
+                  aria-haspopup="menu"
+                  aria-expanded={exportOpen}
+                  title="Save the selected clip as a file (Ctrl+E)"
+                >
+                  <IconFile />
+                  Save as
+                </button>
+                {exportOpen && selected && (
+                  <div className="popover export-pop" role="menu" aria-label="Save the selected clip" onKeyDown={onExportKey}>
+                    <button className="pop-item" role="menuitem" autoFocus onClick={() => void saveClip(selected, 'auto')}>
+                      Save as…
+                      <span className="keycap">Ctrl E</span>
+                    </button>
+                    {exportOptions(selected).map((option) => (
+                      <button
+                        key={option.format}
+                        className="pop-item"
+                        role="menuitem"
+                        onClick={() => void saveClip(selected, option.format)}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {status === 'loading' && (
@@ -750,7 +854,7 @@ export default function App() {
 
       <div className="toast-region" aria-live="polite">
         {toasts.map((toast) => (
-          <div className={'toast' + (toast.error ? ' error' : '')} key={toast.id}>
+          <div className={'toast' + (toast.error ? ' error' : '')} key={toast.id} title={toast.hint || undefined}>
             <span className="ok">{toast.error ? <IconWarning /> : <IconCheck />}</span>
             <div className="grow">
               <div className="toast-title">{toast.title}</div>

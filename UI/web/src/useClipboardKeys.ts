@@ -15,6 +15,7 @@ export interface KeyActions {
   onPage: (direction: 1 | -1) => void
   onPaste: (clip: ClipItem, plain: boolean) => void
   onEdit: () => void
+  onExport: () => void
   onDelete: () => void
   onRestore: () => void
   onPin: () => void
@@ -74,6 +75,11 @@ export function useClipboardKeys(actions: KeyActions) {
         if (lower === 'z') {
           take()
           actions.onRestore()
+          return
+        }
+        if (lower === 'e') {
+          take()
+          actions.onExport()
           return
         }
         // Ctrl+A/C/X stay with the search field.
