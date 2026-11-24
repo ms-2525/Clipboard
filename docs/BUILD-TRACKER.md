@@ -42,7 +42,8 @@ dual-axis audit (DB logic + UI/UX) is clean; memory inside the ceiling; docs upd
 | S3c | **P0** truncation guard, corrupt-DB recovery, one search rule | `Core\`, `Host\`, `UI\ClipRow.cs`, `UI\EditorWindow*` | **DONE `5a7a285`** | 600-emoji fixture, write guard refuses preview save, corrupt DB recovers once |
 | S3d | Bridge off the UI thread, tab restore, id ordering, `_meta` reopen | `Host\`, `Core\ClipboardStore.Items.cs` | **DONE `552e648`** | 35/35; UI gap 192 → 41.5 ms; 9.5k scope fixed |
 | S3g | Monotonic sort key: re-copy returns to top; recovery race | `Core\ClipboardStore*.cs` | **DONE `8dcdff0`** | 45/45; A,B → copy A → A,B after reload; 38-row migration lossless |
-| S5 | Rich rows: HTML/RTF/images/files, sanitizer, Word normalizer | `UI\web\src\*`, `Core\HtmlSanitize.cs` | QUEUED | Word + Excel + Chrome clips render; no network fetch |
+| S5 | Rich rows: sanitized HTML, Word normalizer, files, placeholders | `UI\web\src\*` | **DONE `5ee4ac8`** | 12/12 adversarial payloads neutralised; 0 requests; 200 px clamp; 4 getItem calls for 1,000 rows |
+| S7 | Settings wired + real editor overlay | `UI\web\src\*`, `Host\ClipHost.Settings.cs` | IN PROGRESS | config persists; CF_HTML round-trip valid; discard leaves body intact |
 | S6 | Export clip to file | `Core\ClipExport.cs`, `Host\`, `UI\web\src\*` | **S6a DONE `8cda936`** (core+host); UI menu queued | CSV/PNG byte-identical; 24 name cases |
 | S7 | Settings + TipTap editor overlay | `UI\web\src\*`, `Host\` | QUEUED | Save round-trip keeps CF_HTML; zoom persists |
 | S8 | Native edges + cutover: tray, hotkey, toast, paste, single instance, autostart, DPI | `UI\ShellWindow*`, `App.xaml.cs`, `Core\Config.cs` | QUEUED | Alt+V 150 ms; toast auto-fits; reboot autostart |
