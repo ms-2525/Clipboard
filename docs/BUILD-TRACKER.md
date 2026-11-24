@@ -1,4 +1,4 @@
-﻿# Build tracker â€” Clip v2 release (night of 25/11/2026)
+# Build tracker â€” Clip v2 release (night of 25/11/2026)
 
 **Owner instruction:** continue building autonomously, sub-agents only, thorough DB-logic and UI/UX
 audits after every major change, release-ready within 8â€“10 hours.
