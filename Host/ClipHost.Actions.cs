@@ -20,6 +20,22 @@ namespace Clip.Host
         /// <summary>One-level session undo buffer per id: restore needs the full row the delete removed.</summary>
         readonly Dictionary<long, ClipboardItem> _deleted = new Dictionary<long, ClipboardItem>();
 
+        /// <summary>
+        /// Set by the v2 app: an injected paste is Clip's own clipboard write, not a new capture. Without it a
+        /// paste re-enters history and fires a toast for a clip the user already had.
+        /// </summary>
+        internal static Action<uint> SuppressCapture;
+
+        /// <summary>Ctrl+Shift+V armed the next paste as plain text; the flag is consumed by that paste only.</summary>
+        bool _plainNext;
+
+        /// <summary>The page also hears this as "plainMode" so it can show the mode in its own UI.</summary>
+        public void SetPlainMode(bool on)
+        {
+            _plainNext = on;
+            Emit("plainMode", new { on });
+        }
+
         // ---- delete / restore -------------------------------------------------
 
         object Delete(JsonElement p)
@@ -88,7 +104,8 @@ namespace Clip.Host
             try
             {
                 long clipId = Long(p, "id");
-                plain = Bool(p, "plain");
+                plain = Bool(p, "plain") || _plainNext;
+                _plainNext = false; // one paste only: the next open is a normal one
                 item = ReadFullItem(_dbPath, clipId);
                 if (item == null) throw new ArgumentException("no clip with id " + clipId);
             }
@@ -102,6 +119,13 @@ namespace Clip.Host
             if (target == IntPtr.Zero || !IsWindow(target))
             {
                 Reply(Ok(id, new { pasted = false, error = "No target app to paste into. Open Clip over the app first." }));
+                return;
+            }
+
+            if (BlockedByElevation(target))
+            {
+                _show(); // the shell is still open; bring it back rather than leaving the user in a dead app
+                Reply(Ok(id, new { pasted = false, error = ElevatedPasteError }));
                 return;
             }
 
@@ -131,8 +155,8 @@ namespace Clip.Host
         {
             try
             {
-                if (plain) PasteInjector.CopyAndPastePlain(item);
-                else PasteInjector.CopyAndPaste(item);
+                uint seq = plain ? PasteInjector.CopyAndPastePlain(item) : PasteInjector.CopyAndPaste(item);
+                SuppressCapture?.Invoke(seq);
                 Reply(Ok(id, new { pasted = true }));
             }
             catch (Exception ex)
@@ -140,6 +164,49 @@ namespace Clip.Host
                 _show(); // the page's toast is invisible while the shell is hidden
                 Reply(Ok(id, new { pasted = false, error = "Could not paste: " + ex.Message }));
             }
+        }
+
+        // ---- elevation guard --------------------------------------------------
+
+        const string ElevatedPasteError =
+            "That app is running as administrator \u2014 Windows blocks paste into it. Copy the clip instead.";
+
+        const uint ProcessQueryLimitedInformation = 0x1000;
+        const uint TokenQuery = 0x0008;
+        const int TokenElevation = 20;
+
+        static readonly bool SelfElevated = IsElevated((uint)Environment.ProcessId);
+
+        /// <summary>
+        /// UIPI silently drops the injected Ctrl+V when the target runs at a higher integrity level than Clip:
+        /// SendInput succeeds, so paste used to claim success and nothing landed. Compare token elevation first.
+        /// </summary>
+        static bool BlockedByElevation(IntPtr target)
+        {
+            if (SelfElevated) return false;
+            GetWindowThreadProcessId(target, out uint pid);
+            return pid != 0 && IsElevated(pid);
+        }
+
+        /// <summary>
+        /// Token elevation for a process. A process we cannot even open or query is treated as elevated:
+        /// the same access rules that hide it from us also block an injected chord into its windows.
+        /// </summary>
+        static bool IsElevated(uint pid)
+        {
+            IntPtr process = OpenProcess(ProcessQueryLimitedInformation, false, pid);
+            if (process == IntPtr.Zero) return true;
+            try
+            {
+                if (!OpenProcessToken(process, TokenQuery, out IntPtr token)) return true;
+                try
+                {
+                    if (!GetTokenInformation(token, TokenElevation, out int elevated, sizeof(int), out _)) return true;
+                    return elevated != 0;
+                }
+                finally { CloseHandle(token); }
+            }
+            finally { CloseHandle(process); }
         }
 
         // ---- captured event (plumbing for a future --v2 capture service) ------
@@ -318,5 +385,20 @@ FROM items WHERE id = $id";
 
         [DllImport("kernel32.dll")]
         static extern uint GetCurrentThreadId();
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        static extern IntPtr OpenProcess(uint access, bool inheritHandle, uint processId);
+
+        [DllImport("kernel32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        static extern bool CloseHandle(IntPtr handle);
+
+        [DllImport("advapi32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        static extern bool OpenProcessToken(IntPtr process, uint access, out IntPtr token);
+
+        [DllImport("advapi32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        static extern bool GetTokenInformation(IntPtr token, int informationClass, out int info, int length, out int returned);
     }
 }

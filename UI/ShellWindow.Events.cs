@@ -17,11 +17,13 @@ namespace Clip.UI
     /// </summary>
     public partial class ShellWindow
     {
+#if DEBUG
         readonly string _timingPath = Environment.GetEnvironmentVariable("CLIP_V2_TIMING");
+#endif
         bool _warming = true;
         bool _pageReady;
         bool _allowClose;
-        string _hotkeyFailure;
+        readonly List<string> _hotkeyFailures = new List<string>();
 
         /// <summary>
         /// Created at startup as a transparent, taskbar-less window so the WebView2 and the page are built once;
@@ -41,11 +43,23 @@ namespace Clip.UI
             else ShowShell();
         }
 
-        internal void ShowShell()
+        internal void ShowShell() => ShowShell(false);
+
+        /// <summary>
+        /// Ctrl+Shift+V: the shell opens with the next paste forced to plain text. The flag lives in the host;
+        /// the page also hears a "plainMode" event if it wants to show it.
+        /// </summary>
+        internal void ShowPlain() => ShowShell(true);
+
+        void ShowShell(bool plain)
         {
             if (_warming) EndWarm(); // demanded before the first frame: finish the warm surface instead of reloading
+            _host?.SetPlainMode(plain);
             if (!IsVisible) Show();
             Activate();
+            // A window activation does not hand the keyboard to the WebView; without this, the page's
+            // key matrix (Enter to paste, typing to search) is dead until the user clicks inside.
+            Web.Focus();
         }
 
         /// <summary>Tray Settings: the page owns that surface and has no route yet, so its own button is clicked.</summary>
@@ -90,8 +104,16 @@ namespace Clip.UI
 
         public void NotifyHotkeyFailed(string combo)
         {
-            _hotkeyFailure = combo;
+            _hotkeyFailures.Add(combo);
             if (_pageReady) Emit("hotkeyFailed", new { combo });
+        }
+
+        /// <summary>A clear reloads the page: the page has no "history was cleared" reducer yet.</summary>
+        internal void NotifyCleared()
+        {
+            Emit("cleared", new { });
+            try { Web.CoreWebView2?.Reload(); }
+            catch (InvalidOperationException) { } // browser already tearing down: the next launch starts clean
         }
 
         public void NotifyThemeChanged(string theme) => Emit("themeChanged", new { theme });
@@ -113,13 +135,15 @@ namespace Clip.UI
         {
             _pageReady = true;
             // A failed hotkey is still true after a reload, so a fresh page is told again instead of losing it.
-            if (_hotkeyFailure != null) Emit("hotkeyFailed", new { combo = _hotkeyFailure });
+            foreach (var combo in _hotkeyFailures) Emit("hotkeyFailed", new { combo });
             if (!_warming) return;
 
             try { await FirstFrameAsync(); }
             catch (Exception) { } // the runtime can disappear mid-load; the surface still ends
             EndWarm();
+#if DEBUG
             if (!string.IsNullOrEmpty(_timingPath)) await RunShowProbeAsync();
+#endif
         }
 
         async Task<double> FirstFrameAsync()
@@ -131,8 +155,9 @@ namespace Clip.UI
 
         /// <summary>
         /// Dev-only acceptance probe: with CLIP_V2_TIMING=&lt;file&gt; set it opens and hides the warm shell 20
-        /// times and writes each real Show()→first-frame time. Unset on the normal path.
+        /// times and writes each real Show()→first-frame time. DEBUG only; absent from a Release build.
         /// </summary>
+#if DEBUG
         async Task RunShowProbeAsync()
         {
             var lines = new List<string>();
@@ -147,5 +172,6 @@ namespace Clip.UI
             }
             File.WriteAllLines(_timingPath, lines);
         }
+#endif
     }
 }

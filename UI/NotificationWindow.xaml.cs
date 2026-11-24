@@ -143,18 +143,56 @@ namespace Clip.UI
             }
             else
             {
-                var lines = (item.Text ?? "").Replace("\r", "").Split('\n');
-                int count = Math.Min(Math.Max(1, n.MaxLines), lines.Length);
-                var body = new StringBuilder();
-                for (int i = 0; i < count; i++)
-                {
-                    if (i > 0) body.Append('\n');
-                    body.Append(lines[i].Length > 120 ? lines[i].Substring(0, 120) + "…" : lines[i]);
-                }
-                Body.Text = body.ToString().TrimEnd();
+                SetBody(item.Text, n.MaxLines);
             }
 
             Present();
+        }
+
+        /// <summary>
+        /// Auto-fit (DESIGN-language §3.2): the configured height is the maximum. Wraps at most
+        /// <paramref name="maxLines"/> source lines, then drops lines until the measured toast fits, so the
+        /// body is never cut mid-line. A one-line copy gets a short toast; a long one stops at the height.
+        /// </summary>
+        void SetBody(string text, int maxLines, bool trimLines = true)
+        {
+            var lines = (text ?? "").Replace("\r", "").Split('\n');
+            int shown = Math.Min(Math.Max(1, maxLines), lines.Length);
+            while (true)
+            {
+                Body.Text = BuildBody(lines, shown, trimLines);
+                if (shown == 1 || Fits()) return;
+                shown--;
+            }
+        }
+
+        /// <summary>True when the laid-out content fits the configured maximum height (DIP).</summary>
+        bool Fits()
+        {
+            MeasureRoot(_cfg.Notification.Width);
+            return Root.DesiredSize.Height <= _cfg.Notification.Height;
+        }
+
+        /// <summary>
+        /// Measures the toast content at <paramref name="width"/>. The half-DIP pass is deliberate: WPF reuses
+        /// cached child sizes when the constraint is unchanged, so a text change would otherwise measure stale.
+        /// </summary>
+        void MeasureRoot(double width)
+        {
+            Root.InvalidateMeasure();
+            Root.Measure(new Size(Math.Max(1, width - 0.5), double.PositiveInfinity));
+            Root.Measure(new Size(width, double.PositiveInfinity));
+        }
+
+        static string BuildBody(string[] lines, int count, bool trimLines)
+        {
+            var body = new StringBuilder();
+            for (int i = 0; i < count; i++)
+            {
+                if (i > 0) body.Append('\n');
+                body.Append(trimLines && lines[i].Length > 120 ? lines[i].Substring(0, 120) + "…" : lines[i]);
+            }
+            return body.ToString().TrimEnd();
         }
 
         /// <summary>A plain message (first run, skipped capture, hotkey conflict) in the same reused toast.</summary>
@@ -167,9 +205,9 @@ namespace Clip.UI
             Time.Visibility = Visibility.Collapsed;
             ThumbImg.Source = null;
             ThumbImg.Visibility = Visibility.Collapsed;
-            Body.Text = message ?? "";
             Body.Foreground = (Brush)FindResource("Fg75");
             Body.Visibility = Visibility.Visible;
+            SetBody(message ?? "", int.MaxValue, false);
             Present();
         }
 
@@ -177,10 +215,11 @@ namespace Clip.UI
         void Present()
         {
             var n = _cfg.Notification;
-            // The configured height is the toast's height: no SizeToContent override (ACC-v2 §7.5).
+            // §3.2: content decides the height, the configured value caps it. Measuring the content before
+            // Show keeps the top/bottom placement honest instead of sizing after the toast is already visible.
             Width = n.Width;
-            Height = n.Height;
-            Body.MaxHeight = Math.Max(24, n.Height - 76);
+            MeasureRoot(n.Width);
+            Height = Math.Min(n.Height, Math.Ceiling(Root.DesiredSize.Height));
 
             var s = WF.Screen.FromPoint(WF.Cursor.Position);
             // "Clip" alone binds to Window.Clip (Geometry), so qualify globally.

@@ -44,6 +44,8 @@ namespace Clip.UI
             Closing += OnClosing;
             // Same popup rule as the old Alt+V list: losing activation hides it, never closes it.
             Deactivated += (s, e) => { if (!_warming) Hide(); };
+            // A hidden shell is no longer in plain-paste mode; arming survives only while it is on screen.
+            IsVisibleChanged += (s, e) => { if (!IsVisible) _host?.SetPlainMode(false); };
         }
 
         async void OnLoaded(object sender, RoutedEventArgs e)
@@ -54,11 +56,15 @@ namespace Clip.UI
                 string profile = Path.Combine(Path.GetTempPath(), "opencode", "clip-v2-webview");
                 Directory.CreateDirectory(profile);
 
-                // CLIP_V2_DEBUG_PORT is a dev-only CDP hook for verification; unset on the normal path.
+                // CLIP_V2_DEBUG_PORT is a DEBUG-only CDP hook for verification; a Release build has no such path.
+#if DEBUG
                 string debugPort = Environment.GetEnvironmentVariable("CLIP_V2_DEBUG_PORT");
                 var options = string.IsNullOrEmpty(debugPort)
                     ? null
                     : new CoreWebView2EnvironmentOptions("--remote-debugging-port=" + debugPort);
+#else
+                CoreWebView2EnvironmentOptions options = null;
+#endif
                 var environment = await CoreWebView2Environment.CreateAsync(null, profile, options);
                 await Web.EnsureCoreWebView2Async(environment);
 

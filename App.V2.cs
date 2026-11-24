@@ -3,7 +3,9 @@ using System.IO;
 using System.Reflection;
 using System.Threading;
 using System.Windows;
+using System.Windows.Threading;
 using Clip.Core;
+using Clip.Host;
 using Clip.Interop;
 using Clip.UI;
 using H.NotifyIcon;
@@ -80,14 +82,29 @@ namespace Clip
                 Shutdown();
             };
 
+            _notif = new NotificationWindow(_cfg);
             BuildV2Tray();
             _shell.Warm();
 
             _capture = new CaptureService(_store, _cfg);
-            _capture.Captured += item => _shell?.NotifyCaptured(item);
-            _capture.Skipped += reason => _shell?.NotifySkipped(reason);
+            _capture.Captured += item =>
+            {
+                _shell?.NotifyCaptured(item);
+                if (_cfg.Notification.Enabled) _notif?.ShowFor(item);
+            };
+            _capture.Skipped += reason =>
+            {
+                _shell?.NotifySkipped(reason);
+                if (_cfg.Notification.Enabled)
+                    _notif?.ShowMessage((reason ?? "").Replace("Image skipped:", "Image not saved:"));
+            };
+            // A paste Clip injects is Clip's own clipboard write, not a new copy.
+            ClipHost.SuppressCapture = seq => _capture?.Suppress(seq);
 
-            RegisterV2Hotkey();
+            // The toast pays its first-show cost off the critical path, exactly like the old app.
+            Dispatcher.BeginInvoke(new Action(() => _notif?.WarmHidden()), DispatcherPriority.ApplicationIdle);
+
+            RegisterV2Hotkeys();
             ListenForShow();
             WatchTheme();
             return true;
@@ -136,13 +153,30 @@ namespace Clip
             thread.Start();
         }
 
-        void RegisterV2Hotkey()
+        void RegisterV2Hotkeys()
         {
-            _hotkey = new HotKeyWindow(_cfg.Hotkey, () => _shell?.Toggle());
-            if (_hotkey.Registered) return;
-            _shell?.NotifyHotkeyFailed(_cfg.Hotkey); // never fail silently: the page shows it
-            _hotkey.Dispose();
+            _hotkey?.Dispose();
+            _hotkeyPlain?.Dispose();
             _hotkey = null;
+            _hotkeyPlain = null;
+
+            var popup = new HotKeyWindow(_cfg.Hotkey, () => _shell?.Toggle());
+            var plain = new HotKeyWindow(_cfg.HotkeyPlain, () => _shell?.ShowPlain());
+            // Each binding reports its own failure: a taken Ctrl+Shift+V must never disable Alt+V.
+            if (popup.Registered) _hotkey = popup;
+            else
+            {
+                _shell?.NotifyHotkeyFailed(_cfg.Hotkey);
+                _notif?.ShowMessage($"Could not register {_cfg.Hotkey}. Another app may own it.");
+                popup.Dispose();
+            }
+            if (plain.Registered) _hotkeyPlain = plain;
+            else
+            {
+                _shell?.NotifyHotkeyFailed(_cfg.HotkeyPlain);
+                _notif?.ShowMessage($"Could not register {_cfg.HotkeyPlain}. Another app may own it.");
+                plain.Dispose();
+            }
         }
 
         void BuildV2Tray()
@@ -164,6 +198,7 @@ namespace Clip
             var menu = new ContextMenu();
             AddTrayItem(menu, $"{Product}: show/hide", () => _shell?.Toggle());
             AddTrayItem(menu, "Settings\u2026", () => _shell?.ShowForSettings());
+            AddTrayItem(menu, "Clear history\u2026", () => _shell?.ConfirmClearHistory());
             menu.Items.Add(new System.Windows.Controls.Separator());
             AddTrayItem(menu, "Exit", ExitV2);
             menu.Items.Add(new System.Windows.Controls.Separator());
@@ -210,10 +245,14 @@ namespace Clip
             if (_themeSetting == "system") SystemEvents.UserPreferenceChanged -= OnThemePreferenceChanged;
             _hotkey?.Dispose();
             _hotkey = null;
+            _hotkeyPlain?.Dispose();
+            _hotkeyPlain = null;
             _capture?.Dispose();
             _capture = null;
             _tray?.Dispose();
             _tray = null;
+            _notif?.Close();
+            _notif = null;
             _shell?.AllowClose();
             _shell?.Close(); // Closed: store, mutexes and Shutdown; one path for every exit
         }
