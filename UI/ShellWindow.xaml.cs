@@ -41,6 +41,9 @@ namespace Clip.UI
             SourceInitialized += OnSourceInitialized;
             Loaded += OnLoaded;
             Closed += OnClosed;
+            Closing += OnClosing;
+            // Same popup rule as the old Alt+V list: losing activation hides it, never closes it.
+            Deactivated += (s, e) => { if (!_warming) Hide(); };
         }
 
         async void OnLoaded(object sender, RoutedEventArgs e)
@@ -68,6 +71,7 @@ namespace Clip.UI
                 settings.IsSwipeNavigationEnabled = false;
 
                 Web.CoreWebView2.NavigationStarting += OnNavigationStarting;
+                Web.CoreWebView2.NavigationCompleted += OnNavigationCompleted;
                 Web.CoreWebView2.NewWindowRequested += (s, args) => args.Handled = true;
 
                 _host = new ClipHost(Web, _store, _cfg, _dbPath, () => _returnTarget, HideForPaste, ShowAfterPaste);
@@ -88,6 +92,7 @@ namespace Clip.UI
                 // A runtime-less machine has no browser at all: say so instead of taking the process down.
                 Notice.Text = "The WebView2 runtime is not available, so the v2 shell cannot be shown.";
                 Notice.Visibility = Visibility.Visible;
+                EndWarm(); // no frame will ever arrive; give the window its real show settings
             }
         }
 
@@ -131,12 +136,8 @@ namespace Clip.UI
 
         internal void ShowAfterPaste()
         {
-            Show();
-            Activate();
+            ShowShell();
         }
-
-        /// <summary>Plumbing for a capture service in v2; --v2 currently starts none, so this is never called.</summary>
-        public void NotifyCaptured(ClipboardItem item) => _host?.EmitCaptured(item);
 
         [DllImport("user32.dll")]
         static extern IntPtr GetForegroundWindow();
@@ -180,7 +181,7 @@ namespace Clip.UI
             base.OnPreviewKeyDown(e);
             if (e.Key == Key.Escape)
             {
-                Close();
+                Hide(); // the page's own Esc calls hide(); this only makes sure Esc can never end the process
                 e.Handled = true;
             }
         }

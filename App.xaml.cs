@@ -102,44 +102,6 @@ namespace Clip
                 _notif.ShowMessage($"Could not register {failure}. Another app may own it.");
         }
 
-        // ---- v2 development shell ------------------------------------------
-
-        /// <summary>
-        /// `--v2 [--db &lt;path&gt;]` opens only the WebView2 shell against a store (default the normal
-        /// clip.db) and exits with its window. Deliberately before the mutex/tray path so a dev shell can
-        /// run beside the installed app; without --v2 the normal launch path below is untouched.
-        /// </summary>
-        bool StartV2Shell(string[] args)
-        {
-            bool v2 = false;
-            string dbPath = null;
-            for (int i = 0; i < args.Length; i++)
-            {
-                if (string.Equals(args[i], "--v2", StringComparison.OrdinalIgnoreCase)) v2 = true;
-                else if (string.Equals(args[i], "--db", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
-                    dbPath = args[++i];
-            }
-            if (!v2) return false;
-
-            _cfg = Config.Load();
-            ApplyTheme(_cfg.Theme);
-            SetClockFormat();
-
-            string db = Path.GetFullPath(dbPath ?? Path.Combine(Config.DataDir, "clip.db"));
-            Directory.CreateDirectory(Path.GetDirectoryName(db));
-            _store = new ClipboardStore(db);
-
-            var shell = new ShellWindow(_store, _cfg, db);
-            shell.Closed += (s, e) =>
-            {
-                _store?.Dispose();
-                _store = null;
-                Shutdown();
-            };
-            shell.Show();
-            return true;
-        }
-
         // ---- capture ------------------------------------------------------
 
         /// <summary>
@@ -358,14 +320,7 @@ namespace Clip
             AddTrayItem(menu, "Clear history\u2026", () => OpenSettings(true));
             menu.Items.Add(new System.Windows.Controls.Separator());
             AddTrayItem(menu, "Exit", ExitApp);
-
-            var cursor = System.Windows.Forms.Cursor.Position;
-            var screen = System.Windows.Forms.Screen.FromPoint(cursor);
-            double scale = ScreenDpi.Scale(screen);
-            menu.Placement = System.Windows.Controls.Primitives.PlacementMode.AbsolutePoint;
-            menu.HorizontalOffset = cursor.X / scale;
-            menu.VerticalOffset = cursor.Y / scale;
-            menu.IsOpen = true;
+            OpenTrayMenuAtCursor(menu);
         }
 
         void AddTrayItem(ContextMenu menu, string header, Action action)
@@ -406,7 +361,8 @@ namespace Clip
 
         // ---- theme / exit --------------------------------------------------
 
-        void ApplyTheme(string theme)
+        /// <summary>Applies the configured theme and returns the resolved "light"/"dark".</summary>
+        string ApplyTheme(string theme)
         {
             if (theme == "system")
             {
@@ -418,6 +374,7 @@ namespace Clip
             var name = theme == "light" ? "Light" : "Dark";
             Resources.MergedDictionaries[0] =
                 new ResourceDictionary { Source = new Uri($"pack://application:,,,/UI/Themes/{name}.xaml") };
+            return theme == "light" ? "light" : "dark";
         }
 
         void ExitApp()
