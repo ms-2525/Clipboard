@@ -153,6 +153,35 @@ Report the measured number and the trade-off to the owner.
 - A second web surface, or a browser on the cold popup path.
 - Chasing the old 150/250 MB gate at the cost of features.
 
+## Tauri spike (25 Nov) — validated alternative, not chosen
+
+A full Tauri 2.12.7 spike was built after the owner installed Rust + MSVC. It is a real option, not a
+paper rejection:
+
+| Test | Result |
+|---|---|
+| HTML write/read (CF_HTML, fragment, Devanagari/₹) | PASS |
+| RTF write/read, real Word RTF | PASS |
+| File list write/read (order) | PASS |
+| Image PNG/CF_DIB/DIBV5 + hash | PASS |
+| Clipboard monitor events | PASS |
+| Paste into Notepad (SendInput, focus guard) | PASS |
+| Tray / hotkey / single instance / autostart / SQLite | PASS |
+| Cold start → visible / first frame | 456 / 526 ms |
+| Warm show → first paint | 36.5 ms median / 44.3 max |
+| RAM shown / editor (WS / private) | 429 / 566 MB WS; 219 / 340 MB private |
+| Exe | 11.7 MB; first build 149 s, incremental 34 s |
+
+Why not chosen for the release: the spike proves the common formats, not Clip's full matrix (Excel
+Biff12, arbitrary named formats, CF_DIBV5, delayed-render streams, RTF→HTML, password-manager
+exclusions, IME, multi-monitor DPI, tray menu, long-run memory). Porting `Core` + `Interop` replaces 2,818
+tested lines with new Rust and re-opens every one of those edge cases. The CPU comparison is also not
+equal (the Tauri host reported 16 CPUs/24 GB; the WPF spike ran on the 2-vCPU VM), so the cold-start gap
+is directionally right but not a fair 8×.
+
+If the owner later chooses Tauri, it must pass the same feature checklist and clipboard matrix before
+cutover. The 11.7 MB, cross-platform build is the reason to revisit it — not RAM alone.
+
 ## Open risks
 
 1. Warm show may exceed 150 ms on the 2-vCPU VM; measure before committing the UI rewrite.
