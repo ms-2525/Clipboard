@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 using System.Windows.Threading;
 using Clip.Core;
-using Microsoft.Data.Sqlite;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.Wpf;
 
@@ -11,8 +11,8 @@ namespace Clip.Host
 {
     /// <summary>
     /// The typed page&lt;-&gt;host bridge. The page sends {id, method, params}; every reply is
-    /// {id, ok:true, result} or {id, ok:false, error}. Runs entirely on the UI thread because
-    /// ClipboardStore's connection is UI-thread-affine.
+    /// {id, ok:true, result} or {id, ok:false, error}. Protocol, clipboard commands and the store writer stay
+    /// on the UI thread; list reads run on <see cref="ReadQueue"/> and only their finished replies come back.
     /// </summary>
     internal sealed partial class ClipHost : IDisposable
     {
@@ -26,8 +26,8 @@ namespace Clip.Host
         readonly WebView2 _web;
         readonly Dispatcher _dispatcher;
         readonly string _dbPath;
-        SqliteConnection _meta;
-        bool _metaFailed;
+        readonly long _pinnedTabId;
+        readonly ReadQueue _reads;
 
         public ClipHost(WebView2 web, ClipboardStore store, Config cfg, string dbPath)
         {
@@ -36,6 +36,8 @@ namespace Clip.Host
             _cfg = cfg;
             _dbPath = dbPath;
             _dispatcher = web.Dispatcher;
+            _pinnedTabId = store.PinnedTabId;
+            _reads = new ReadQueue();
             _web.CoreWebView2.WebMessageReceived += OnMessage;
         }
 
@@ -62,12 +64,20 @@ namespace Clip.Host
                 string method = methodElement.GetString();
                 var p = root.TryGetProperty("params", out var paramsElement) ? paramsElement : default;
 
+                // These can load thousands of rows; queueing returns from the UI thread immediately. Params are
+                // read inside Queue while the JsonDocument is still alive; the queued closure holds plain values.
+                if (method == "init" || method == "getItems" || method == "search")
+                {
+                    Queue(method, id, p);
+                    return;
+                }
+
                 object result = Invoke(method, p);
-                Reply("{\"id\":" + id + ",\"ok\":true,\"result\":" + JsonSerializer.Serialize(result, Json) + "}");
+                Reply(Ok(id, result));
             }
             catch (Exception ex)
             {
-                Reply("{\"id\":" + id + ",\"ok\":false,\"error\":" + JsonSerializer.Serialize(ex.Message, Json) + "}");
+                Reply(Error(id, ex));
             }
         }
 
@@ -75,21 +85,6 @@ namespace Clip.Host
         {
             switch (method)
             {
-                case "init":
-                    return new
-                    {
-                        counts = Counts(),
-                        tabs = Tabs(),
-                        config = _cfg,
-                        items = Page(null, 0, 200, null).Items
-                    };
-
-                case "getItems":
-                    return Page(Tab(p), Int(p, "offset", 0), Int(p, "limit", 200), String(p, "query"));
-
-                case "search":
-                    return Search(Tab(p), Int(p, "offset", 0), Int(p, "limit", 200), String(p, "query"));
-
                 case "getItem":
                 {
                     long id = Long(p, "id");
@@ -122,6 +117,115 @@ namespace Clip.Host
                     throw new InvalidOperationException("unknown method: " + method);
             }
         }
+
+        // ---- deferred reads -------------------------------------------------------------------
+
+        /// <summary>Reads params on the UI thread, then lets <see cref="_reads"/> do every row read and tag pass.</summary>
+        void Queue(string method, string id, JsonElement p)
+        {
+            int maxItems = _cfg.MaxItems;
+            switch (method)
+            {
+                case "init":
+                {
+                    // Counting and the tab strip are index-only and sub-millisecond; only the page is deferred.
+                    var counts = Counts();
+                    var tabs = Tabs();
+                    var config = _cfg;
+                    _reads.Post(() => Finish(id, () => new
+                    {
+                        counts,
+                        tabs,
+                        config,
+                        items = ReadPage(_dbPath, _pinnedTabId, maxItems, null, 0, 200, null, 0).Items
+                    }));
+                    return;
+                }
+
+                case "getItems":
+                {
+                    long? tabId = Tab(p);
+                    int offset = Int(p, "offset", 0);
+                    int limit = Int(p, "limit", 200);
+                    string query = String(p, "query");
+                    // A query's total comes from its hits on the worker; an unfiltered page needs one cheap count.
+                    int total = string.IsNullOrWhiteSpace(query) ? Total(tabId) : 0;
+                    _reads.Post(() => Finish(id, () =>
+                        ReadPage(_dbPath, _pinnedTabId, maxItems, tabId, offset, limit, query, total)));
+                    return;
+                }
+
+                case "search":
+                {
+                    long? tabId = Tab(p);
+                    int offset = Int(p, "offset", 0);
+                    int limit = Int(p, "limit", 200);
+                    string query = String(p, "query");
+                    _reads.Post(() => Finish(id, () =>
+                        ReadSearch(_dbPath, _pinnedTabId, maxItems, tabId, offset, limit, query)));
+                    return;
+                }
+            }
+        }
+
+        /// <summary>Runs on the read thread: read, classify and serialize there; only the finished string is posted back.</summary>
+        void Finish(string id, Func<object> read)
+        {
+            string json;
+            try
+            {
+                json = Ok(id, read());
+            }
+            catch (Exception ex)
+            {
+                json = Error(id, ex); // one reply per request, including a failed one
+            }
+            OnUi(() => Reply(json));
+        }
+
+        static string Ok(string id, object result) =>
+            "{\"id\":" + id + ",\"ok\":true,\"result\":" + JsonSerializer.Serialize(result, Json) + "}";
+
+        static string Error(string id, Exception ex) =>
+            "{\"id\":" + id + ",\"ok\":false,\"error\":" + JsonSerializer.Serialize(ex.Message, Json) + "}";
+
+        void OnUi(Action action)
+        {
+            try { _dispatcher.BeginInvoke(action); }
+            catch (InvalidOperationException)
+            {
+                // The dispatcher is shutting down: the window that would read this reply is gone.
+            }
+        }
+
+        // ---- UI-thread helpers ----------------------------------------------------------------
+
+        int Total(long? tabId)
+        {
+            if (!tabId.HasValue)
+            {
+                var (clips, images) = _store.Counts();
+                // The page and the search must agree on scope: main history is the newest Config.MaxItems rows.
+                return Math.Min(clips + images, Math.Max(1, _cfg.MaxItems));
+            }
+            foreach (var tab in _store.ListTabs())
+                if (tab.id == tabId.Value) return tab.count;
+            return 0;
+        }
+
+        object Counts()
+        {
+            var (clips, images) = _store.Counts();
+            // `all` is what the list can show (the page caps at MaxItems); clips/images stay the raw DB counts.
+            return new { clips, images, all = Math.Min(clips + images, Math.Max(1, _cfg.MaxItems)) };
+        }
+
+        object Tabs() => _store.ListTabs()
+            .Select(t => new { id = t.id, name = t.name, kind = t.kind, count = t.count })
+            .ToList();
+
+        /// <summary>Single-row metadata (getItem only; pages read it on the reader thread). No handle is kept.</summary>
+        Dictionary<long, ItemMeta> Meta(List<long> ids) => ReadMetaAt(_dbPath, ids);
 
         void Reply(string json)
         {
@@ -177,10 +281,9 @@ namespace Clip.Host
 
         public void Dispose()
         {
+            _reads.Dispose();
             var core = _web.CoreWebView2;
             if (core != null) core.WebMessageReceived -= OnMessage;
-            _meta?.Dispose();
-            _meta = null;
         }
     }
 }

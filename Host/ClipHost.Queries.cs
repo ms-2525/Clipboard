@@ -1,69 +1,124 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
+using System.Threading;
 using Clip.Core;
 using Clip.Interop;
 using Microsoft.Data.Sqlite;
 
 namespace Clip.Host
 {
-    /// <summary>Read queries and the copy command; protocol/dispatch lives in ClipHost.cs.</summary>
+    /// <summary>
+    /// Read queries and the copy command; protocol/dispatch lives in ClipHost.cs. Everything that can load a
+    /// list runs on <see cref="ReadQueue"/> with its own read-only connection, so ClipboardStore's connection
+    /// never leaves the UI thread.
+    /// </summary>
     internal sealed partial class ClipHost
     {
-        // ---- queries --------------------------------------------------------------------------
+        // ---- background reads -----------------------------------------------------------------
 
-        PageResult Page(long? tabId, int offset, int limit, string query)
+        /// <summary>
+        /// One FIFO thread for list reads. At most one bridge read connection exists at a time, so a burst of
+        /// searches cannot pile connections up and replies leave in request order. A job must never touch
+        /// ClipboardStore, the UI-thread <see cref="MetaReader"/> or any WPF object.
+        /// </summary>
+        internal sealed class ReadQueue : IDisposable
+        {
+            readonly BlockingCollection<Action> _jobs = new BlockingCollection<Action>();
+            readonly Thread _thread;
+
+            public ReadQueue()
+            {
+                _thread = new Thread(Run) { IsBackground = true, Name = "Clip bridge reads" };
+                _thread.Start();
+            }
+
+            public void Post(Action job)
+            {
+                try { _jobs.Add(job); }
+                catch (InvalidOperationException) { } // queue closed during shutdown: the browser has no reader left
+            }
+
+            public void Dispose() => _jobs.CompleteAdding();
+
+            void Run()
+            {
+                foreach (var job in _jobs.GetConsumingEnumerable())
+                {
+                    try { job(); }
+                    catch (Exception) { } // each job reports its own failure; the only reader thread must survive
+                }
+            }
+        }
+
+        /// <summary>
+        /// Read-only and unpooled: WAL lets it run beside the store's writer, and a fresh handle can never point
+        /// at a file that a corruption recovery has renamed aside.
+        /// </summary>
+        internal static SqliteConnection OpenRead(string dbPath)
+        {
+            var conn = new SqliteConnection(new SqliteConnectionStringBuilder
+            {
+                DataSource = dbPath,
+                Mode = SqliteOpenMode.ReadOnly,
+                Pooling = false
+            }.ToString());
+            conn.Open();
+            return conn;
+        }
+
+        /// <summary>
+        /// Rows + badges + tags for one page. Main history is the newest Config.MaxItems rows, the same scope
+        /// <see cref="ReadSearch"/> searches; a tab is exempt from the cap and pages all of its items.
+        /// </summary>
+        internal static PageResult ReadPage(string dbPath, long pinnedTabId, int maxItems, long? tabId,
+            int offset, int limit, string query, int total)
         {
             offset = Math.Max(0, offset);
             limit = Math.Clamp(limit, 1, 500);
+            int cap = Math.Max(1, maxItems);
 
-            int total;
+            using var conn = OpenRead(dbPath);
             List<ClipboardItem> rows;
             if (!string.IsNullOrWhiteSpace(query))
             {
-                // Phase 1 filters the loaded list; a SQL search can replace this without changing the DTO.
-                var all = tabId.HasValue ? _store.GetTabItems(-1, tabId.Value) : _store.GetRecent(-1);
+                var all = tabId.HasValue
+                    ? ClipboardStore.ReadTabItems(conn, -1, tabId.Value)
+                    : ClipboardStore.ReadRecent(conn, cap);
                 var hits = SearchService.Filter(all, query);
                 total = hits.Count;
                 rows = hits.Skip(offset).Take(limit).ToList();
             }
             else
             {
-                total = Total(tabId);
-                var all = tabId.HasValue ? _store.GetTabItems(offset + limit, tabId.Value) : _store.GetRecent(offset + limit);
+                int take = tabId.HasValue ? offset + limit : Math.Min(offset + limit, cap);
+                var all = tabId.HasValue
+                    ? ClipboardStore.ReadTabItems(conn, take, tabId.Value)
+                    : ClipboardStore.ReadRecent(conn, take);
                 rows = all.Skip(offset).Take(limit).ToList();
             }
 
-            var meta = Meta(rows.Select(r => r.Id).ToList());
-            var items = new List<ItemDto>(rows.Count);
-            foreach (var row in rows)
-            {
-                meta.TryGetValue(row.Id, out var info);
-                items.Add(ToDto(row, info, ClipTags.Classify(row, info?.Formats)));
-            }
-            return new PageResult { Total = total, Items = items };
+            return new PageResult { Total = total, Items = Dtos(conn, pinnedTabId, rows) };
         }
 
-        // ---- tag search -----------------------------------------------------------------------
-
-        /// <summary>
-        /// Step 1 search over the whole recent set, not just the loaded page. A word query needs no tags
-        /// until the reply page is built; a tag query classifies every candidate once and keeps the tags
-        /// beside the hits so the page is not classified a second time.
-        /// </summary>
-        SearchResult Search(long? tabId, int offset, int limit, string query)
+        /// <summary>The tag search on the reader thread; the reply is the same rows, order and unknownTags as before.</summary>
+        internal static SearchResult ReadSearch(string dbPath, long pinnedTabId, int maxItems, long? tabId,
+            int offset, int limit, string query)
         {
             offset = Math.Max(0, offset);
             limit = Math.Clamp(limit, 1, 500);
 
             var q = ClipSearch.Parse(query);
+            using var conn = OpenRead(dbPath);
             // Tabs are exempt from the history cap, so a container searches all of its items.
             var all = tabId.HasValue
-                ? _store.GetTabItems(-1, tabId.Value)
-                : _store.GetRecent(Math.Max(1, _cfg.MaxItems));
+                ? ClipboardStore.ReadTabItems(conn, -1, tabId.Value)
+                : ClipboardStore.ReadRecent(conn, Math.Max(1, maxItems));
 
             bool byTag = q.Include.Length > 0 || q.Exclude.Length > 0;
-            var meta = byTag ? Meta(all.Select(r => r.Id).ToList()) : null;
+            var meta = byTag ? ReadMeta(conn, all.Select(r => r.Id).ToList()) : null;
             var hits = new List<ClipboardItem>(Math.Min(all.Count, 64));
             var hitTags = byTag ? new List<string[]>(hits.Capacity) : null;
             foreach (var row in all)
@@ -81,19 +136,31 @@ namespace Clip.Host
 
             // The reply carries only this page, so a word query pays for tags on those rows alone.
             if (!byTag && hits.Count > 0)
-                meta = Meta(hits.Skip(offset).Take(limit).Select(r => r.Id).ToList());
+                meta = ReadMeta(conn, hits.Skip(offset).Take(limit).Select(r => r.Id).ToList());
 
             var items = new List<ItemDto>(Math.Min(limit, hits.Count));
             for (int i = offset; i < hits.Count && items.Count < limit; i++)
             {
                 meta.TryGetValue(hits[i].Id, out var info);
                 var tags = byTag ? hitTags[i] : ClipTags.Classify(hits[i], info?.Formats);
-                items.Add(ToDto(hits[i], info, tags));
+                items.Add(ToDto(hits[i], info, tags, pinnedTabId));
             }
             return new SearchResult { Total = hits.Count, Items = items, UnknownTags = q.UnknownTags };
         }
 
-        ItemDto ToDto(ClipboardItem row, ItemMeta info, string[] tags)
+        static List<ItemDto> Dtos(SqliteConnection conn, long pinnedTabId, List<ClipboardItem> rows)
+        {
+            var meta = ReadMeta(conn, rows.Select(r => r.Id).ToList());
+            var items = new List<ItemDto>(rows.Count);
+            foreach (var row in rows)
+            {
+                meta.TryGetValue(row.Id, out var info);
+                items.Add(ToDto(row, info, ClipTags.Classify(row, info?.Formats), pinnedTabId));
+            }
+            return items;
+        }
+
+        static ItemDto ToDto(ClipboardItem row, ItemMeta info, string[] tags, long pinnedTabId)
         {
             return new ItemDto
             {
@@ -102,7 +169,7 @@ namespace Clip.Host
                 App = row.AppName,
                 Title = row.WindowTitle,
                 Time = row.CapturedAt,
-                Pinned = row.TabId == _store.PinnedTabId,
+                Pinned = row.TabId == pinnedTabId,
                 TabId = row.TabId,
                 Text = row.Text, // the stored PreviewChars-code-point preview; never re-cut it by Text.Length
                 HasImage = row.Kind == "image",
@@ -115,31 +182,9 @@ namespace Clip.Host
             };
         }
 
-        int Total(long? tabId)
-        {
-            if (!tabId.HasValue)
-            {
-                var (clips, images) = _store.Counts();
-                return clips + images;
-            }
-            foreach (var tab in _store.ListTabs())
-                if (tab.id == tabId.Value) return tab.count;
-            return 0;
-        }
-
-        object Counts()
-        {
-            var (clips, images) = _store.Counts();
-            return new { clips, images };
-        }
-
-        object Tabs() => _store.ListTabs()
-            .Select(t => new { id = t.id, name = t.name, kind = t.kind, count = t.count })
-            .ToList();
-
         // ---- list metadata --------------------------------------------------------------------
 
-        sealed class ItemMeta
+        internal sealed class ItemMeta
         {
             public bool HasHtml;
             public bool HasRtf;
@@ -147,71 +192,80 @@ namespace Clip.Host
         }
 
         /// <summary>
-        /// Format names and presences without Core changes or payload blobs. A read-only connection is enough:
-        /// WAL allows it beside the store's writer, and a DB that cannot answer only loses row badges.
+        /// SQLite allows 32 766 bound variables per statement, so ids are asked for in chunks; 500 measured
+        /// 47.5 ms for 10 000 ids against 206 ms in one statement, and never trips the limit.
         /// </summary>
-        Dictionary<long, ItemMeta> Meta(List<long> ids)
+        const int MetaChunk = 500;
+
+        static bool _metaFailureLogged;
+
+        /// <summary>
+        /// Format names and presences without Core changes or payload blobs. A failed chunk logs once and returns
+        /// the rows already loaded: one bad chunk must not erase every badge on the page (AUDIT).
+        /// </summary>
+        internal static Dictionary<long, ItemMeta> ReadMeta(SqliteConnection conn, List<long> ids)
         {
             var map = new Dictionary<long, ItemMeta>();
-            if (ids.Count == 0) return map;
-            try
+            for (int start = 0; start < ids.Count; start += MetaChunk)
             {
-                var conn = MetaConnection();
-                if (conn == null) return map;
-
-                using var cmd = conn.CreateCommand();
-                var names = new List<string>(ids.Count);
-                for (int i = 0; i < ids.Count; i++)
+                try
                 {
-                    names.Add("$p" + i);
-                    cmd.Parameters.AddWithValue(names[i], ids[i]);
-                }
-                cmd.CommandText = $@"
+                    using var cmd = conn.CreateCommand();
+                    var names = new List<string>(Math.Min(MetaChunk, ids.Count - start));
+                    for (int i = start; i < ids.Count && i < start + MetaChunk; i++)
+                    {
+                        names.Add("$p" + i);
+                        cmd.Parameters.AddWithValue(names[names.Count - 1], ids[i]);
+                    }
+                    cmd.CommandText = $@"
 SELECT i.id,
        CASE WHEN i.html IS NOT NULL AND i.html <> '' THEN 1 ELSE 0 END,
        CASE WHEN i.rtf IS NOT NULL AND i.rtf <> '' THEN 1 ELSE 0 END,
        (SELECT group_concat(f.fmt, char(31)) FROM item_formats f WHERE f.item_id = i.id)
 FROM items i WHERE i.id IN ({string.Join(",", names)})";
-                using var r = cmd.ExecuteReader();
-                while (r.Read())
-                {
-                    map[r.GetInt64(0)] = new ItemMeta
+                    using var r = cmd.ExecuteReader();
+                    while (r.Read())
                     {
-                        HasHtml = r.GetInt32(1) != 0,
-                        HasRtf = r.GetInt32(2) != 0,
-                        Formats = r.IsDBNull(3)
-                            ? new List<string>()
-                            : r.GetString(3).Split('\u001f', StringSplitOptions.RemoveEmptyEntries).ToList()
-                    };
+                        map[r.GetInt64(0)] = new ItemMeta
+                        {
+                            HasHtml = r.GetInt32(1) != 0,
+                            HasRtf = r.GetInt32(2) != 0,
+                            Formats = r.IsDBNull(3)
+                                ? new List<string>()
+                                : r.GetString(3).Split('\u001f', StringSplitOptions.RemoveEmptyEntries).ToList()
+                        };
+                    }
                 }
-            }
-            catch
-            {
-                // Metadata is cosmetic (badges); the list must still render if the side connection fails.
+                catch (Exception ex)
+                {
+                    if (!_metaFailureLogged)
+                    {
+                        _metaFailureLogged = true;
+                        Trace.WriteLine("Clip: item metadata failed; badges are partial for this reply. " + ex.Message);
+                    }
+                    return map;
+                }
             }
             return map;
         }
 
-        SqliteConnection MetaConnection()
+        /// <summary>
+        /// Metadata for the single-row getItem call, on a connection that is opened and closed inside the call.
+        /// A persistent read-only handle would block ClipboardStore's recovery rename on Windows (File.Move fails
+        /// while SQLite holds the file), and would then point at the renamed file. With no handle held between
+        /// calls, the next call always opens whatever file is current (AUDIT P1).
+        /// </summary>
+        internal static Dictionary<long, ItemMeta> ReadMetaAt(string dbPath, List<long> ids)
         {
-            if (_meta != null || _metaFailed) return _meta;
             try
             {
-                var connectionString = new SqliteConnectionStringBuilder
-                {
-                    DataSource = _dbPath,
-                    Mode = SqliteOpenMode.ReadOnly,
-                    Pooling = false
-                }.ToString();
-                var conn = new SqliteConnection(connectionString);
-                conn.Open();
-                _meta = conn;
+                using var conn = OpenRead(dbPath);
+                return ReadMeta(conn, ids);
             }
-            catch
+            catch (Exception)
             {
-                _metaFailed = true; // one failed open is enough; do not retry on every page
+                return new Dictionary<long, ItemMeta>(); // badges are cosmetic; getItem still returns the body
             }
-            return _meta;
         }
 
         // ---- copy (the existing list's Copy path) ----------------------------------------------
@@ -257,20 +311,20 @@ FROM items i WHERE i.id IN ({string.Join(",", names)})";
 
         // ---- DTO ------------------------------------------------------------------------------
 
-        sealed class PageResult
+        internal sealed class PageResult
         {
             public int Total { get; set; }
             public List<ItemDto> Items { get; set; }
         }
 
-        sealed class SearchResult
+        internal sealed class SearchResult
         {
             public int Total { get; set; }
             public List<ItemDto> Items { get; set; }
             public string[] UnknownTags { get; set; }
         }
 
-        sealed class ItemDto
+        internal sealed class ItemDto
         {
             public long Id { get; set; }
             public string Kind { get; set; }
