@@ -1,232 +1,363 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
+using System.Reflection;
 using System.Text;
+using System.Text.Json;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Media.Animation;
 using Clip.Core;
 using Clip.Interop;
-using Syncfusion.Windows.Controls.RichTextBoxAdv;
+using Microsoft.Web.WebView2.Core;
 
 namespace Clip.UI
 {
     /// <summary>
-    /// F2 editor: ONE rich surface for every text clip, backed by Syncfusion's SfRichTextBoxAdv.
-    /// The item's RTF loads first, HTML-only clips are parsed by the control itself, and a failed
-    /// load says so in the notice bar instead of silently dropping to a plain box
-    /// (docs\DESIGN-v2-ui.md §4, docs\S0-HANDOFF.md).
+    /// F2 editor: WPF owns the chrome and toolbar, the embedded TipTap page owns the text.
+    /// The clip loads as its HTML, else its RTF converted once, else plain text; a body that cannot
+    /// be read says so in the notice bar instead of silently losing its formatting
+    /// (docs\HANDOFF-tiptap-port.md §3).
     /// </summary>
     public partial class EditorWindow : Window
     {
-        /// <summary>The control parses HTML in-process, so the caller refuses oversized fragments (§4.5).</summary>
         const int MaxHtmlFragment = 2_000_000;
 
         const string PlainNotice = "This clip's formatting could not be loaded; editing as plain text.";
         const string TooLargeNotice = "This clip's HTML body is larger than 2 MB, so its formatting was not loaded; editing as plain text.";
+        const string RuntimeNotice = "Editing needs the free WebView2 runtime (installed with Windows).";
 
         readonly ClipboardStore _store;
         readonly ClipboardItem _item;
-        readonly bool _hadHtml;
-        string _originalText;
-        string _originalRtf;
-        string _notice = PlainNotice;
-        bool _reflecting;
+        string _loadHtml;
+        string _loadText;
+        bool _ready;
+        bool _dirty;
+        bool _saving;
 
         public EditorWindow(ClipboardStore store, ClipboardItem item, string html, string rtf)
         {
             InitializeComponent();
             _store = store;
             _item = item;
-            _hadHtml = !string.IsNullOrEmpty(html);
+
+            // The shell fades in and the field has an 8 DIP frame: the page paints its own rounded canvas.
+            Web.DefaultBackgroundColor = System.Drawing.Color.Transparent;
+            PrepareBody(html, rtf);
 
             SourceInitialized += (s, e) => WindowChrome.Apply(this);
-
-            // The toolbar must not read a half-loaded document, so reflection waits for Loaded.
-            _reflecting = true;
-            try
+            Loaded += OnLoaded;
+            Closed += (s, e) =>
             {
-                if (!LoadBody(html, rtf))
+                try { Web.Dispose(); }
+                catch
                 {
-                    FormatNoticeText.Text = _notice;
-                    FormatNotice.Visibility = Visibility.Visible;
+                    // A browser still starting up when the window closes can refuse disposal; the process
+                    // owns nothing after this point, so a failed release must not take the tray app down.
                 }
-                _originalText = CurrentText();
-                _originalRtf = SaveRtf();
-            }
-            finally { _reflecting = false; }
-
-            Loaded += (s, e) =>
-            {
-                // HoldEnd would keep an opacity clock alive and the whole document greyscale:
-                // clear it the moment the fade lands so ClearType returns for the session.
-                var fadeIn = Motion.Linear(1, 150);
-                fadeIn.FillBehavior = FillBehavior.Stop;
-                fadeIn.Completed += (a, b) =>
-                {
-                    Shell.BeginAnimation(OpacityProperty, null);
-                    Shell.Opacity = 1;
-                };
-                Shell.BeginAnimation(OpacityProperty, fadeIn);
-                RichBox.Focus();
-                var end = RichBox.Document.DocumentEnd;
-                RichBox.Selection.Select(end, end);
-                Reflect();
             };
         }
 
         // ---- load -------------------------------------------------------------------------
 
-        /// <summary>RTF → HTML → plain, in that order; false means the visible notice must show.</summary>
-        bool LoadBody(string html, string rtf)
+        /// <summary>HTML first, then RTF converted once, then plain text; a notice names every downgrade.</summary>
+        void PrepareBody(string html, string rtf)
         {
-            if (!string.IsNullOrEmpty(rtf)
-                && (TryLoad(RtfText.ToBytes(rtf), FormatType.Rtf) || TryLoad(RtfText.ToUtf8Bytes(rtf), FormatType.Rtf)))
-                return true;
-
-            if (string.IsNullOrEmpty(rtf) && !string.IsNullOrEmpty(html))
+            if (!string.IsNullOrEmpty(html))
             {
                 string fragment = null;
                 try { fragment = HtmlFragment.Extract(html); }
                 catch
                 {
-                    // An html body the tokeniser cannot read is a failed load, reported by the notice below.
+                    // A CF_HTML body the tokeniser rejects is a failed load, reported by the notice below.
                 }
-                if (fragment != null)
+
+                if (string.IsNullOrEmpty(fragment) || fragment.Length > MaxHtmlFragment)
                 {
-                    if (fragment.Length > MaxHtmlFragment) _notice = TooLargeNotice;
-                    else if (TryLoad(Encoding.UTF8.GetBytes(fragment), FormatType.Html)) return true;
+                    ShowNotice(string.IsNullOrEmpty(fragment) ? PlainNotice : TooLargeNotice);
+                    _loadText = _item.Text;
+                    return;
                 }
+
+                _loadHtml = fragment;
+                return;
             }
 
-            DocumentText(_item.Text);
-            return string.IsNullOrEmpty(rtf) && string.IsNullOrEmpty(html);
+            if (!string.IsNullOrEmpty(rtf))
+            {
+                _loadHtml = EditorRtf.ToHtml(rtf);
+                if (_loadHtml != null) return;
+                ShowNotice(PlainNotice);
+            }
+
+            _loadText = _item.Text;
         }
 
-        /// <summary>An RTF row is a byte format; the Latin-1 envelope is byte-exact, UTF-8 the old fallback.</summary>
-        bool TryLoad(byte[] bytes, FormatType format)
+        void ShowNotice(string text)
         {
-            if (bytes.Length == 0) return false;
+            FormatNoticeText.Text = text;
+            FormatNotice.Visibility = Visibility.Visible;
+        }
+
+        // ---- start ------------------------------------------------------------------------
+
+        async void OnLoaded(object sender, RoutedEventArgs e)
+        {
+            // HoldEnd would keep an opacity clock alive and the whole window greyscale:
+            // clear it the moment the fade lands so ClearType returns for the session.
+            var fadeIn = Motion.Linear(1, 150);
+            fadeIn.FillBehavior = FillBehavior.Stop;
+            fadeIn.Completed += (a, b) =>
+            {
+                Shell.BeginAnimation(OpacityProperty, null);
+                Shell.Opacity = 1;
+            };
+            Shell.BeginAnimation(OpacityProperty, fadeIn);
+            await StartWebAsync();
+        }
+
+        async Task StartWebAsync()
+        {
             try
             {
-                using var stream = new MemoryStream(bytes);
-                RichBox.Load(stream, format);
-                return true;
+                // The browser profile lives in the app's data folder, never beside the exe
+                // (the owner build is one self-contained file).
+                var environment = await CoreWebView2Environment.CreateAsync(
+                    null, Path.Combine(Config.DataDir, "webview2"));
+                await Web.EnsureCoreWebView2Async(environment);
+
+                var settings = Web.CoreWebView2.Settings;
+                settings.AreDefaultContextMenusEnabled = false;
+                settings.AreDevToolsEnabled = false;
+                settings.IsStatusBarEnabled = false;
+                settings.AreBrowserAcceleratorKeysEnabled = false;
+                settings.IsZoomControlEnabled = false;
+                settings.IsSwipeNavigationEnabled = false;
+
+                // The page ships inside the exe, so https://clip/ is a name the host answers itself.
+                Web.CoreWebView2.AddWebResourceRequestedFilter(
+                    "https://clip/*", CoreWebView2WebResourceContext.All);
+                Web.CoreWebView2.WebResourceRequested += OnResourceRequested;
+                Web.CoreWebView2.WebMessageReceived += OnMessage;
+                Web.CoreWebView2.NavigationStarting += OnNavigationStarting;
+                Web.CoreWebView2.NewWindowRequested += (s, e) => e.Handled = true;
+                Web.Source = new Uri(ThemeUrl());
             }
             catch
             {
-                // A stream the control rejects leaves no document behind, and the plain-text
-                // fallback below needs one to type into.
-                ResetDocument();
-                return false;
+                // A machine without the runtime has no browser at all: say so, never throw out of the window.
+                ShowNotice(RuntimeNotice);
             }
         }
 
-        /// <summary>The control leaves no document after a rejected stream; an empty RTF restores a writable one.</summary>
-        void ResetDocument()
-        {
-            using var skeleton = new MemoryStream(
-                Encoding.UTF8.GetBytes(@"{\rtf1\ansi\deff0{\fonttbl{\f0 Calibri;}}\pard\f0\fs24 \par}"));
-            RichBox.Load(skeleton, FormatType.Rtf);
-        }
+        /// <summary>The page is LAYER B and follows the theme, exactly like the row renderer.</summary>
+        string ThemeUrl() =>
+            "https://clip/editor.html?canvas=" + Uri.EscapeDataString(ThemeHex("ContentCanvas"))
+            + "&ink=" + Uri.EscapeDataString(ThemeHex("ContentInk"))
+            + "&link=" + Uri.EscapeDataString(ThemeHex("ContentLink"));
 
-        /// <summary>
-        /// Plain text arrives as one paragraph per line; the control's 8 px default after-spacing
-        /// would double the pitch of a 13 DIP face, so plain bodies are set flush.
-        /// </summary>
-        void DocumentText(string text)
+        /// <summary>A theme brush as #RRGGBB — the page's query parser accepts nothing carrying alpha.</summary>
+        string ThemeHex(string key) =>
+            Hex(TryFindResource(key) is SolidColorBrush brush ? brush.Color : Colors.Black);
+
+        // ---- page resources ---------------------------------------------------------------
+
+        /// <summary>Answers every https://clip/ request from the embedded page or the pack fonts; else 404.</summary>
+        void OnResourceRequested(object sender, CoreWebView2WebResourceRequestedEventArgs e)
         {
-            var document = RichBox.Document;
-            RichBox.Selection.Select(document.DocumentStart, document.DocumentEnd);
-            RichBox.Selection.InsertText((text ?? "").Replace("\r\n", "\n").Replace('\r', '\n'));
-            foreach (var paragraph in Paragraphs(document))
+            var environment = Web.CoreWebView2.Environment;
+            string path = new Uri(e.Request.Uri).AbsolutePath;
+            (byte[] body, string mime) = path switch
             {
-                paragraph.ParagraphFormat.AfterSpacing = 0;
-                paragraph.ParagraphFormat.BeforeSpacing = 0;
-            }
+                "/editor.html" => (Embedded("clip.assets.editor.html"), "text/html"),
+                "/editor.css" => (Embedded("clip.assets.editor.css"), "text/css"),
+                "/editor.bundle.js" => (Embedded("clip.assets.editor.bundle.js"), "text/javascript"),
+                "/Inter-Regular.ttf" => (Font("Inter-Regular.ttf"), "font/ttf"),
+                "/Inter-SemiBold.ttf" => (Font("Inter-SemiBold.ttf"), "font/ttf"),
+                _ => (null, (string)null),
+            };
+
+            e.Response = body == null
+                ? environment.CreateWebResourceResponse(null, 404, "Not Found", "Content-Type: text/plain")
+                : environment.CreateWebResourceResponse(new MemoryStream(body), 200, "OK", "Content-Type: " + mime);
         }
 
-        // ---- document text ----------------------------------------------------------------
-
-        /// <summary>Every paragraph in reading order, table cells included.</summary>
-        static List<ParagraphAdv> Paragraphs(DocumentAdv document)
+        static byte[] Embedded(string name)
         {
-            var paragraphs = new List<ParagraphAdv>();
-            foreach (SectionAdv section in document.Sections) Collect(section.Blocks, paragraphs);
-            return paragraphs;
-        }
-
-        static void Collect(BlockAdvCollection blocks, List<ParagraphAdv> into)
-        {
-            foreach (BlockAdv block in blocks)
+            try
             {
-                if (block is ParagraphAdv paragraph) into.Add(paragraph);
-                else if (block is TableAdv table)
-                    foreach (TableRowAdv row in table.Rows)
-                        foreach (TableCellAdv cell in row.Cells)
-                            Collect(cell.Blocks, into);
+                using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(name);
+                if (stream == null) return null;
+                using var copy = new MemoryStream();
+                stream.CopyTo(copy);
+                return copy.ToArray();
+            }
+            catch
+            {
+                return null; // an asset the exe cannot read becomes the 404 above, never a broken page
             }
         }
 
-        /// <summary>One paragraph's runs; a BreakAdv is a soft line break and reads as one.</summary>
-        static string ParagraphText(ParagraphAdv paragraph)
+        static byte[] Font(string file)
         {
-            var text = new StringBuilder();
-            foreach (Inline inline in paragraph.Inlines)
+            try
             {
-                if (inline is SpanAdv span) text.Append(span.Text);
-                else if (inline is BreakAdv) text.Append('\n');
+                // The assembly name comes from the code that owns the resource, so the one rename point
+                // (AssemblyName in Clip.csproj) stays the only place a product name lives.
+                string assembly = typeof(EditorWindow).Assembly.GetName().Name;
+                var info = Application.GetResourceStream(new Uri(
+                    "pack://application:,,,/" + assembly + ";component/Assets/Fonts/" + file));
+                using var stream = info?.Stream;
+                if (stream == null) return null;
+                using var copy = new MemoryStream();
+                stream.CopyTo(copy);
+                return copy.ToArray();
             }
-            return text.ToString();
+            catch
+            {
+                return null; // a missing face falls back to the page's own font stack
+            }
+        }
+
+        /// <summary>https://clip/ is the only address this window may show; a redirect is not ours to follow.</summary>
+        void OnNavigationStarting(object sender, CoreWebView2NavigationStartingEventArgs e)
+        {
+            if (!e.Uri.StartsWith("https://clip/", StringComparison.Ordinal)) e.Cancel = true;
+        }
+
+        // ---- page messages ----------------------------------------------------------------
+
+        void OnMessage(object sender, CoreWebView2WebMessageReceivedEventArgs e)
+        {
+            try
+            {
+                using var message = JsonDocument.Parse(e.WebMessageAsJson);
+                var root = message.RootElement;
+                switch (root.GetProperty("type").GetString())
+                {
+                    case "ready":
+                        Seed();
+                        break;
+                    case "dirty":
+                        _dirty = root.GetProperty("dirty").GetBoolean();
+                        break;
+                    case "save":
+                        SaveAndClose();
+                        break;
+                    case "cancel":
+                        RequestClose();
+                        break;
+                    case "sel":
+                        ReflectSel(root);
+                        break;
+                }
+            }
+            catch
+            {
+                // A malformed or half-arriving message must never take the tray app down with it.
+            }
+        }
+
+        async void Seed()
+        {
+            try
+            {
+                if (_loadHtml != null)
+                    await Web.ExecuteScriptAsync("window.clipBridge.load(" + JsonSerializer.Serialize(_loadHtml) + ")");
+                else
+                    await Web.ExecuteScriptAsync("window.clipBridge.loadPlain(" + JsonSerializer.Serialize(_loadText ?? "") + ")");
+                // Only a page that has actually received the clip may speak for it on save.
+                _ready = true;
+            }
+            catch
+            {
+                // The page died between "ready" and the seed: it stays empty and closing writes nothing.
+            }
         }
 
         // ---- save -------------------------------------------------------------------------
 
         static string Normalize(string text) => (text ?? "").TrimEnd('\r', '\n');
 
-        string CurrentText() => Normalize(string.Join("\n", Paragraphs(RichBox.Document).Select(ParagraphText)));
-
-        string SaveRtf()
+        /// <summary>
+        /// The stored body is a Windows "HTML Format" payload with UTF-8 byte offsets, because every
+        /// paste-back consumer (Word, Chrome, Excel) reads that envelope and the captured clips already
+        /// carry the same one — Interop\HtmlFragment.Extract is its reader.
+        /// </summary>
+        static string CfHtml(string fragment)
         {
-            using var stream = new MemoryStream();
-            RichBox.Save(stream, FormatType.Rtf);
-            return RtfText.FromBytes(stream.ToArray());
+            const string header = "Version:0.9\r\nStartHTML:{0:D10}\r\nEndHTML:{1:D10}\r\nStartFragment:{2:D10}\r\nEndFragment:{3:D10}\r\n";
+            const string open = "<html><body><!--StartFragment-->";
+            const string close = "<!--EndFragment--></body></html>";
+            int headerLength = Encoding.UTF8.GetByteCount(string.Format(header, 0, 0, 0, 0));
+            int startFragment = headerLength + Encoding.UTF8.GetByteCount(open);
+            int endFragment = startFragment + Encoding.UTF8.GetByteCount(fragment);
+            int endHtml = endFragment + Encoding.UTF8.GetByteCount(close);
+            return string.Format(header, headerLength, endHtml, startFragment, endFragment) + open + fragment + close;
         }
 
-        /// <summary>Only an html-origin clip keeps an html body; an export failure drops it rather than storing a lie.</summary>
-        string SaveHtml()
+        async void SaveAndClose()
         {
+            if (_saving) return;
+            _saving = true;
+            if (!_ready)
+            {
+                // A page that never loaded cannot speak for the clip: a rich body is never replaced by an empty one.
+                Close();
+                return;
+            }
+
             try
             {
-                using var stream = new MemoryStream();
-                RichBox.Save(stream, FormatType.Html);
-                return Encoding.UTF8.GetString(stream.ToArray());
+                string html = await ReadJson("window.clipBridge.getHtml()");
+                string text = await ReadJson("window.clipBridge.getText()");
+                if (html == null)
+                {
+                    _saving = false;
+                    return;
+                }
+
+                _item.Text = Normalize(text);
+                _item.Html = CfHtml(html);
+                _item.Rtf = null;
+                _store.Update(_item);
+                Close();
             }
-            catch { return null; } // a body the control cannot export must not be stored as html
+            catch
+            {
+                // The text is still on screen, so keep the window open rather than close over an unwritten edit.
+                _saving = false;
+            }
         }
 
-        bool Dirty => CurrentText() != _originalText || SaveRtf() != _originalRtf;
+        async Task<string> ReadJson(string script) =>
+            JsonSerializer.Deserialize<string>(await Web.ExecuteScriptAsync(script));
 
-        void SaveAndClose()
-        {
-            string rtf = SaveRtf();
-            _item.Text = CurrentText();
-            // Set the rich body BEFORE Update: the store writes exactly the fields it is handed.
-            _item.Rtf = rtf;
-            _item.Html = _hadHtml ? SaveHtml() : null;
-            _store.Update(_item);
-            Close();
-        }
-
-        // ---- close / keys -----------------------------------------------------------------
+        // ---- close / prompt ---------------------------------------------------------------
 
         void RequestClose()
         {
-            if (DiscardPrompt.Visibility == Visibility.Visible) { KeepEditing_Click(); return; }
-            if (!Dirty) { Close(); return; }
+            if (!_ready || !_dirty)
+            {
+                Close();
+                return;
+            }
             DiscardPrompt.Visibility = Visibility.Visible;
             KeepEditing.Focus();
+        }
+
+        void KeepEditing_Click()
+        {
+            DiscardPrompt.Visibility = Visibility.Collapsed;
+            Web.Focus();
+            FocusPage();
+        }
+
+        async void FocusPage()
+        {
+            try { await Web.ExecuteScriptAsync("window.clipBridge.focus()"); }
+            catch { } // the page is gone; the window still closes normally
         }
 
         protected override void OnPreviewKeyDown(KeyEventArgs e)
@@ -252,12 +383,6 @@ namespace Clip.UI
                 RequestClose();
                 e.Handled = true;
             }
-        }
-
-        void KeepEditing_Click()
-        {
-            DiscardPrompt.Visibility = Visibility.Collapsed;
-            RichBox.Focus();
         }
 
         void OnCancelClick(object sender, RoutedEventArgs e) => RequestClose();
