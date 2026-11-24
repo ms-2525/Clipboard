@@ -43,6 +43,7 @@ namespace Clip
             Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
             LogFatalErrors();
 
+            // No argument starts the v2 shell; only --legacy falls through to the old WPF app below.
             if (StartV2Shell(e.Args)) return;
 
             _mutex = new Mutex(true, $"{Product}.SingleInstance", out bool first);

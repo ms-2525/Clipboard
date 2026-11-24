@@ -16,9 +16,9 @@ using MenuItem = System.Windows.Controls.MenuItem;
 namespace Clip
 {
     /// <summary>
-    /// The v2 tray app: `--v2 [--db &lt;path&gt;]` runs the WebView2 shell as the real product — one warm
-    /// surface, the configured hotkey, live capture and the single-instance rules. The default launch path
-    /// in App.xaml.cs is untouched.
+    /// The v2 tray app. A plain launch (or --v2, kept as an alias) runs the WebView2 shell as the product:
+    /// one warm surface, the configured hotkey, live capture and the single-instance rules. --legacy opens
+    /// the old WPF UI for this release only; --db &lt;path&gt; redirects the database.
     /// </summary>
     public partial class App
     {
@@ -29,15 +29,16 @@ namespace Clip
 
         bool StartV2Shell(string[] args)
         {
-            bool v2 = false;
+            // --v2 is still accepted and ignored: it is the default now.
+            bool legacy = false;
             string dbPath = null;
             for (int i = 0; i < args.Length; i++)
             {
-                if (string.Equals(args[i], "--v2", StringComparison.OrdinalIgnoreCase)) v2 = true;
+                if (string.Equals(args[i], "--legacy", StringComparison.OrdinalIgnoreCase)) legacy = true;
                 else if (string.Equals(args[i], "--db", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
                     dbPath = args[++i];
             }
-            if (!v2) return false;
+            if (legacy) return false;
 
             // One v2 per machine: a second launch surfaces the running window instead of a second listener.
             _mutex = new Mutex(false, $"{Product}.V2");
@@ -57,7 +58,7 @@ namespace Clip
                 _legacyMutex.Dispose();
                 _legacyMutex = null;
                 MessageBox.Show(
-                    $"{Product} is already running from its tray icon. Exit it there, then start --v2.",
+                    $"{Product} is already running from its tray icon. Exit it there, then start {Product} again.",
                     Product, MessageBoxButton.OK, MessageBoxImage.Information);
                 Release(_mutex);
                 Shutdown();
@@ -124,7 +125,7 @@ namespace Clip
             mutex.Dispose();
         }
 
-        /// <summary>A second --v2 pokes the running instance's listener; the window comes forward there.</summary>
+        /// <summary>A second launch pokes the running instance's listener; the window comes forward there.</summary>
         static void SignalRunningShell()
         {
             for (int i = 0; i < 10; i++)

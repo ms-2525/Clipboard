@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Input;
@@ -14,8 +16,9 @@ using Microsoft.Web.WebView2.Core;
 namespace Clip.UI
 {
     /// <summary>
-    /// v2 development shell: one WebView2, borderless 900x700, serving UI\web\dist over https://clip.local/.
-    /// Phase 1 is read-only plus copy; the page never opens the DB itself.
+    /// The product shell: one WebView2, borderless 900x700, serving the embedded UI bundle (or
+    /// UI\web\dist for a developer build) over https://clip.local/. The page never opens the DB itself;
+    /// every read and write goes through <see cref="ClipHost"/>.
     /// </summary>
     public partial class ShellWindow : Window
     {
@@ -52,8 +55,9 @@ namespace Clip.UI
         {
             try
             {
-                // Dev-only profile location: the owner's app profile is never reused by this shell.
-                string profile = Path.Combine(Path.GetTempPath(), "opencode", "clip-v2-webview");
+                // Next to the database it serves: a temp profile is deleted by cleaners and shared by every
+                // Windows user, and two instances on one profile is the one WebView2 setup that fails outright.
+                string profile = Path.Combine(Config.DataDir, "webview");
                 Directory.CreateDirectory(profile);
 
                 // CLIP_V2_DEBUG_PORT is a DEBUG-only CDP hook for verification; a Release build has no such path.
@@ -82,15 +86,27 @@ namespace Clip.UI
 
                 _host = new ClipHost(Web, _store, _cfg, _dbPath, () => _returnTarget, HideForPaste, ShowAfterPaste);
 
-                string webRoot = FindWebRoot();
-                if (webRoot == null)
+                string webRoot = DeveloperWebRoot();
+                if (webRoot != null)
                 {
+                    // A developer build runs the folder on disk so a web edit shows on the next launch.
+                    Web.CoreWebView2.SetVirtualHostNameToFolderMapping(
+                        HostName, webRoot, CoreWebView2HostResourceAccessKind.DenyCors);
+                }
+                else if (EmbeddedWeb.ContainsKey("index.html"))
+                {
+                    // A published exe has no folder beside it: the bundle is served from memory.
+                    Web.CoreWebView2.AddWebResourceRequestedFilter(
+                        $"https://{HostName}/*", CoreWebView2WebResourceContext.All);
+                    Web.CoreWebView2.WebResourceRequested += OnWebResourceRequested;
+                }
+                else
+                {
+                    // Only a build with neither a dist folder nor the embedded bundle lands here.
                     Web.NavigateToString(FallbackHtml);
                     return;
                 }
 
-                Web.CoreWebView2.SetVirtualHostNameToFolderMapping(
-                    HostName, webRoot, CoreWebView2HostResourceAccessKind.DenyCors);
                 Web.Source = new Uri($"https://{HostName}/index.html");
             }
             catch
@@ -151,9 +167,29 @@ namespace Clip.UI
         [DllImport("user32.dll")]
         static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
 
-        /// <summary>The dist lives in the worktree during Phase 1; walk up from bin\Release\net10.0-windows.</summary>
-        static string FindWebRoot()
+        const string WebBundlePrefix = "clip.assets.web/";
+
+        /// <summary>
+        /// Every embedded bundle file by its in-bundle path ("index.html", "assets/app.js"). Built once
+        /// from the assembly; today's dist is one inlined index.html, but a build with real asset files
+        /// is served without touching this class.
+        /// </summary>
+        static readonly Dictionary<string, string> EmbeddedWeb = typeof(ShellWindow).Assembly
+            .GetManifestResourceNames()
+            .Where(name => name.StartsWith(WebBundlePrefix, StringComparison.Ordinal))
+            .ToDictionary(
+                name => name.Substring(WebBundlePrefix.Length).Replace('\\', '/'),
+                name => name,
+                StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// The one rule for which page the shell shows: a developer build (running from a bin\ folder)
+        /// prefers UI\web\dist on disk; every published exe serves the embedded bundle; only a build with
+        /// neither shows the fallback page.
+        /// </summary>
+        static string DeveloperWebRoot()
         {
+            if (AppContext.BaseDirectory.IndexOf(@"\bin\", StringComparison.OrdinalIgnoreCase) < 0) return null;
             var dir = new DirectoryInfo(AppContext.BaseDirectory);
             for (int depth = 0; dir != null && depth < 8; depth++, dir = dir.Parent)
             {
@@ -162,6 +198,45 @@ namespace Clip.UI
             }
             return null;
         }
+
+        /// <summary>Serves the embedded bundle; the page makes no outside requests, so every miss is a 404.</summary>
+        void OnWebResourceRequested(object sender, CoreWebView2WebResourceRequestedEventArgs e)
+        {
+            string path = Uri.UnescapeDataString(new Uri(e.Request.Uri).AbsolutePath).TrimStart('/');
+            if (path.Length == 0) path = "index.html";
+
+            if (!EmbeddedWeb.TryGetValue(path, out string resource))
+            {
+                e.Response = Web.CoreWebView2.Environment.CreateWebResourceResponse(
+                    null, 404, "Not Found", "Content-Type: text/plain; charset=utf-8");
+                return;
+            }
+
+            using var stored = typeof(ShellWindow).Assembly.GetManifestResourceStream(resource);
+            var bytes = new byte[stored.Length];
+            stored.ReadExactly(bytes);
+            e.Response = Web.CoreWebView2.Environment.CreateWebResourceResponse(
+                new MemoryStream(bytes), 200, "OK",
+                $"Content-Type: {ContentType(path)}\nCache-Control: no-store");
+        }
+
+        static string ContentType(string path) => Path.GetExtension(path).ToLowerInvariant() switch
+        {
+            ".html" or ".htm" => "text/html; charset=utf-8",
+            ".js" or ".mjs" => "text/javascript",
+            ".css" => "text/css",
+            ".ttf" => "font/ttf",
+            ".woff" => "font/woff",
+            ".woff2" => "font/woff2",
+            ".svg" => "image/svg+xml",
+            ".png" => "image/png",
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".webp" => "image/webp",
+            ".gif" => "image/gif",
+            ".ico" => "image/x-icon",
+            ".json" => "application/json",
+            _ => "application/octet-stream"
+        };
 
         /// <summary>https://clip.local/ is the only address this window may show; a redirect is not ours to follow.</summary>
         void OnNavigationStarting(object sender, CoreWebView2NavigationStartingEventArgs e)
@@ -193,8 +268,9 @@ namespace Clip.UI
         }
 
         /// <summary>
-        /// Shown only until the web agent's dist exists. It is deliberately a bridge self-check: the
-        /// counts, tabs and first rows prove the page can reach the real store without any UI code.
+        /// Shown only when the exe has neither the embedded bundle nor a developer dist folder (a broken
+        /// build). It is deliberately a bridge self-check: the counts, tabs and first rows prove the page
+        /// can reach the real store without any UI code.
         /// </summary>
         const string FallbackHtml = """
 <!doctype html>

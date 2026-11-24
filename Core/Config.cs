@@ -10,9 +10,18 @@ namespace Clip.Core
     public class Config
     {
         // Rename hook: the data folder follows the assembly name, not a hardcoded product name.
-        public static string DataDir =>
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                Assembly.GetEntryAssembly().GetName().Name);
+        // An explicit APPDATA wins: .NET's known-folder lookup ignores it, which made an isolated test
+        // profile impossible. In a normal session APPDATA is already that same real path.
+        public static string DataDir
+        {
+            get
+            {
+                string root = Environment.GetEnvironmentVariable("APPDATA");
+                if (string.IsNullOrEmpty(root))
+                    root = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+                return Path.Combine(root, Assembly.GetEntryAssembly().GetName().Name);
+            }
+        }
 
         static string FilePath => Path.Combine(DataDir, "config.json");
 

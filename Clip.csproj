@@ -46,6 +46,15 @@
     <EmbeddedResource Include="Assets\editor\editor.bundle.js" LogicalName="clip.assets.editor.bundle.js" />
   </ItemGroup>
 
+  <!-- The final web UI ships inside the exe too: ShellWindow serves clip.assets.web/<path> from memory
+       over https://clip.local/, so a published Clip.exe needs no folder beside it. The glob is empty when
+       UI\web\dist has not been built yet, and the shell then shows its explicit fallback page. -->
+  <ItemGroup>
+    <EmbeddedResource Include="UI\web\dist\**\*"
+                      Exclude="UI\web\dist\**\*.map"
+                      LogicalName="clip.assets.web/%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.Sqlite" Version="11.0.0" />
     <PackageReference Include="H.NotifyIcon.Wpf" Version="2.4.1" />

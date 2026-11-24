@@ -1,6 +1,6 @@
 @echo off
 rem Double-click this to build the latest Clip.exe into dist\ and start it.
-rem Flow: stop every running Clip -> wait until none are left -> build -> stop any stray copy -> start exactly one.
+rem Flow: build the web bundle if stale -> stop every running Clip -> publish one self-contained exe -> start it.
 rem If the product is renamed (AssemblyName in Clip.csproj), update the Clip.exe names below.
 setlocal
 cd /d "%~dp0"
@@ -11,7 +11,31 @@ if errorlevel 1 (
     pause
     exit /b 1
 )
+where npm.cmd >nul 2>&1
+if errorlevel 1 (
+    echo npm was not found. Install Node.js, then run "npm install" in UI\web and try again.
+    pause
+    exit /b 1
+)
 
+rem ---- 1. the web UI: rebuild only when missing or older than its sources -------------
+set webbuild=0
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$d=Get-Item 'UI\web\dist\index.html' -ErrorAction SilentlyContinue; if(-not $d){exit 1}; $in=@(Get-ChildItem 'UI\web\src' -Recurse -File)+@(Get-Item 'UI\web\index.html','UI\web\package.json','UI\web\package-lock.json','UI\web\vite.config.ts','UI\web\tsconfig.json' -ErrorAction SilentlyContinue); if(@($in|Where-Object{$_.LastWriteTimeUtc -gt $d.LastWriteTimeUtc}).Count -gt 0){exit 1}; exit 0"
+if errorlevel 1 set webbuild=1
+
+if "%webbuild%"=="1" (
+    echo Building the web UI - this takes a minute...
+    pushd "%~dp0UI\web"
+    call npm.cmd run build
+    if errorlevel 1 (
+        popd
+        goto webfailed
+    )
+    popd
+)
+if not exist "%~dp0UI\web\dist\index.html" goto webfailed
+
+rem ---- 2. stop every running copy ----------------------------------------------------
 echo Stopping every running copy of Clip...
 taskkill /IM Clip.exe /F >nul 2>&1
 set tries=0
@@ -29,12 +53,25 @@ pause
 exit /b 1
 
 :stopped
+rem ---- 3. publish the self-contained exe ---------------------------------------------
 echo Building Clip - this takes a minute...
 echo.
 dotnet publish Clip.csproj -c Release -r win-x64 --self-contained true ^
     -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=none ^
     -o dist
 if errorlevel 1 goto failed
+
+for %%F in ("%~dp0dist\Clip.exe") do set exesize=%%~zF
+findstr /M /C:"clip.assets.web/index.html" "%~dp0dist\Clip.exe" >nul
+if errorlevel 1 (
+    echo ERROR: the published exe does not contain the web page. Nothing was started.
+    echo Fix the embed in Clip.csproj, then run this script again.
+    pause
+    exit /b 1
+)
+echo.
+echo Embedded page: clip.assets.web/index.html
+echo Exe size: %exesize% bytes
 
 rem Something may have started old copies during the build (Windows startup entry, a shortcut); they would win Clip's
 rem single-instance lock and the new exe would exit. Clear them again right before starting.
@@ -62,6 +99,13 @@ reg query "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" /v Clip >nul 2>&1
 if not errorlevel 1 reg add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" /v Clip /t REG_SZ /d "%~dp0dist\Clip.exe" /f >nul
 pause
 exit /b 0
+
+:webfailed
+echo.
+echo BUILD FAILED: the web UI could not be built, so there is no page to embed.
+echo Fix the error above (try "npm install" in UI\web), then run this script again.
+pause
+exit /b 1
 
 :failed
 echo.
