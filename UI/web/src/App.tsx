@@ -5,6 +5,7 @@ import { DeleteConfirm } from './DeleteConfirm'
 import { EditorOverlay } from './EditorOverlay'
 import { MoveMenu, MovePicker, moveTargets } from './MoveToTab'
 import { SettingsDialog } from './SettingsDialog'
+import { TagPicker, clearTagTokens } from './TagPicker'
 import { TabStrip, type StripTab } from './TabStrip'
 import { createHost, messageOf, toSettings, type ClipItem, type HostConfig, type HostSettings, type HostTab, type InitResult, type SaveConfigResult, type SearchResult, type SettingsPatch } from './host'
 import { useClipboardKeys } from './useClipboardKeys'
@@ -114,6 +115,7 @@ export default function App() {
   const [tabOverlay, setTabOverlay] = useState(false)
   const [rowMenu, setRowMenu] = useState<{ clip: ClipItem; x: number; y: number } | null>(null)
   const [moveClip, setMoveClip] = useState<ClipItem | null>(null)
+  const [tagClip, setTagClip] = useState<ClipItem | null>(null)
   const [items, setItems] = useState<ClipItem[]>([])
   const [found, setFound] = useState<SearchView | null>(null)
   const [searching, setSearching] = useState(false)
@@ -133,6 +135,7 @@ export default function App() {
   const settingsReturn = useRef<HTMLElement | null>(null)
   const confirmReturn = useRef<HTMLElement | null>(null)
   const moveReturn = useRef<HTMLElement | null>(null)
+  const tagReturn = useRef<HTMLElement | null>(null)
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
@@ -665,8 +668,16 @@ export default function App() {
     }
   }, [confirm, host, showToast])
 
+  /** Programmatic filters (a chip or Ctrl+T) replace the query; only typed text survives a tab change. */
+  const filterByTag = useCallback(
+    (token: string | null) => {
+      setSearchProgrammatic(token ?? clearTagTokens(search))
+    },
+    [search, setSearchProgrammatic],
+  )
+
   useClipboardKeys({
-    enabled: !editorOpen && !settingsOpen && !exportOpen && confirm == null && !tabOverlay && rowMenu == null && moveClip == null,
+    enabled: !editorOpen && !settingsOpen && !exportOpen && confirm == null && !tabOverlay && rowMenu == null && moveClip == null && tagClip == null,
     rows: visible,
     selectedId,
     search,
@@ -689,6 +700,11 @@ export default function App() {
       if (!selected) return
       moveReturn.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
       setMoveClip(selected)
+    },
+    onTagPicker: () => {
+      if (!selected) return
+      tagReturn.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+      setTagClip(selected)
     },
     onRestore: () => void undoDelete(),
     onPin: () => void pinItem(),
@@ -1007,6 +1023,9 @@ export default function App() {
             </div>
             <div className="footer-right">
               <span className="hint">
+                <span className="keycap">Ctrl T</span> tags
+              </span>
+              <span className="hint">
                 <span className="keycap">Ctrl Shift V</span> plain
               </span>
               <span className="hint">
@@ -1058,6 +1077,14 @@ export default function App() {
         }}
         onClose={() => setMoveClip(null)}
         returnFocus={moveReturn}
+      />
+
+      <TagPicker
+        clip={tagClip}
+        query={search}
+        onChoose={filterByTag}
+        onClose={() => setTagClip(null)}
+        returnFocus={tagReturn}
       />
 
       {editorOpen && selected && (

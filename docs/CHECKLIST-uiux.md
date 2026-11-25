@@ -1,6 +1,6 @@
 # Clip — UI/UX Verification Checklist
 
-**Status 25 Nov 07:50:** 54 rows — **46 PASS · 1 FAIL · 7 NOT RUN**. Release gate in §12.
+**Status 25 Nov 08:10:** 54 rows — **48 PASS · 0 FAIL · 6 NOT RUN**. Release gate in §12.
 
 **Surface (25 Nov):** the shipped UI is the React page in `UI\web`, rendered in the warm WebView2 shell
 (`UI\ShellWindow*`). The WPF popup is retired. Every row below describes the v2 page, plus the native
@@ -26,9 +26,14 @@ strip, and its §5 named the 430 px defects that `8125132` then fixed ·
 (keyboard, counts, chips, contrast, overflow; 52/52) ·
 `%TEMP%\opencode\s18\final-report.json` — the 430 px re-measurement after `8125132`
 (chip text, `+` position, duplicate error, dialog ring, settings rows, row heights) ·
-release artifact `dist\Clip.exe` **208,187,846 B**, rebuilt 07:38, contains the final page (markers
-`more characters`, `cannot be undone`). It does not run the WebView2 shell and does not cover the native
-toast, tray or title bar.
+**`%TEMP%\opencode\s20\proof-report.json`** — the S20 tag-picker + post-sign-off harness,
+33/33 on the 08:0x bundle: Ctrl+T picker (A), untagged clip (B), search/editor guards (C), K-06
+typing (D), editor focus/inert (E), edit-then-look (F), mock unknown tag (G), 430 long tab (H),
+settings stack (I), strip end (J), five widths/themes + rows + chips (K); screenshots `01`–`11` ·
+release artifact `dist\Clip.exe` **208,187,846 B**, rebuilt 07:38, contains the 07:36 page (markers
+`more characters`, `cannot be undone`). It does **not** contain the S20 page: `UI\web\dist\index.html`
+is now **2,862,374 B** and the exe needs a rebuild before release. It does not run the WebView2 shell
+and does not cover the native toast, tray or title bar.
 
 **VERIFICATION PROTOCOL (owner-mandated):** every `[U]` row is executed by a FRESH sub-agent on
 `opencode-go/deepseek-v4.1-flash#high` — never one that wrote or orchestrated the code it judges. It
@@ -52,9 +57,9 @@ fresh visual pass may sign these.
 | ID | Surface | M | Status | Evidence |
 |---|---|---|---|---|
 | G-01 | **Popup list** — light, dark, long text: index first, body-first rows, in-row provenance, right-aligned facts | `[U]` | **PASS** | The two structural defects that failed this gate are measured fixed by the 07:17 fresh pass: index box identical at 99/100/101 (`x=35, w=30.98, right=65.98`, content `x=75.98`) and hover `1.17:1` light / `1.20:1` dark, visible as a grey wash without competing with the selected fill + ring + rail (`AUDIT-release-visual-2` §2.2/§2.3, §3.2; `17-index-three.png`, `10-states-crop-*`). |
-| G-02 | **Popup chrome** — header, tab strip, footer one band each; one type scale | `[U]` | **PASS** | `AUDIT-release-visual` §1.1/§1.2: hierarchy immediate, 14/20 body, 11/16 provenance, 15/22 title, 12/16 tabs, no fourth scale. The new strip reads as product chrome at 900 — 36 px band, raised surface, accent active state, 11 px count pills (`AUDIT-release-visual-2` §2.6/§3.3). Known non-structural weakness: the 48 px header repeats `1,000` four times. |
+| G-02 | **Popup chrome** — header, tab strip, footer one band each; one type scale | `[U]` | **NOT RUN** | Prior signature (`AUDIT-release-visual-2` §2.6/§3.3: 36 px band, raised surface, accent active state, 11 px count pills) is **stale**: S20 changes the strip to end after `+` and adds a `Ctrl T` footer hint. Builder measured strip 506 px inside a 704.7 px row (`s20` J1) and read `07-strip-900.png`, `05-long-tab-430.png`; a fresh visual agent must re-sign the band. |
 | G-03 | **Editor** — toolbar, text area, footer; buttons hug labels; one icon family | `[U]` | **PASS** | `AUDIT-release-visual-2` §2.4/§3.4: 25 buttons, 21 drawn 16 px SVGs (one 12 px `Aa`), 4 text labels by convention (H1–H3, Clear, Single line); the old `☑ ❝ ▦ +▤ •≡` glyphs and `<>`/`1.`/`{}` are drawn now. Footer reads `1 character [1 format]`, `35 characters [1 format]` (`A1-toolbar.png`, `98-one-char.png`). |
-| G-04 | **Settings** — cards with icon + title + description; controls hug content; every group reachable | `[U]` | **PASS** | `AUDIT-release-visual-2` §2.1/§3.1: dialog 860×657, body 520/520, zero scroll, all five groups end at y=614.5 above the pinned footer; at 430×400 it is a sheet with a fade + chevron at rest and every group reachable (`20-settings-900-light/dark.png`, `22`, `23`). |
+| G-04 | **Settings** — cards with icon + title + description; controls hug content; every group reachable | `[U]` | **NOT RUN** | Prior signature (`AUDIT-release-visual-2` §2.1/§3.1: 860×657, five groups, zero scroll) is **stale**: S20 splits the two columns into independent stacks. Builder measured body 426/426 and a 14 px TIME→DATA gap (`s20` I1–I3) and read `06-settings-900.png`, `10-settings-430.png`; a fresh visual agent must re-sign the layout. |
 | G-05 | **In-page toast** — one radius, one shadow, one type scale | `[U]` | **PASS** | `AUDIT-release-visual` §1.4/§4: legible and coherent in both themes; title 17.96/14.74, sub 6.83/7.96. Toast component and tokens unchanged since. |
 | G-06 | **Native capture toast + tray menu** — one radius, one shadow, no stock WPF chrome | `[U]` | **NOT RUN** | Not covered by either page-level pass (they load the page, not the shell). `docs\evidence-s10\06-toast.png` is builder-captured; no fresh agent has read the native toast or tray menu. |
 
@@ -95,10 +100,10 @@ fresh visual pass may sign these.
 
 | ID | Row (failable) | M | Status | Evidence |
 |---|---|---|---|---|
-| W-01 | 900 / 720 / 600 / 480 / 430: zero horizontal overflow, both themes | `[L]` | **PASS** | Re-measured at 07:42 on the final bundle: `scrollWidth − clientWidth = 0` at all five sizes, both themes (`s17\verify-0742.log`); `s4a\EVIDENCE.md` for the original table; `s18\final-report.json` re-confirms 430 after the tab strip. |
+| W-01 | 900 / 720 / 600 / 480 / 430: zero horizontal overflow, both themes | `[L]` | **PASS** | Re-measured at 07:42 on the final bundle: `scrollWidth − clientWidth = 0` at all five sizes, both themes (`s17\verify-0742.log`); `s4a\EVIDENCE.md` for the original table; `s18\final-report.json` re-confirms 430 after the tab strip. Re-measured after S20's fit-content strip and footer hint: `docW == innerW` on all ten width/theme pairs (`s20\proof-report.json` K1). |
 | W-02 | Zoom 100 / 125 / 150 %: zero horizontal overflow on page, dialog and editor | `[L]` | **NOT RUN** | 100 and 150 measured (150 = 600×466, 0 overflow: `s7` `20`/`21`/`22`); 125 % was saved in mock (`25`) but never measured. Half a row is not a PASS. |
-| W-03 | Settings fits the real 900×700 window; nothing below an invisible fold | `[L]` | **PASS** | `AUDIT-release-visual-2` §3.1: body `scrollHeight 520 = clientHeight 520`, zero scroll, no fade; all five groups end at y=614.5 above the footer at 622.5; dialog 860×657. Re-measured at 900 and 840 (`s18\final-report.json`: 520/520, gutter `auto`). |
-| W-04 | At 430 the settings overflow is visible (thumb, fade or "more" cue), not hidden | `[L]` | **PASS** | `AUDIT-release-visual-2` §1/§3.1: 430×400 sheet, 263 px viewport for 696 px content, a 30 px fade + chevron at rest, wheel reaches `scrollTop 433` (max) where Time and Data are visible; `22`/`23`. `s18`: gutter `stable` only on the sheet. |
+| W-03 | Settings fits the real 900×700 window; nothing below an invisible fold | `[L]` | **PASS** | `AUDIT-release-visual-2` §3.1: body `scrollHeight 520 = clientHeight 520`, zero scroll, no fade; all five groups above the footer at 622.5; dialog 860×657. S20 re-measured after the column split: body **426/426**, TIME→DATA gap **14 px** (was a 173 px hole), all five groups in order (`s20\proof-report.json` I1–I3; `06-settings-900.png`). |
+| W-04 | At 430 the settings overflow is visible (thumb, fade or "more" cue), not hidden | `[L]` | **PASS** | `AUDIT-release-visual-2` §1/§3.1: 430×400 sheet, 263 px viewport for 696 px content, a 30 px fade + chevron at rest, wheel reaches `scrollTop 433` (max) where Time and Data are visible; `22`/`23`. S20 re-checks the same 696/263 sheet after wrapping the columns: group order and 14 px spacing preserved, `docW = 430` (`s20\proof-report.json` K5; `10-settings-430.png`). |
 | W-05 | Toast and export menu at 430: no clipped text, no overflow | `[U]` | **NOT RUN** | `release-visual\37-430-toast.png` and `38-430-export.png` exist but were not read or signed by either fresh pass. |
 
 ---
@@ -112,9 +117,9 @@ fresh visual pass may sign these.
 | K-03 | `Enter`, `1`–`9`, `Ctrl+Shift+V` act on the selected/visible row | `[L]` | **PASS** | `s4a`: Enter pasted (mock fallback `Copied instead`), `3` pasted the third visible row, Ctrl+Shift+V took the plain-paste path. Those handler branches are unchanged by 141ec9e (diff adds only Ctrl+Up/Down, Ctrl+Shift+←/→ and Ctrl+M). Host paste delivery is a features-checklist row. |
 | K-04 | `F2 Ctrl+F Ctrl+P Delete Ctrl+Z` act on the right target | `[L]` | **PASS** | `s4a`: F2 opened the editor and `↓` did nothing while open; Ctrl+F focused search keeping the query; Ctrl+P pinned; Delete asked first; Ctrl+Z restored and re-selected. Re-measured F2 opens the editor (`s18\final-report.json`); handler branches unchanged. |
 | K-05 | `Ctrl+E` opens **Save as** for the selected clip (the editor is F2) | `[L]` | **PASS** | Row corrected to the shipped contract: `useClipboardKeys.ts:106-110` maps Ctrl+E to `onExport`; `s18\final-report.json` `regress.ctrle=true` after a scripted `Control+e` (the `export-pop` menu opened, no editor). |
-| K-06 | No matrix key fires while typing in search (`Delete`, `Home`, `End`, `Enter`, digits keep their caret meaning) | `[L]` | **NOT RUN** | The guard landed in `aba6c71` **after** the S4a run; S4a observed the bug it fixes (`Delete` asked to delete while the query held focus). The guard is in the code (`typing` at `useClipboardKeys.ts:52`) but no post-fix live pass types in the field and presses every matrix key. |
+| K-06 | No matrix key fires while typing in search (`Delete`, `Home`, `End`, `Enter`, digits keep their caret meaning) | `[L]` | **PASS** | `s20\proof-report.json` D1: with `abc` in the search box, `Delete`, `Home`, `End` and `Enter` each left **0 dialogs, 0 toasts**, focus in the input and the value unchanged; `1` typed as text (`abc1`). No history action ran while the field owned the caret. |
 | K-07 | IME composition suppresses matrix keys | `[L]` | **NOT RUN** | `s4a` only sent a synthetic `isComposing`/`keyCode 229` event; no real IME has been driven. `CHECKLIST-features` records the same. |
-| K-08 | Tag chips are reachable and activatable by keyboard | `[L]` | **FAIL** | `ClipList.tsx`: a `<button tabIndex={-1}>` inside `role="option"` (ARIA prunes it), no key handler; the global matrix skips controls. `AUDIT-ui-code` A1, unchanged. Mouse-only filtering by tag. |
+| K-08 | Tag chips are reachable and activatable by keyboard | `[L]` | **PASS** | Chips stay `tabIndex={-1}` because the row owns focus. `Ctrl+T` opens **Filter by tag** for the selected clip, listing its canonical tokens (`image:`, `spreadsheet:`) with the Ctrl+M arrow/Enter/Esc grammar; Enter fills the search box and filters (497 → **2 shown**), Esc returns focus to the row, an untagged clip says **“This clip has no tags.”** With a filter active the list adds **Clear tag filter** (the active token is marked `active`); choosing it empties the query and the 497 rows return. `s20\proof-report.json` A1–A6, B1–B2; `s20\clear-probe.log`; `01-tag-picker-open.png`, `02-tag-filter-applied.png`, `03-no-tags.png`, `11-tag-picker-clear.png`. |
 | K-09 | Settings opens with focus inside the dialog and Tab never leaves it | `[L]` | **PASS** | `AUDIT-release-visual-2` §1/§2.3: opens on `Close settings`, 18 consecutive Tabs stay inside `.dialog`, Esc restores focus to the Settings button, `aria-modal="true"`. |
 | K-10 | `Esc` cascade: clears search → closes editor/popover/discard → hides the window | `[L]` | **PASS** | `s4a`: first Esc cleared the query, second called `hide()`; `s7` §B: Esc closes the link popover, then `Discard changes?`, then the editor. Esc handler unchanged by the S12–S18 commits. |
 
@@ -124,9 +129,9 @@ fresh visual pass may sign these.
 
 | ID | Row (failable) | M | Status | Evidence |
 |---|---|---|---|---|
-| E-01 | Editor is a real modal: focus trapped, background inert, focus restored to the row on close | `[L]` | **NOT RUN** | Trap proven on the final bundle: 40 Tabs, always inside `.editor-overlay` (`s17\verify-0742.log`); save closes and confirms. Focus restore to the row and background inertness were not observed in that harness, so the row is not signed. |
+| E-01 | Editor is a real modal: focus trapped, background inert, focus restored to the row on close | `[L]` | **PASS** | `s20\proof-report.json` E1–E3: with the editor open, `.app` is `aria-hidden="true"` and `body` is `pointer-events: none` (background inert) while focus sits inside `.editor-overlay`; Esc closes and restores focus to the exact row that opened it (id 1, `aria-selected="true"`). The 40-Tab trap is `s17\verify-0742.log`. |
 | E-02 | Dirty editor: `Discard changes?` appears; discard leaves the stored body untouched | `[U]` | **PASS** | `s7` §B: third Esc closed with the row still 4,800 chars, no `DISCARD ME`; `AUDIT-release-visual` §1.5: clean/dirty/discard strong in both themes (`24`, `26`). Discard branch untouched by 141ec9e. |
-| E-03 | Saving an edit invalidates the row body; the list shows the new text without reload | `[L]` | **NOT RUN** | `forgetBody(id)` (`rich.tsx:220`); the harness confirms save closes with the toast `Clip saved Chrome · API reference` but does not look at the row afterwards. No edit-then-look run. The bug it fixes is `AUDIT-ui-code` M1. |
+| E-03 | Saving an edit invalidates the row body; the list shows the new text without reload | `[L]` | **PASS** | `s20\proof-report.json` F1–F2: typed ` EDITPROOF` at the end of clip 1 and saved; the editor closed with **“Clip saved”** and the row body then read `https://docs.stripe.com/api/charges EDITPROOF` without a reload. `forgetBody(id)` at `rich.tsx:220`. `04-edit-then-look.png`. |
 | E-04 | Footer character count updates after every keystroke | `[L]` | **PASS** | `s17\verify-0742.log`: `35 characters` on open → `36` after 1 → `45` after 10 → `55` after 20 keystrokes; `1 character` after a one-char edit; `1 format` singular. The frozen memo deps are gone (`141ec9e`). `03-editor-count.png`. |
 | E-05 | Editor toolbar is one drawn icon family and the footer pluralises | `[U]` | **PASS** | `AUDIT-release-visual-2` §2.4/§3.4: 21 of 25 buttons are drawn 16 px SVGs, 4 are text labels by convention (H1–H3, Clear, Single line); footer reads `1 character [1 format]` / `35 characters [1 format]`. `A1-toolbar.png`, `98-one-char.png`. |
 
@@ -138,7 +143,7 @@ fresh visual pass may sign these.
 |---|---|---|---|---|
 | S-01 | Empty history: first run shows the empty state, header counts `0`, nothing broken | `[L]` | **PASS** | `evidence-s10\01-list-light-empty.png` on a clean profile (real exe, empty APPDATA); `s7` after Clear history (`23`); `release-visual\15-empty.png`. |
 | S-02 | No results: `Nothing matches “…”` with the query, list not blank | `[L]` | **PASS** | `s4a\900-light-empty-no-results.png`; `AUDIT-release-visual` §1.4. Empty-state copy unchanged. |
-| S-03 | Unknown tag: `no tag named “foo” — searched as text`, list does not shift | `[L]` | **PASS** | `s4a` both themes; measured `list-wrap` top shift = 0. The hint still renders from `activeSearch.unknownTags` (`App.tsx:896-903`). |
+| S-03 | Unknown tag: `no tag named “foo” — searched as text`, list does not shift | `[L]` | **PASS** | `s4a` both themes; measured `list-wrap` top shift = 0. The hint still renders from `activeSearch.unknownTags` (`App.tsx:896-903`). The preview mock now matches the host parser: `zzzz:` returns **0 shown** with the hint, `image:` returns the image rows (`s20\proof-report.json` G1–G2; `08-mock-unknown-tag.png`, `09-mock-image-filter.png`). |
 | S-04 | Toast auto-fits content up to `Notification.MaxLines` (one line stays short, long stops at the cap) | `[L]` | **PASS** | S8b measured 77 → 160 px by content; `evidence-s10\06-toast.png` shows a two-line auto-fit; `s4a` one-line `Skipped`/`Hotkey unavailable`. Native toast untouched by S12–S18. |
 | S-05 | Export menu opens on the selected clip; the result toast names the file (saved) or says cancelled | `[L]` | **PASS** | S6b (`ff11f84`): export from the page, toast names the file; `AUDIT-release-visual` §1.4. The post-export window-visibility defect that used to qualify this row is closed: `ec4ce55` shows the shell on save, cancel and a failed write (`AUDIT-release-logic-2` §1.1, harness `ask -> show`). |
 | S-06 | Settings invalid input: inline error, prior value kept and nothing lost | `[L]` | **PASS** | `s7` §A hotkey conflict (`08`): inline `Could not register … kept Alt+J`, field returns to Alt+J, config unchanged. |
@@ -201,32 +206,32 @@ carry a written owner-accepted deviation in the release gate below.
 Cutover requires **all 54 rows PASS**, or a written owner-accepted deviation for the named row. A
 deviation is not a PASS and is recorded in this section before the release commit.
 
-**Not PASS today — 1 FAIL + 7 NOT RUN:**
+**Not PASS today — 0 FAIL + 6 NOT RUN:**
 
 | Row | Why |
 |---|---|
-| `K-08` **FAIL** | Tag chips are mouse-only (`tabIndex={-1}` inside a role-option). Code fix, not evidence. |
+| `G-02` NOT RUN | Tab strip/footer changed by S20; builder screenshots exist, fresh visual signature stale. |
+| `G-04` NOT RUN | Settings column split by S20; builder screenshots exist, fresh visual signature stale. |
 | `G-06` NOT RUN | Native toast + tray menu: no fresh agent has read the shell. |
 | `W-02` NOT RUN | 125 % zoom never measured (100 and 150 pass). |
 | `W-05` NOT RUN | Toast/export at 430: screenshots exist, unsigned. |
-| `K-06` NOT RUN | Typing-in-search guard not exercised after it landed. |
 | `K-07` NOT RUN | Real IME never driven. |
-| `E-01` NOT RUN | Editor trap proven; focus restore + background inert not observed. |
-| `E-03` NOT RUN | No edit-then-look run proving the row body refreshes. |
 
 **Also not signatures, but on the record:** the memory ceiling. 527.5 MB working set / 270.5 MB private,
 7 processes, measured on the **06:52** exe (`208,183,750` B); the 07:38 rebuild (`208,187,846` B) has not
 been re-measured and the ~643 MB figure with an image loaded is from an earlier build. This needs the
 owner's written acceptance or a new ceiling.
 
-**Fresh sign-off:** no `docs\AUDIT-release-signoff.md` existed when this file was committed. The fresh
-sign-off run started at 07:39 on the release artifact and had not written its report; **no row here is
-signed by it**. The only fresh-agent signatures are `AUDIT-release-visual-2` (07:17), plus the 07:42
-harness re-run.
+**Fresh sign-off:** `docs\AUDIT-release-signoff.md` now exists (25 Nov, fresh agent): 10/10 against
+its brief, and its four ranked defects are this slice's post-sign-off items. The tag-picker, typing-guard,
+editor-focus and edit-then-look rows above are builder `[L]` harness evidence, not fresh `[U]`
+signatures. The fresh-agent signatures remain `AUDIT-release-visual-2` (07:17) and the 07:42 harness.
 
-**What is no longer on this list:** settings fit, the 430 sheet cue, hover, the index column, the
+**What is no longer on this list:** the tag keyboard path, the typing-in-search guard, editor focus
+restore/background inert, edit-then-look, settings fit, the 430 sheet cue, hover, the index column, the
 toolbar family, the disabled explanation, the character count, the tab delete wording, the dialog focus
-ring and `aria-modal` — all re-measured on the current bundle by the 07:17 fresh pass or the 07:42
-harness. The remaining 46 PASS rows are regression-locked: any change to the code under them returns
-them to NOT RUN until re-proven, and `G-01`–`G-06` are re-run by a fresh visual agent on the release
-artifact.
+ring and `aria-modal` — all re-measured on the current bundle by the 07:17 fresh pass, the 07:42 harness
+or the S20 harness. The remaining 48 PASS rows are regression-locked: any change to the code under them
+returns them to NOT RUN until re-proven, and `G-01`–`G-06` are re-run by a fresh visual agent on the
+release artifact. The S20 page is **not yet in `dist\Clip.exe`** (208,187,846 B, 07:38): rebuild before
+release.

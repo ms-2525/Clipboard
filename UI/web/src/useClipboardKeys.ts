@@ -22,6 +22,8 @@ export interface KeyActions {
   onExport: () => void
   onDelete: () => void
   onMove: () => void
+  /** Ctrl+T: the selected clip's tags, as a keyboard path to the chip filter. */
+  onTagPicker: () => void
   onRestore: () => void
   onPin: () => void
   onHide: () => void
@@ -95,6 +97,14 @@ export function useClipboardKeys(actions: KeyActions) {
           if (selected) {
             take()
             actions.onMove()
+          }
+          return
+        }
+        // Ctrl+T must not fire while the search box owns the caret: T is a letter first.
+        if (lower === 't' && !typing) {
+          if (selected) {
+            take()
+            actions.onTagPicker()
           }
           return
         }

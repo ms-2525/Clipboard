@@ -133,7 +133,9 @@ export function createMockHost(): Host {
       } else if (KNOWN_TAGS.has(tag[1])) {
         tags.push(tag[1])
       } else {
+        // The host keeps an unknown `name:` as the text the owner typed; so do we.
         unknownTags.push(tag[1])
+        terms.push(token)
       }
     }
     const rows = clips.filter((clip) => {

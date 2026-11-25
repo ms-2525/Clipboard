@@ -16,14 +16,23 @@ export function moveTargets(tabs: HostTab[]): MoveTarget[] {
   return targets
 }
 
-function MoveList({
-  targets,
-  currentTabId,
+/** One menu row: Tab move and Tag filter share the same picker grammar. */
+export interface PickerItem {
+  key: string
+  label: string
+  /** Right-aligned muted note, e.g. the current destination. */
+  note?: string
+}
+
+/** The arrow-key list behind Ctrl+M and Ctrl+T: first item focused, Enter picks, Esc is the dialog's. */
+export function PickerList({
+  label,
+  items,
   onChoose,
 }: {
-  targets: MoveTarget[]
-  currentTabId: number | null
-  onChoose: (tabId: number | null) => void
+  label: string
+  items: PickerItem[]
+  onChoose: (key: string) => void
 }) {
   const ref = useRef<HTMLDivElement>(null)
 
@@ -34,32 +43,33 @@ function MoveList({
   const onKey = (event: ReactKeyboardEvent<HTMLDivElement>) => {
     if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return
     event.preventDefault()
-    const items = Array.from(ref.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])
-    if (items.length === 0) return
-    const at = items.indexOf(document.activeElement as HTMLElement)
-    items[(at + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length]?.focus()
+    const rows = Array.from(ref.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])
+    if (rows.length === 0) return
+    const at = rows.indexOf(document.activeElement as HTMLElement)
+    rows[(at + (event.key === 'ArrowDown' ? 1 : -1) + rows.length) % rows.length]?.focus()
   }
 
   return (
-    <div ref={ref} className="move-list" role="menu" aria-label="Move clip to tab" onKeyDown={onKey}>
-      {targets.map((target) => {
-        const current = target.id === currentTabId
-        return (
-          <button
-            key={target.id ?? 'all'}
-            type="button"
-            role="menuitem"
-            className="pop-item"
-            onClick={() => onChoose(target.id)}
-          >
-            {target.label}
-            {current && <span className="move-current">current</span>}
-          </button>
-        )
-      })}
+    <div ref={ref} className="move-list" role="menu" aria-label={label} onKeyDown={onKey}>
+      {items.map((item) => (
+        <button key={item.key} type="button" role="menuitem" className="pop-item" onClick={() => onChoose(item.key)}>
+          {item.label}
+          {item.note && <span className="move-current">{item.note}</span>}
+        </button>
+      ))}
     </div>
   )
 }
+
+/** Target ids travel as strings so the list stays generic; "all" is the only non-numeric key. */
+const moveItems = (targets: MoveTarget[], currentTabId: number | null): PickerItem[] =>
+  targets.map((target) => ({
+    key: target.id == null ? 'all' : String(target.id),
+    label: target.label,
+    note: target.id === currentTabId ? 'current' : undefined,
+  }))
+
+const moveKeyToId = (key: string) => (key === 'all' ? null : Number(key))
 
 /** Right-click menu: one job, the destination list, never a second dialog on top of the list. */
 export function MoveMenu({
@@ -111,7 +121,11 @@ export function MoveMenu({
       <div className="move-sub" title={`${clip.app} · ${clip.title}`}>
         {clip.app} · {clip.title || 'Untitled clip'}
       </div>
-      <MoveList targets={targets} currentTabId={clip.tabId} onChoose={onChoose} />
+      <PickerList
+        label="Move clip to tab"
+        items={moveItems(targets, clip.tabId)}
+        onChoose={(key) => onChoose(moveKeyToId(key))}
+      />
     </div>
   )
 }
@@ -159,11 +173,11 @@ export function MovePicker({
           </div>
           <div className="dialog-body">
             {clip && (
-              <MoveList
-                targets={targets}
-                currentTabId={clip.tabId}
-                onChoose={(tabId) => {
-                  onChoose(tabId)
+              <PickerList
+                label="Move clip to tab"
+                items={moveItems(targets, clip.tabId)}
+                onChoose={(key) => {
+                  onChoose(moveKeyToId(key))
                   onClose()
                 }}
               />

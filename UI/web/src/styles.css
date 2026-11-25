@@ -348,7 +348,9 @@ a {
   padding: 3px;
   min-width: 0;
   max-width: 100%;
-  flex: 1 1 auto;
+  /* The strip ends after `+`: an empty raised trough at 900 read as a missing control. */
+  flex: 0 1 auto;
+  width: fit-content;
 }
 /* The strip is the only scroller: tabs and the inline field never push the page sideways.
    `+` is a sibling, so it stays visible however far the names scroll. */
@@ -2005,8 +2007,13 @@ a {
     min-width: 66px;
     max-width: 132px;
   }
-  .tab:not([data-state='active']) .tab-count {
+  /* The count is what squeezed "Quarterly…" to "Q…": the label keeps its six-character prefix. */
+  .tab-count {
     display: none;
+  }
+  /* The active tab keeps its full label (up to the 132 px cap); the scroller absorbs the rest. */
+  .tab[data-state='active'] {
+    flex-shrink: 0;
   }
   /* Under the field, not under the whole strip: the duplicate message wraps instead of being cut. */
   .tab-edit-error {
@@ -2015,32 +2022,33 @@ a {
 }
 
 /* ---------- settings: fits 900x700 in two columns, full-height sheet on a phone ---------- */
+/* On a phone the columns are invisible: the five groups keep their reading order. */
+.set-cols,
+.set-col {
+  display: contents;
+}
 @media (min-width: 840px) {
   .dialog.settings {
     width: 860px;
   }
   .dialog.settings .dialog-body {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    align-content: start;
-    /* Groups size to their content; Capture in the left column must not stretch Time into a 157px hole. */
-    align-items: start;
-    gap: 14px 28px;
+    /* Two independent stacks: TIME follows APPEARANCE instead of inheriting CAPTURE's height. */
+    display: flex;
+    align-items: flex-start;
+    gap: 28px;
   }
-  .dialog.settings .set-group:nth-child(1) {
-    grid-area: 1 / 1;
+  .dialog.settings .set-cols {
+    display: flex;
+    align-items: flex-start;
+    gap: 28px;
+    align-self: stretch;
   }
-  .dialog.settings .set-group:nth-child(2) {
-    grid-area: 2 / 1;
-  }
-  .dialog.settings .set-group:nth-child(3) {
-    grid-area: 1 / 2;
-  }
-  .dialog.settings .set-group:nth-child(4) {
-    grid-area: 2 / 2;
-  }
-  .dialog.settings .set-group:nth-child(5) {
-    grid-area: 3 / 2;
+  .dialog.settings .set-col {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
   }
 }
 @media (max-width: 520px) {

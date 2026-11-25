@@ -133,8 +133,9 @@ the v2 page. They are one-liners in `docs\CHECKLIST-archive.md` (§ "Retired 25 
 - [ ] **NOT RUN** — [L] Toast auto-fits: 1 line is short, 30 lines stops at `MaxLines`/`Height`, and the
       toast stays inside the work area at 150 % DPI. Native toast not re-measured.
 - [ ] **NOT RUN** — [L] Web list keyboard matrix: ↑ ↓ Home End PageUp PageDown Enter Ctrl+Shift+V F2
-      Ctrl+F Esc Ctrl+M `1`–`9`, with the Esc cascade order preserved. Individual chords are proven
-      headless (above); the full matrix and the cascade order have no live pass.
+      Ctrl+F Esc Ctrl+M Ctrl+T `1`–`9`, with the Esc cascade order preserved. Individual chords are
+      proven headless (above; S20 adds Ctrl+T: picker open → Enter filters → Esc returns row focus,
+      `s20\proof-report.json` A/B); the full matrix and the cascade order have no live pass.
 
 ## 10. Deferred, tracked, not in scope (kept as decisions, not checks)
 

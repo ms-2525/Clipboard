@@ -203,6 +203,8 @@ export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, o
 
           <div className="dialog-body-wrap">
             <div className={'dialog-body' + (scrolls ? ' scrolling' : '')} ref={bodyRef} onScroll={measure}>
+            <div className="set-cols">
+            <div className="set-col">
             <div className="set-group">
               <div className="t-micro">General</div>
               <div className="set-row">
@@ -288,7 +290,9 @@ export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, o
                 </Switch.Root>
               </div>
             </div>
+            </div>
 
+            <div className="set-col">
             <div className="set-group">
               <div className="t-micro">Appearance</div>
               <div className="radio-row">
@@ -360,6 +364,8 @@ export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, o
                   </button>
                 </div>
               )}
+            </div>
+            </div>
             </div>
             </div>
             {more && (
