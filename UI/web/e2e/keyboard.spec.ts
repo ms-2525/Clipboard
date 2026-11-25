@@ -166,6 +166,12 @@ test('the Settings preview and the known-limits note are on screen', async ({ pa
   await page.locator('button[aria-label="Settings"]').click()
   await expect(page.locator('.dialog')).toHaveCount(1)
   await expect(page.getByText('Known limits')).toBeVisible()
+  // G-03: at 900x700 the sheet must fit without a scroll; the limits note once pushed it over.
+  const overflow = await page.evaluate(() => {
+    const body = document.querySelector('.dialog-body') as HTMLElement
+    return body.scrollHeight - body.clientHeight
+  })
+  expect(overflow).toBeLessThanOrEqual(0)
   await page.getByRole('button', { name: 'Preview' }).click()
   // The mock answers `shown`; a failure would surface as an error toast.
   await expect(page.locator('.toast.error')).toHaveCount(0)

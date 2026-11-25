@@ -295,13 +295,6 @@ export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, o
                 </Switch.Root>
               </div>
             </div>
-            <div className="set-group">
-              <div className="t-micro">Known limits</div>
-              <div className="t-sec">Colour emoji can show as boxes in the preview; the copy itself is untouched.</div>
-              <div className="t-sec">HTML from Google Docs, Notion or a web page is simplified on the way back into those apps; the words stay.</div>
-              <div className="t-sec">OCR text is there to find a picture. Never read an amount from it.</div>
-              <div className="t-sec">Excel turns a leading zero, 007, into 7 when it opens a CSV; Clip writes the file correctly.</div>
-            </div>
             </div>
 
             <div className="set-col">
@@ -376,6 +369,14 @@ export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, o
                   </button>
                 </div>
               )}
+            </div>
+
+            <div className="set-group">
+              <div className="t-micro">Known limits</div>
+              <div className="t-sec">Colour emoji can show as boxes in the preview; the copy itself is untouched.</div>
+              <div className="t-sec">HTML from Google Docs, Notion or a web page is simplified on the way back into those apps; the words stay.</div>
+              <div className="t-sec">OCR text is there to find a picture. Never read an amount from it.</div>
+              <div className="t-sec">Excel turns a leading zero, 007, into 7 when it opens a CSV; Clip writes the file correctly.</div>
             </div>
             </div>
             </div>
