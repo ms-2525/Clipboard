@@ -43,6 +43,8 @@ from. Every word you type must be present, so `bank statement` finds clips conta
 - **A tag** needs the colon. `image:` finds pictures; `excel:`, `sheet:`, `xls:` and `csv:` all find
   spreadsheet clips; `code:` finds any code language. Tags combine: `excel: link:` finds clips that
   are both. Put a minus in front to exclude: `-image:` hides pictures and keeps everything else.
+  **`tag:` works too:** `tag:image`, `tag:excel`, `-tag:files`. An unknown name, `tag:zzz` or `zzz:`,
+  is searched as text with a hint.
 - **Quotes** keep a phrase together: `"bank statement"` finds that phrase, not the two words in
   separate places.
 - **A typo like `foo:`** is not a tag, so Clip searches it as ordinary text and says
@@ -53,7 +55,10 @@ There is no OR search and no saved searches in this release.
 
 ## 4. Tabs
 
-The strip above the list holds **All**, **Pinned**, and any tabs you make.
+The strip above the list holds **All**, **Pinned**, **Images**, and any tabs you make.
+
+**Images** is a built-in view, not a folder: it shows every picture in All history, with a live count.
+It is the same as typing `image:`. Moving a clip into a tab does not remove it from Images.
 
 - **Create:** click **+**, type a name, press **Enter**. **Esc** cancels. A blank name or one already
   in use is refused with a message.
