@@ -19,7 +19,7 @@ Layering that HOLDS: `UI → Core|Interop` only; nothing imports `UI`; `App` imp
 - Compile: `dotnet build -c Release` — 0 errors, 0 warnings is the bar.
 - Owner build: double-click `build-release.cmd` → one self-contained exe at `dist\Clip.exe` (no .NET runtime needed on the target machine; `dist/` is gitignored).
 - Component verification: scratch harness in `%TEMP%\opencode` linking the REAL files; every `[H]` checklist item needs observed values.
-- Page e2e: `cd UI\web; npm.cmd run e2e` - 9 Playwright tests on the built page (`?mock=1000`) covering the owner's keyboard contract, using the Chromium already in `%LOCALAPPDATA%\ms-playwright` (Playwright pinned 1.63.0, so nothing downloads). A red test blocks release.
+- Page e2e: `cd UI\web; npm.cmd run e2e` - 16 Playwright tests on the built page (`?mock=1000`) covering the owner's keyboard contract, using the Chromium already in `%LOCALAPPDATA%\ms-playwright` (Playwright pinned 1.63.0, so nothing downloads). A red test blocks release.
 - Visual verification: a FRESH `deepseek-v4.1-flash#high` sub-agent takes and reads its own screenshots; builders never mark `[U]` items.
 - Pre-release: `ca-milestone-audit` dual-axis pass over both checklists.
 

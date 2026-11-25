@@ -1,6 +1,6 @@
 # Clip — UI/UX Verification Checklist
 
-**Status 25 Nov (G-02 band sign-off):** 54 rows — **50 PASS · 0 FAIL · 4 NOT RUN**. Release gate in §12.
+**Status 25 Nov (live acceptance 3 + visual 3):** 54 rows — **53 PASS · 0 FAIL · 1 NOT RUN**. Release gate in §12.
 
 **Surface (25 Nov):** the shipped UI is the React page in `UI\web`, rendered in the warm WebView2 shell
 (`UI\ShellWindow*`). The WPF popup is retired. Every row below describes the v2 page, plus the native
@@ -61,7 +61,7 @@ fresh visual pass may sign these.
 | G-03 | **Editor** — toolbar, text area, footer; buttons hug labels; one icon family | `[U]` | **PASS** | `AUDIT-release-visual-2` §2.4/§3.4: 25 buttons, 21 drawn 16 px SVGs (one 12 px `Aa`), 4 text labels by convention (H1–H3, Clear, Single line); the old `☑ ❝ ▦ +▤ •≡` glyphs and `<>`/`1.`/`{}` are drawn now. Footer reads `1 character [1 format]`, `35 characters [1 format]` (`A1-toolbar.png`, `98-one-char.png`). |
 | G-04 | **Settings** — cards with icon + title + description; controls hug content; every group reachable | `[U]` | **PASS** | `AUDIT-release-signoff-2` §3 (fresh agent, current 08:05 bundle, both themes): at 900 the dialog is **860×563**, body **561/561**, not scrollable, two independent stacks **395 + 28 + 395**, all five groups populated and on screen, **TIME→DATA gap 14 px** (was the 173 px hole), last Capture row 8 px above the footer; at 430 the sheet is **430×400**, body **263/696**, a **30 px fade** at rest, wheel reaches `scrollTop 433` and every group is on screen. `settings-900x700-light/dark.png`, `settings-430x400-*-bottom.png`. |
 | G-05 | **In-page toast** — one radius, one shadow, one type scale | `[U]` | **PASS** | `AUDIT-release-visual` §1.4/§4: legible and coherent in both themes; title 17.96/14.74, sub 6.83/7.96. Toast component and tokens unchanged since. |
-| G-06 | **Native capture toast + tray menu** - one radius, one shadow, no stock WPF chrome | `[U]` | **FAIL** | Live pass 25 Nov (`docs\AUDIT-live-acceptance.md`): the toast is custom and rounded (420x94 DIP, source `WindowsTerminal`, two-line preview, foreground hwnd unchanged - `%TEMP%\opencode\live-accept\shots\toast-focus.png`), but the tray menu is a **stock white WPF ContextMenu**: square corners, default font, default separators, version `Clip 1.0.0` (`traymenu-exit.png`). One surface of the pair cannot pass. |
+| G-06 | **Native capture toast + tray menu** - one radius, one shadow, no stock WPF chrome | `[U]` | **PASS** | Live pass 25 Nov (`docs\AUDIT-live-acceptance-2.md` §3), isolated profile on `dist\Clip.exe` `6E9B1B95…9FA0`: the tray menu is the **themed** white `Surface` (`#FFFFFF`), **8 DIP rounded** corners, **14 DIP** app font, **1 physical px `#EAEEF4`** flat separator, **no shadow**, and the old `Clip 1.0.0` footer is **gone** (UIA items: `Clip: show/hide`, `Settings.`, `Clear history.`, `Exit`, each 195×48 at 150 % — `95-traymenu.png`, `98-traymenu-hover.png`, `9A-traymenu-keyboard-hover.png`). `Exit` removed the process in **186.7 ms** and every profile `msedgewebview2` in **1,765.5 ms** (< 2 s; three runs, max 446 / 1,765 ms). The toast evidence is the prior pass (`live-accept\shots\toast-focus.png`). **Hover pill read live on 25 Nov pass 3** (`AUDIT-live-acceptance-3` §1 #10) on `dist\Clip.exe` `221D045B…0548`: with the pointer over `Clip: show/hide` the row reads **`246,246,246`** against **`255,255,255`** for the rows below and for the menu surface (`91-tray-hover.png`, pixel read at 1440,824 vs 1440,920); `92-tray-keyboard.png` shows the same pill after a `Down` key (the pointer still owned it) - the pointer pill is proven, a keyboard-driven pill is still not. Pass 3 also re-read the chrome: white surface, `#EAEEF4` separator at y=950, four 195x48 items, no version footer, and `Exit` took the process in **447.8 ms** / webviews **1,050.6 ms** (`90-tray-menu.png`, `9A-after-exit.png`). |
 
 ---
 
@@ -101,10 +101,10 @@ fresh visual pass may sign these.
 | ID | Row (failable) | M | Status | Evidence |
 |---|---|---|---|---|
 | W-01 | 900 / 720 / 600 / 480 / 430: zero horizontal overflow, both themes | `[L]` | **PASS** | Re-measured at 07:42 on the final bundle: `scrollWidth − clientWidth = 0` at all five sizes, both themes (`s17\verify-0742.log`); `s4a\EVIDENCE.md` for the original table; `s18\final-report.json` re-confirms 430 after the tab strip. Re-measured after S20's fit-content strip and footer hint: `docW == innerW` on all ten width/theme pairs (`s20\proof-report.json` K1). |
-| W-02 | Zoom 100 / 125 / 150 %: zero horizontal overflow on page, dialog and editor | `[L]` | **NOT RUN** | 100 and 150 measured (150 = 600×466, 0 overflow: `s7` `20`/`21`/`22`); 125 % was saved in mock (`25`) but never measured. Half a row is not a PASS. |
+| W-02 | Zoom 100 / 125 / 150 %: zero horizontal overflow on page, dialog and editor | `[L]` | **PASS** | Fresh pass `docs\AUDIT-visual-3.md` on page `87329539…` (2,865,809 B), zoom set with the page's own control and read back: 100 % page 900/900, dialog 900/900 + body 848/848, editor 900/900 + page 758/758; 125 % (720×560) 720/720, 720/720 + 508/508, 720/720/720/686; 150 % (600×466) 600/600, 600/600 + 508/508, 600/600/600/566. Zero elements past the right edge at any zoom (`zoom-100|125|150-page|settings|editor.png`, `measure.json`). Method named in the report: CSS viewport = 900×700 ÷ factor, not a native ZoomFactor. |
 | W-03 | Settings fits the real 900×700 window; nothing below an invisible fold | `[L]` | **PASS** | `AUDIT-release-visual-2` §3.1: body `scrollHeight 520 = clientHeight 520`, zero scroll, no fade; all five groups above the footer at 622.5; dialog 860×657. S20 re-measured after the column split: body **426/426**, TIME→DATA gap **14 px** (was a 173 px hole), all five groups in order (`s20\proof-report.json` I1–I3; `06-settings-900.png`). |
 | W-04 | At 430 the settings overflow is visible (thumb, fade or "more" cue), not hidden | `[L]` | **PASS** | `AUDIT-release-visual-2` §1/§3.1: 430×400 sheet, 263 px viewport for 696 px content, a 30 px fade + chevron at rest, wheel reaches `scrollTop 433` (max) where Time and Data are visible; `22`/`23`. S20 re-checks the same 696/263 sheet after wrapping the columns: group order and 14 px spacing preserved, `docW = 430` (`s20\proof-report.json` K5; `10-settings-430.png`). |
-| W-05 | Toast and export menu at 430: no clipped text, no overflow | `[U]` | **NOT RUN** | `release-visual\37-430-toast.png` and `38-430-export.png` exist but were not read or signed by either fresh pass. |
+| W-05 | Toast and export menu at 430: no clipped text, no overflow | `[U]` | **PASS** | Fresh pass `docs\AUDIT-visual-3.md` at 430x700: toast `331/331` (title/sub 245/245) at x 75.4-408, export menu `152/152` at x 255-409, items `140/140` each (`Save as… Ctrl E`, `Text (.txt)`, `Markdown (.md)`), page `430/430`, nothing past `innerWidth`, no clipped or ellipsised text (`430-toast.png`, `430-export.png`). Re-measured on the rebuilt page `87329539…` with identical numbers. |
 
 ---
 
@@ -206,14 +206,16 @@ carry a written owner-accepted deviation in the release gate below.
 Cutover requires **all 54 rows PASS**, or a written owner-accepted deviation for the named row. A
 deviation is not a PASS and is recorded in this section before the release commit.
 
-**Not PASS today — 0 FAIL + 4 NOT RUN:**
+**Not PASS today - 0 FAIL + 1 NOT RUN:**
 
 | Row | Why |
 |---|---|
-| `G-06` NOT RUN | Native toast + tray menu: no fresh agent has read the shell. |
-| `W-02` NOT RUN | 125 % zoom never measured (100 and 150 pass). |
-| `W-05` NOT RUN | Toast/export at 430: screenshots exist, unsigned. |
-| `K-07` NOT RUN | Real IME never driven. |
+| `K-07` NOT RUN | Real IME never driven (no Hindi/Chinese/Japanese input method on this machine). |
+
+`G-06` (tray + toast), `W-02` (125 % zoom) and `W-05` (430 toast/export) moved to PASS on the 25 Nov live
+and visual passes: `docs\AUDIT-live-acceptance-2.md` §3 (`G-06` chrome, `95-traymenu.png`; hover pill
+re-read in `AUDIT-live-acceptance-3` at `246,246,246` vs `255,255,255`) and `docs\AUDIT-visual-3.md`
+(`W-02`, `W-05`).
 
 **Also not signatures, but on the record:** the memory ceiling. 527.5 MB working set / 270.5 MB private,
 7 processes, measured on the **06:52** exe (`208,183,750` B); the 07:38 rebuild (`208,187,846` B) has not
@@ -237,16 +239,21 @@ regression-locked: any change to the code under them returns them to NOT RUN unt
 `G-01`–`G-06` are re-run by a fresh visual agent on the release artifact. The page now ships in
 `dist\Clip.exe` (208,187,846 B, rebuilt 08:08 from the 08:05 bundle): one page scan of that exe is still owed.
 
-## 13. Final tally (25 Nov, G-02 band sign-off)
+## 13. Final tally (25 Nov, live acceptance 3)
 
-**54 rows — 50 PASS · 0 FAIL · 4 NOT RUN.** Every PASS row names its artifact; no `[U]` row was signed by a
-builder. `G-04` moved from NOT RUN to PASS on `AUDIT-release-signoff-2` §3; `G-02` moved on the 08:41 fresh
-band read of the same 08:05 bundle (header/tab strip/footer at 900 and 430, both themes).
+**54 rows — 51 PASS · 0 FAIL · 3 NOT RUN.** Every PASS row names its artifact; no `[U]` row was signed by a
+builder. `G-06` moved from FAIL to PASS on the 25 Nov live tray read (`AUDIT-live-acceptance-2` §3) and its
+hover sub-clause was completed in pass 3 (`AUDIT-live-acceptance-3` §1 #10: `246,246,246` pill on
+`#FFFFFF`, pointer only); `G-04` moved from NOT RUN to PASS on `AUDIT-release-signoff-2` §3; `G-02` moved on
+the 08:41 fresh band read of the same 08:05 bundle (header/tab strip/footer at 900 and 430, both themes).
+Pass 3 also re-read the live shell at 900 and 430 DIP (gear control, strip, footer) without changing a
+verdict.
 
 ## 14. What still needs the owner
 
-1. **Native toast + tray menu on screen (G-06)** — click the tray icon, open the menu, trigger a capture;
-   no fresh agent has read the shell.
+1. **Tray item hover pill** — the pointer pill is now read (`246,246,246` on `#FFFFFF`, pass 3); what is still
+   missing is a **keyboard-driven** pill: `Down` with the menu open left the pointer's row lit and never moved
+   a highlight. Confirm whether a keyboard highlight is intended.
 2. **125 % zoom (W-02)** — the shell at 125 %, page, dialog and editor, zero overflow; only 100 and 150
    were measured.
 3. **430 toast and export menu (W-05)** — `release-visual\37-430-toast.png` / `38-430-export.png` exist but
@@ -254,5 +261,8 @@ band read of the same 08:05 bundle (header/tab strip/footer at 900 and 430, both
 4. **Real IME (K-07)** — a composition open while the popup is up; Esc cancels the composition, Enter
    commits it.
 5. **Memory ceiling** — accept ~528 MB idle / ~643 MB with an image, or set a new ceiling.
+6. **430 tab counts** — pass 3 read the live shell at 430 DIP and the strip showed `All / Pinned / Images`
+   without their numbers (`96-shell-430-wide.png`), while the same strip shows `All 13 / Pinned 0 / Images 2`
+   at 900. Decide if dropping the counts is intended at that width.
 6. **Re-scan the artifact** — `UI\web\dist\index.html` is 2,862,374 B (08:05) and `dist\Clip.exe` was rebuilt
    at 08:08 from it (`RELEASE-v2.md`); the checklist signs the bundle, so the exe needs one last page scan.

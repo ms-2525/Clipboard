@@ -49,7 +49,7 @@ The owner's live app on `master` was not touched; `--legacy` still opens the old
 | OCR accuracy, real screenshot | 93.7 % of characters |
 | Full-body search | 9.3-12.4 ms p50 at 1,000 clips |
 | Migration of the real 38-row DB | lossless, identical row and blob digests |
-| Build | 0 warnings, 0 errors; `tsc --noEmit` clean; `npm run e2e` 15/15 in 11.4 s; `tag:` grammar 11/11 |
+| Build | 0 warnings, 0 errors; `tsc --noEmit` clean; `npm run e2e` 16/16 in ~12 s; `tag:` grammar 11/11 |
 
 ## Verification state
 
@@ -60,10 +60,11 @@ The owner's live app on `master` was not touched; `--legacy` still opens the old
   cold start, 1,000-item acceptance, IME) plus five old-app product items listed under limits.
 - **No P0 in any audit.** The data layer was audited three times (DB logic, tags/search, host actions)
   and re-swept on the release build.
-- **Keyboard contract has a standing gate**: `cd UI\web; npm.cmd run e2e` -> 15/15 Playwright tests on the
-  built page in ~11 s, using the Chromium already on the machine (Playwright 1.63.0, no download). It
-  covers arrows/wrap, tab cycle with Images, typing/Esc, `Ctrl+1..9` vs bare digits, F2 clean/dirty,
-  discard-never-saves, Settings by keyboard, live All count, search-Enter, and zero network/console noise.
+- **Keyboard contract has a standing gate**: `cd UI\web; npm.cmd run e2e` -> 16/16 Playwright tests on the
+  built page in ~12 s, using the Chromium already on the machine (Playwright 1.63.0, no download). It
+  covers arrows/wrap, Up and Down from the search box, tab cycle with Images, typing/Esc, `Ctrl+1..9` vs
+  bare digits, F2 clean/dirty, discard-never-saves, Settings by keyboard + no scroll at 900x700, live All
+  count, search-Enter, and zero network/console noise.
 
 ## Known limits (named, not hidden)
 
