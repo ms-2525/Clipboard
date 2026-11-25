@@ -111,5 +111,14 @@ dual-axis audit (DB logic + UI/UX) is clean; memory inside the ceiling; docs upd
 ## Night log - S10 (release)
 
 - 05:35 - Web bundle embedded (208,159,174-byte exe); clean-profile run from an empty folder with redirected APPDATA: fresh clip.db, real page (Clip - clipboard), 5/5 clip kinds captured and visible, OCR filled the image row live. Default launch is now v2; --legacy opens the old UI. build-release.cmd rebuilds the web bundle when stale, refuses to publish without it, then prints the exe size and verifies the embedded page name.
+| S12 | Release blockers: export hide, full-body search, silent corruption notice | Host\, UI\ShellWindow.xaml.cs | IN PROGRESS | save/cancel both leave the shell visible; word at char 3,000 found |
+| S13 | Tab management UI: create, rename, delete, move a clip into a tab | Host\, UI\web\src\* | QUEUED (after S12) | Create a tab, move a clip, rename it, delete it with its clips |
+| S14 | Rewrite CHECKLIST-uiux.md for the v2 surface with honest status | docs\ | IN PROGRESS | every row failable; PASS/FAIL/NOT RUN with evidence |
 
+## Release audit verdict (25 Nov, docs\AUDIT-release-logic.md)
 
+**Not release-ready yet — preview quality.** Data layer proven clean (no P0; 1,000-row cap exact, migration lossless,
+truncation guarded, OCR safe, export bytes exact, seven one-home invariants hold). Open before cutover:
+export-hide P1 (S12), full-body search gap (S12), tab management missing (S13), uiux checklist stale (S14),
+memory 528 MB idle / 643 MB with clips on working set, and every [U] row is NOT RUN because UI automation
+was blocked by an elevated overlay.
