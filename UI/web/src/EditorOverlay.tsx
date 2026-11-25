@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import * as Dialog from '@radix-ui/react-dialog'
 import { EditorContent, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import { Color, FontFamily, TextStyle } from '@tiptap/extension-text-style'
@@ -46,6 +47,8 @@ export function EditorOverlay({ clip, timeFormat, getItem, onSave, onClose, onSa
   const [error, setError] = useState('')
   const [formats, setFormats] = useState<string[]>(clip.formats)
   const baseline = useRef('')
+  // Captured during the first render, before Radix moves focus into the dialog.
+  const returnFocus = useRef<HTMLElement | null>(document.activeElement instanceof HTMLElement ? document.activeElement : null)
 
   const editor = useEditor({
     extensions: [
@@ -99,22 +102,17 @@ export function EditorOverlay({ clip, timeFormat, getItem, onSave, onClose, onSa
     setConfirmDiscard(true)
   }, [dirty, onClose, saving])
 
-  // Esc cascade: popover → discard prompt → close. The third press is the discard itself.
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return
+  // Esc cascade: popover → discard prompt → close. Radix owns the keystroke and the focus trap.
+  const onEscape = useCallback(
+    (event: KeyboardEvent) => {
       event.preventDefault()
-      event.stopPropagation()
       if (pop) setPop(null)
-      else if (confirmDiscard) {
-        setConfirmDiscard(false)
-        onClose()
-      } else if (dirty) setConfirmDiscard(true)
+      else if (confirmDiscard) onClose()
+      else if (dirty) setConfirmDiscard(true)
       else onClose()
-    }
-    window.addEventListener('keydown', onKey, true)
-    return () => window.removeEventListener('keydown', onKey, true)
-  }, [confirmDiscard, dirty, onClose, pop])
+    },
+    [confirmDiscard, dirty, onClose, pop],
+  )
 
   const save = useCallback(async () => {
     if (!editor || saving || loading) return
@@ -161,101 +159,118 @@ export function EditorOverlay({ clip, timeFormat, getItem, onSave, onClose, onSa
   const highlight = 'var(--highlight)'
 
   return (
-    <div className="editor-overlay" role="dialog" aria-modal="true" aria-label="Clip editor">
-      <div className="editor-head">
-        <button className="icon-btn ghost" onClick={requestClose} aria-label="Close editor" title="Close (Esc)">
-          <IconClose />
-        </button>
-        <div className="grow">
-          <div className="editor-title">
-            Editing clip
-            {dirty && <span className="dirty-dot" title="Unsaved changes" />}
-            <span className="chip editor-chip">{kindLabel(clip.kind)}</span>
-            {formats.length > 1 && <span className="chip editor-chip">+{formats.length - 1} formats</span>}
-          </div>
-          <div className="t-meta editor-sub">
-            {clip.app || 'Unknown'} · {clip.title} · {formatTime(clip.time, timeFormat)}
-          </div>
-        </div>
-        <button className="btn ghost" onClick={requestClose}>
-          Cancel
-        </button>
-        <button className="btn" onClick={() => void save()} disabled={saving || loading} title="Save to this clip">
-          {saving ? 'Saving…' : 'Save clip'}
-        </button>
-      </div>
-
-      {error && (
-        <div className="discard-banner error-banner" role="alert">
-          <IconWarning />
-          <span>{error}</span>
-        </div>
-      )}
-
-      {confirmDiscard ? (
-        <div className="discard-banner">
-          <IconWarning />
-          <span style={{ fontWeight: 600 }}>Discard changes?</span>
-          <span className="banner-sub">You have unsaved edits in this clip.</span>
-          <span className="grow" />
-          <button className="btn ghost sm" onClick={() => setConfirmDiscard(false)}>
-            Keep editing
-          </button>
-          <button className="btn danger sm" onClick={onClose}>
-            Discard and close
-          </button>
-        </div>
-      ) : (
-        dirty && (
-          <div className="discard-banner">
-            <IconWarning />
-            <span style={{ fontWeight: 600 }}>Unsaved changes</span>
-            <span className="banner-sub">Save the clip, or discard and keep the stored version.</span>
-            <span className="grow" />
-            <button
-              className="btn ghost sm"
-              onClick={() => {
-                editor.commands.setContent(baseline.current, { emitUpdate: false })
-                setDirty(false)
-              }}
-            >
-              Revert edits
+    <Dialog.Root open>
+      <Dialog.Portal>
+        <Dialog.Content
+          className="editor-overlay"
+          aria-label="Clip editor"
+          aria-modal="true"
+          onEscapeKeyDown={onEscape}
+          onCloseAutoFocus={(event) => {
+            // Radix restores focus to a Dialog.Trigger; this editor has none, so give it the row.
+            event.preventDefault()
+            returnFocus.current?.focus()
+          }}
+        >
+          <div className="editor-head">
+            <button className="icon-btn ghost" onClick={requestClose} aria-label="Close editor" title="Close (Esc)">
+              <IconClose />
+            </button>
+            <div className="grow">
+              <div className="editor-title">
+                Editing clip
+                {dirty && <span className="dirty-dot" title="Unsaved changes" />}
+                <span className="chip editor-chip">{kindLabel(clip.kind)}</span>
+                {formats.length > 1 && <span className="chip editor-chip">+{formats.length - 1} formats</span>}
+              </div>
+              <div className="t-meta editor-sub">
+                {clip.app || 'Unknown'} · {clip.title} · {formatTime(clip.time, timeFormat)}
+              </div>
+            </div>
+            <button className="btn ghost" onClick={requestClose}>
+              Cancel
+            </button>
+            <button className="btn" onClick={() => void save()} disabled={saving || loading} title="Save to this clip">
+              {saving ? 'Saving…' : 'Save clip'}
             </button>
           </div>
-        )
-      )}
 
-      <EditorToolbar editor={editor} pop={pop} setPop={setPop} size={size} onSize={setSize} onSingleLine={singleLine} highlight={highlight} />
-
-      <div className="editor-scroll">
-        <div className="editor-page">
-          <div className="editor-meta">
-            <span className="tile" style={{ width: 22, height: 22, borderRadius: 6, display: 'grid', placeItems: 'center', background: 'var(--badge)', color: 'var(--fg55)', fontSize: 11, fontWeight: 600 }}>
-              {(clip.app || '?').slice(0, 1)}
-            </span>
-            <span className="t-sec">{formats.length ? formats.join(' · ') : 'No extra formats'}</span>
-            <span className="spacer" />
-            {clip.truncated && <span className="chip">Full body</span>}
-            {dirty && <span className="chip accent">Unsaved</span>}
-          </div>
-          {loading ? (
-            <div className="t-sec">Loading the full clip…</div>
-          ) : (
-            <div style={{ fontSize: size, lineHeight: 1.6 }}>
-              <EditorContent editor={editor} />
+          {error && (
+            <div className="discard-banner error-banner" role="alert">
+              <IconWarning />
+              <span>{error}</span>
             </div>
           )}
-          <div className="editor-foot">
-            <span className="t-meta">{characterCount.toLocaleString()} characters</span>
-            <span className="chip">{formats.length} formats</span>
-            <span className="spacer" />
-            <span className="t-meta">{dirty ? 'Unsaved changes' : 'Saved to this clip'}</span>
-            <span className="hint editor-foot-hint">
-              <span className="keycap">Esc</span> Close
-            </span>
+
+          {confirmDiscard ? (
+            <div className="discard-banner">
+              <IconWarning />
+              <span style={{ fontWeight: 600 }}>Discard changes?</span>
+              <span className="banner-sub">You have unsaved edits in this clip.</span>
+              <span className="grow" />
+              <button className="btn ghost sm" onClick={() => setConfirmDiscard(false)}>
+                Keep editing
+              </button>
+              <button className="btn danger sm" onClick={onClose}>
+                Discard and close
+              </button>
+            </div>
+          ) : (
+            dirty && (
+              <div className="discard-banner">
+                <IconWarning />
+                <span style={{ fontWeight: 600 }}>Unsaved changes</span>
+                <span className="banner-sub">Save the clip, or discard and keep the stored version.</span>
+                <span className="grow" />
+                <button
+                  className="btn ghost sm"
+                  onClick={() => {
+                    editor.commands.setContent(baseline.current, { emitUpdate: false })
+                    setDirty(false)
+                  }}
+                >
+                  Revert edits
+                </button>
+              </div>
+            )
+          )}
+
+          <EditorToolbar editor={editor} pop={pop} setPop={setPop} size={size} onSize={setSize} onSingleLine={singleLine} highlight={highlight} />
+
+          <div className="editor-scroll">
+            <div className="editor-page">
+              <div className="editor-meta">
+                <span
+                  className="tile"
+                  style={{ width: 22, height: 22, borderRadius: 6, display: 'grid', placeItems: 'center', background: 'var(--badge)', color: 'var(--fg55)', fontSize: 11, fontWeight: 600 }}
+                >
+                  {(clip.app || '?').slice(0, 1)}
+                </span>
+                <span className="t-sec">{formats.length ? formats.join(' · ') : 'No extra formats'}</span>
+                <span className="spacer" />
+                {clip.truncated && <span className="chip">Full body</span>}
+                {dirty && <span className="chip accent">Unsaved</span>}
+              </div>
+              {loading ? (
+                <div className="t-sec">Loading the full clip…</div>
+              ) : (
+                <div style={{ fontSize: size, lineHeight: 1.6 }}>
+                  <EditorContent editor={editor} />
+                </div>
+              )}
+              <div className="editor-foot">
+                <span className="t-meta">{characterCount.toLocaleString()} characters</span>
+                <span className="chip">{formats.length} formats</span>
+                <span className="spacer" />
+                <span className="t-meta">{dirty ? 'Unsaved changes' : 'Saved to this clip'}</span>
+                <span className="hint editor-foot-hint">
+                  <span className="keycap">Esc</span> Close
+                </span>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
-    </div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   )
 }

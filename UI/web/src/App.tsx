@@ -7,6 +7,7 @@ import { EditorOverlay } from './EditorOverlay'
 import { SettingsDialog } from './SettingsDialog'
 import { createHost, toSettings, type ClipItem, type HostConfig, type HostSettings, type InitResult, type SaveConfigResult, type SearchResult, type SettingsPatch } from './host'
 import { useClipboardKeys } from './useClipboardKeys'
+import { forgetBody } from './rich'
 import type { TimeFormat } from './format'
 import {
   IconCheck,
@@ -472,10 +473,9 @@ export default function App() {
     try {
       await host.delete({ id: clip.id })
       // The host also emits `deleted`; removing here keeps the row gone even when it does not.
+      // The count is owned by that event (it also covers a delete the page did not start).
       setItems((rows) => rows.filter((row) => row.id !== clip.id))
-      setFound((current) =>
-        current ? { ...current, items: current.items.filter((row) => row.id !== clip.id), total: Math.max(0, current.total - 1) } : current,
-      )
+      setFound((current) => (current ? { ...current, items: current.items.filter((row) => row.id !== clip.id) } : current))
       if (index >= 0) {
         const rows = visibleRef.current.filter((row) => row.id !== clip.id)
         setSelectedId((current) => (current === clip.id ? rows[Math.min(index, rows.length - 1)]?.id ?? null : current))
@@ -845,6 +845,8 @@ export default function App() {
           getItem={host.getItem}
           onSave={(html, text) => host.saveEditor({ id: selected.id, html, text })}
           onSaved={() => {
+            // The row is still mounted with the pre-edit body; drop it before the reload.
+            forgetBody(selected.id)
             void reload()
             showToast('Clip saved', `${selected.app} · ${selected.title}`)
           }}

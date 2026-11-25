@@ -6,6 +6,13 @@ import { IconPin } from './icons'
 import { isRich, loadBody, RowBody } from './rich'
 
 const thumbCache = new Map<number, string | null>()
+const THUMB_MAX = 200
+
+/** Same FIFO cap as the body cache: scrolling history must not pin every encoded thumbnail. */
+const cacheThumb = (id: number, url: string | null) => {
+  if (thumbCache.size >= THUMB_MAX) thumbCache.delete(thumbCache.keys().next().value!)
+  thumbCache.set(id, url)
+}
 
 const compact = (value: number) =>
   value >= 1000 ? `${(value / 1000).toFixed(value >= 10000 ? 0 : 1).replace(/\.0$/, '')}k` : String(value)
@@ -39,12 +46,12 @@ function Thumb({ id, getThumb }: { id: number; getThumb: (id: number) => Promise
     let alive = true
     getThumb(id)
       .then((url) => {
-        thumbCache.set(id, url)
+        cacheThumb(id, url)
         if (alive) setSrc(url)
       })
       .catch(() => {
         // A missing thumbnail is not fatal: keep the styled placeholder.
-        thumbCache.set(id, null)
+        cacheThumb(id, null)
       })
     return () => {
       alive = false

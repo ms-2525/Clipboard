@@ -40,7 +40,11 @@ export function useClipboardKeys(actions: KeyActions) {
       const target = event.target as HTMLElement
       if (!target || typeof target.closest !== 'function') return
       const inSearch = target === searchRef.current
-      const typing = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable
+      const isTextField = (el: HTMLElement | null) =>
+        !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable)
+      // A field owns its caret: the event target or whatever currently holds focus.
+      const focused = document.activeElement instanceof HTMLElement ? document.activeElement : null
+      const typing = isTextField(target) || isTextField(focused)
       const onControl = !!target.closest('button, a, [role="tab"]')
       const mod = event.ctrlKey || event.metaKey
       const key = event.key
@@ -86,7 +90,11 @@ export function useClipboardKeys(actions: KeyActions) {
         return
       }
 
-      // Navigation is measured by the list, so it works in the search box too.
+      // A text field owns its caret: only Escape, ArrowDown (into the list) and the search
+      // shortcuts above may act. Delete/Home/End/Enter/digits keep their native meaning.
+      if (typing && key !== 'Escape' && key !== 'ArrowDown') return
+
+      // ArrowDown is measured by the list, so it works in the search box too.
       if (rows.length > 0 && !onControl) {
         const at = index < 0 ? 0 : index
         if (key === 'ArrowDown') {

@@ -164,7 +164,7 @@ export function toRichHtml(raw: string): string {
     hooked = true
     DOMPurify.addHook('uponSanitizeAttribute', (_node, data) => {
       if (data.attrName === 'href' && !/^https?:\/\//i.test(data.attrValue)) data.keepAttr = false
-      if (data.attrName === 'src' && !/^data:image\//i.test(data.attrValue)) data.keepAttr = false
+      if (data.attrName === 'src' && !/^data:image\/(?:png|jpe?g|gif|webp);base64,/i.test(data.attrValue)) data.keepAttr = false
     })
   }
 
@@ -185,7 +185,7 @@ export function toRichHtml(raw: string): string {
   }
   for (const img of out.body.querySelectorAll('img')) {
     const src = img.getAttribute('src') ?? ''
-    if (/^data:image\//i.test(src)) {
+    if (/^data:image\/(?:png|jpe?g|gif|webp);base64,/i.test(src)) {
       img.setAttribute('loading', 'eager')
       img.setAttribute('draggable', 'false')
     } else {
@@ -212,6 +212,16 @@ const bodyCache = new Map<number, ClipBody | null>()
 const inflight = new Map<number, Promise<ClipBody | null>>()
 const CACHE_MAX = 200
 type GetItem = (id: number) => Promise<ClipBody | null>
+
+/** Mounted rows of a clip that was just edited, so the row refetches instead of keeping the old body. */
+const forgotten = new Set<(id: number) => void>()
+
+/** A saved edit replaces the stored body; drop the cached copy and tell the row to fetch it again. */
+export function forgetBody(id: number): void {
+  bodyCache.delete(id)
+  inflight.delete(id)
+  for (const listener of forgotten) listener(id)
+}
 
 export function loadBody(id: number, getItem: GetItem): Promise<ClipBody | null> {
   if (bodyCache.has(id)) return Promise.resolve(bodyCache.get(id) ?? null)
@@ -244,6 +254,17 @@ export function isRich(clip: ClipItem): boolean {
 export function RowBody({ clip, getItem }: { clip: ClipItem; getItem: GetItem }) {
   const rich = isRich(clip)
   const [body, setBody] = useState<ClipBody | null | undefined>(() => (rich ? bodyCache.get(clip.id) : undefined))
+  const [recall, setRecall] = useState(0)
+
+  useEffect(() => {
+    const listener = (id: number) => {
+      if (id === clip.id) setRecall((count) => count + 1)
+    }
+    forgotten.add(listener)
+    return () => {
+      forgotten.delete(listener)
+    }
+  }, [clip.id])
 
   useEffect(() => {
     if (!rich) {
@@ -261,7 +282,7 @@ export function RowBody({ clip, getItem }: { clip: ClipItem; getItem: GetItem })
     return () => {
       alive = false
     }
-  }, [clip.id, rich, getItem])
+  }, [clip.id, rich, getItem, recall])
 
   const safe = useMemo(() => (body?.html ? toRichHtml(body.html) : ''), [body])
   const plain = body?.text || clip.text || clip.title

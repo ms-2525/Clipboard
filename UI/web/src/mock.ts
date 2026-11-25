@@ -49,9 +49,16 @@ export function createMockHost(): Host {
         hasHtml: richAll ? true : clip.hasHtml,
       }))
   // The bridge has no cancel path; counting calls here proves only mounted rows ask for a body.
-  const counter = window as unknown as { __mockGetItemCalls?: number; __mockGetItemIds?: number[] }
+  const counter = window as unknown as {
+    __mockGetItemCalls?: number
+    __mockGetItemIds?: number[]
+    __mockGetThumbCalls?: number
+    __mockGetThumbIds?: number[]
+  }
   counter.__mockGetItemCalls = 0
   counter.__mockGetItemIds = []
+  counter.__mockGetThumbCalls = 0
+  counter.__mockGetThumbIds = []
   const deleted: { clip: ClipItem; index: number }[] = []
   const listeners = new Set<(event: HostEvent) => void>()
   const tabs = MOCK_TABS.map((tab) => ({
@@ -171,7 +178,11 @@ export function createMockHost(): Host {
           : null,
       )
     },
-    getThumb: async (id: number) => wait<string | null>(real ? realThumbs.get(id) ?? null : mockThumb(id)),
+    getThumb: async (id: number) => {
+      counter.__mockGetThumbCalls = (counter.__mockGetThumbCalls ?? 0) + 1
+      counter.__mockGetThumbIds?.push(id)
+      return wait<string | null>(real ? realThumbs.get(id) ?? null : mockThumb(id))
+    },
     copy: async () => wait(undefined),
     paste: async () => wait({ pasted: false, error: 'Paste is not wired yet' }),
     delete: async ({ id }) => {
