@@ -133,12 +133,12 @@ export function useClipboardKeys(actions: KeyActions) {
         const at = index < 0 ? 0 : index
         if (key === 'ArrowDown') {
           take()
-          actions.onSelect(rows[Math.min(rows.length - 1, at + 1)].id)
+          actions.onSelect(rows[(at + 1) % rows.length].id)
           return
         }
         if (key === 'ArrowUp') {
           take()
-          actions.onSelect(rows[Math.max(0, at - 1)].id)
+          actions.onSelect(rows[(at - 1 + rows.length) % rows.length].id)
           return
         }
         if (key === 'Home') {

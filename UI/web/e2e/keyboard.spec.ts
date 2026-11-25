@@ -22,13 +22,20 @@ test.beforeEach(async ({ page }) => {
   await expect(selectedRow(page)).toBeFocused()
 })
 
-test('arrows move the selection and focus follows', async ({ page }) => {
+test('arrows move the selection and focus follows, wrapping at both ends', async ({ page }) => {
   await expect(page.locator('.row.selected .row-index')).toHaveText('01')
   await page.keyboard.press('ArrowDown')
   await expect(page.locator('.row.selected .row-index')).toHaveText('02')
   await expect(selectedRow(page)).toBeFocused()
   await page.keyboard.press('ArrowUp')
   await expect(page.locator('.row.selected .row-index')).toHaveText('01')
+  // Wrap: up from the first row lands on the last, down from the last on the first.
+  await page.keyboard.press('ArrowUp')
+  await expect(page.locator('.row.selected .row-index')).toHaveText('1000')
+  await expect(selectedRow(page)).toBeFocused()
+  await page.keyboard.press('ArrowDown')
+  await expect(page.locator('.row.selected .row-index')).toHaveText('01')
+  await expect(selectedRow(page)).toBeFocused()
 })
 
 test('Left/Right change tab in strip order and wrap', async ({ page }) => {
