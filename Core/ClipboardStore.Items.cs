@@ -351,6 +351,38 @@ ORDER BY sort_seq DESC, id DESC LIMIT $m";
             return ids;
         }
 
+        /// <summary>
+        /// Per term, the ids of rows whose FULL body carries it: the half a list row's
+        /// <see cref="PreviewChars"/> preview cannot answer (a word at character 3,000 is invisible in the
+        /// preview). Only a truncated body is scanned, with the same C# comparison as <see cref="SearchFull"/>,
+        /// so the caller adds these ids to its own in-memory match without reading long bodies into memory.
+        /// </summary>
+        internal static List<HashSet<long>> ReadTailMatches(SqliteConnection conn, List<string> terms,
+            int max, long? tabId)
+        {
+            var sets = new List<HashSet<long>>(terms.Count);
+            // One registration per connection; every term below reuses it.
+            conn.CreateFunction("clip_search_match", (string value, string q) =>
+                SearchService.Matches(value, q) ? 1L : 0L);
+            foreach (string term in terms)
+            {
+                var ids = new HashSet<long>();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = @"
+SELECT id FROM items WHERE " + (tabId.HasValue ? "tab_id = $tab" : "tab_id IS NULL") + @"
+  AND length(text) > $preview AND clip_search_match(text, $q) = 1
+ORDER BY sort_seq DESC, id DESC LIMIT $m";
+                if (tabId.HasValue) cmd.Parameters.AddWithValue("$tab", tabId.Value);
+                cmd.Parameters.AddWithValue("$preview", PreviewChars);
+                cmd.Parameters.AddWithValue("$q", term);
+                cmd.Parameters.AddWithValue("$m", max);
+                using var r = cmd.ExecuteReader();
+                while (r.Read()) ids.Add(r.GetInt64(0));
+                sets.Add(ids);
+            }
+            return sets;
+        }
+
         /// <summary>Rich bodies for one row, loaded when the card or the paste path actually needs them.</summary>
         public ClipboardItem GetRich(long id)
         {

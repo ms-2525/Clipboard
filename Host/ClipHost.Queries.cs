@@ -119,6 +119,22 @@ namespace Clip.Host
 
             bool byTag = q.Include.Length > 0 || q.Exclude.Length > 0;
             var meta = byTag ? ReadMeta(conn, all.Select(r => r.Id).ToList()) : null;
+
+            // A row carries only the preview, so a term past it is invisible in memory: the store answers
+            // that half with one full-body query per term. A database of short clips pays nothing.
+            var terms = TextTerms(q);
+            if (terms.Count > 0 && all.Exists(r => r.IsTruncated))
+            {
+                var ids = ClipboardStore.ReadTailMatches(conn, terms.ConvertAll(t => t.Text),
+                    tabId.HasValue ? -1 : Math.Max(1, maxItems), tabId);
+                for (int i = 0; i < terms.Count; i++) terms[i].Ids = ids[i];
+            }
+            // The tag half of the query, with no terms, so it reuses ClipSearch's tag rules alone. Unknown
+            // tags stay in q.Terms (they search as text) and in q.UnknownTags for the page's hint.
+            var tagQuery = byTag
+                ? new ClipSearchQuery(Array.Empty<string>(), q.Include, q.Exclude, Array.Empty<string>())
+                : null;
+
             var hits = new List<ClipboardItem>(Math.Min(all.Count, 64));
             var hitTags = byTag ? new List<string[]>(hits.Capacity) : null;
             foreach (var row in all)
@@ -129,7 +145,8 @@ namespace Clip.Host
                     meta.TryGetValue(row.Id, out var info);
                     tags = ClipTags.Classify(row, info?.Formats);
                 }
-                if (!ClipSearch.Matches(row, tags, q)) continue;
+                if (!TextPasses(row, terms)) continue;
+                if (byTag && !ClipSearch.Matches(row, tags, tagQuery)) continue;
                 hits.Add(row);
                 hitTags?.Add(tags);
             }
@@ -146,6 +163,52 @@ namespace Clip.Host
                 items.Add(ToDto(hits[i], info, tags, pinnedTabId));
             }
             return new SearchResult { Total = hits.Count, Items = items, UnknownTags = q.UnknownTags };
+        }
+
+        /// <summary>
+        /// One text term of the query: the preview check as the same one-term <see cref="ClipSearch"/> query,
+        /// the sign, and the store's full-body ids when a truncated row exists.
+        /// </summary>
+        sealed class TextTerm
+        {
+            public string Text;
+            public bool Negated;
+            public ClipSearchQuery Preview;
+            public HashSet<long> Ids;
+        }
+
+        static List<TextTerm> TextTerms(ClipSearchQuery q)
+        {
+            var terms = new List<TextTerm>(q.Terms.Length);
+            foreach (string term in q.Terms)
+            {
+                // ClipSearch keeps the sign in Terms: one leading '-' means "must not occur".
+                bool negated = term.Length > 1 && term[0] == '-';
+                string text = negated ? term.Substring(1) : term;
+                terms.Add(new TextTerm
+                {
+                    Text = text,
+                    Negated = negated,
+                    Preview = new ClipSearchQuery(new[] { text }, Array.Empty<string>(),
+                        Array.Empty<string>(), Array.Empty<string>())
+                });
+            }
+            return terms;
+        }
+
+        /// <summary>
+        /// The text half of the query, term for term: found = the preview rule or a stored tail hit, and the
+        /// sign decides which way it counts. Same answer as ClipSearch.Matches, with the full body behind it.
+        /// </summary>
+        static bool TextPasses(ClipboardItem row, List<TextTerm> terms)
+        {
+            foreach (var term in terms)
+            {
+                bool found = ClipSearch.Matches(row, null, term.Preview) ||
+                             (term.Ids != null && term.Ids.Contains(row.Id));
+                if (found == term.Negated) return false;
+            }
+            return true;
         }
 
         static List<ItemDto> Dtos(SqliteConnection conn, long pinnedTabId, List<ClipboardItem> rows)

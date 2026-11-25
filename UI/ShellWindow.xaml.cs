@@ -27,6 +27,8 @@ namespace Clip.UI
         readonly ClipboardStore _store;
         readonly Config _cfg;
         readonly string _dbPath;
+        /// <summary>Held by a host dialog (export now, confirmations later); see <see cref="ModalGate"/>.</summary>
+        readonly ModalGate _modals = new ModalGate();
         IntPtr _returnTarget;
         ClipHost _host;
 
@@ -45,8 +47,9 @@ namespace Clip.UI
             Loaded += OnLoaded;
             Closed += OnClosed;
             Closing += OnClosing;
-            // Same popup rule as the old Alt+V list: losing activation hides it, never closes it.
-            Deactivated += (s, e) => { if (!_warming) Hide(); };
+            // Same popup rule as the old Alt+V list: losing activation hides it, never closes it — unless a
+            // host dialog took the activation, which is not the user clicking away.
+            Deactivated += (s, e) => { if (!_warming && !_modals.Open) Hide(); };
             // A hidden shell is no longer in plain-paste mode; arming survives only while it is on screen.
             IsVisibleChanged += (s, e) => { if (!IsVisible) _host?.SetPlainMode(false); };
         }
@@ -84,7 +87,7 @@ namespace Clip.UI
                 Web.CoreWebView2.NavigationCompleted += OnNavigationCompleted;
                 Web.CoreWebView2.NewWindowRequested += (s, args) => args.Handled = true;
 
-                _host = new ClipHost(Web, _store, _cfg, _dbPath, () => _returnTarget, HideForPaste, ShowAfterPaste);
+                _host = new ClipHost(Web, _store, _cfg, _dbPath, () => _returnTarget, HideForPaste, ShowAfterPaste, _modals);
 
                 string webRoot = DeveloperWebRoot();
                 if (webRoot != null)
@@ -159,6 +162,17 @@ namespace Clip.UI
         internal void ShowAfterPaste()
         {
             ShowShell();
+        }
+
+        /// <summary>
+        /// The store moved an unreadable database aside mid-session: the page's rows no longer exist, so it
+        /// reloads, and the tray toast carries the one sentence (<see cref="ClipboardStore.CorruptionNotice"/>).
+        /// </summary>
+        internal void NotifyCorruption()
+        {
+            Emit("corruptionRecovered", new { notice = ClipboardStore.CorruptionNotice });
+            try { Web.CoreWebView2?.Reload(); }
+            catch (InvalidOperationException) { } // browser already tearing down: the next launch starts clean
         }
 
         [DllImport("user32.dll")]

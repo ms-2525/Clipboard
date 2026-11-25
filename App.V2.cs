@@ -102,8 +102,20 @@ namespace Clip
             // A paste Clip injects is Clip's own clipboard write, not a new copy.
             ClipHost.SuppressCapture = seq => _capture?.Suppress(seq);
 
+            // A damaged data page is only found on the first write: say so once and let the page drop stale rows.
+            _store.CorruptionRecovered += () => Dispatcher.BeginInvoke(new Action(() =>
+            {
+                _notif?.ShowMessage(ClipboardStore.CorruptionNotice);
+                _shell?.NotifyCorruption();
+            }));
+
             // The toast pays its first-show cost off the critical path, exactly like the old app.
             Dispatcher.BeginInvoke(new Action(() => _notif?.WarmHidden()), DispatcherPriority.ApplicationIdle);
+
+            // The constructor already moved a corrupt file aside: the tray must say where the history went.
+            if (_store.RecoveredFromCorruption)
+                Dispatcher.BeginInvoke(new Action(() => _notif?.ShowMessage(ClipboardStore.CorruptionNotice)),
+                    DispatcherPriority.ApplicationIdle);
 
             RegisterV2Hotkeys();
             ListenForShow();

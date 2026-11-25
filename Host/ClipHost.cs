@@ -31,13 +31,15 @@ namespace Clip.Host
         readonly Func<IntPtr> _returnTarget;
         readonly Action _hide;
         readonly Action _show;
+        readonly ModalGate _modals;
 
         /// <summary>
         /// <paramref name="returnTarget"/> is the last window that owned the foreground before the shell;
-        /// <paramref name="hide"/> and <paramref name="show"/> keep the window itself out of this layer.
+        /// <paramref name="hide"/> and <paramref name="show"/> keep the window itself out of this layer, and
+        /// <paramref name="modals"/> is the gate the shell's auto-hide checks while a dialog is open.
         /// </summary>
         public ClipHost(WebView2 web, ClipboardStore store, Config cfg, string dbPath,
-            Func<IntPtr> returnTarget, Action hide, Action show)
+            Func<IntPtr> returnTarget, Action hide, Action show, ModalGate modals)
         {
             _web = web;
             _store = store;
@@ -46,6 +48,7 @@ namespace Clip.Host
             _returnTarget = returnTarget;
             _hide = hide;
             _show = show;
+            _modals = modals;
             _dispatcher = web.Dispatcher;
             _pinnedTabId = store.PinnedTabId;
             _reads = new ReadQueue();
