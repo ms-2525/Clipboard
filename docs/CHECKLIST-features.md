@@ -25,7 +25,7 @@ Harness sources are in `%TEMP%\opencode\` (scratch, not committed): `s17\verify-
 
 ## 1. Blockers
 
-- [ ] **NOT RUN** — [L] **Cold first popup open 262–310 ms — over the 150 ms budget**. Pre-warm the
+- [ ] **FAIL** - [L] **Cold first popup open 160.8 ms - still over the 150 ms budget** (live pass 25 Nov: cold 160.8 ms, warm 97.9 ms median; `docs\AUDIT-live-acceptance.md`). Pre-warm the
       first-render path (JIT + rich-row renderer + font load). Owner-visible: the first Alt+V after login
       feels broken. S8a measured warm show at **17.2 ms median** (20 samples/run, `s8a\timing.txt` +
       `timing2.txt`) on the v2 shell, so the old 50–61 ms warm figure is stale — but cold is still
