@@ -58,6 +58,11 @@ clean; memory stated honestly; docs updated.
 
 ## Release audit verdict (25 Nov, `docs\AUDIT-release-logic.md`)
 
+**Measured on the rebuilt release exe (`208,183,750` bytes, fresh profile, idle 10 s): 7 processes,
+527.5 MB working set / 270.5 MB private; host 153.3 MB, WebView2 374.1 MB.** Inside the 600 MB ceiling
+at idle on working set, and well inside it on private bytes. The ~643 MB figure with an image and OCR
+loaded is from the earlier build and has not been re-measured.
+
 **Not release-ready yet; data layer is clean.** No P0: 1,000-row cap eviction exact, migration of the
 real 38-row DB lossless (identical digests), truncation guard holds, OCR cannot overwrite an edit,
 export bytes exact, and all seven one-home invariants hold. Open: export-hide (S12), full-body search
