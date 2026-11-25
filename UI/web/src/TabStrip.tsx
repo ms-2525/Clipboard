@@ -8,7 +8,7 @@ export interface StripTab {
   id: number | null
   label: string
   count: number
-  kind: 'all' | 'pinned' | 'custom'
+  kind: 'all' | 'pinned' | 'custom' | 'images'
 }
 
 interface Props {

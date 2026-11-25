@@ -66,8 +66,14 @@ namespace Clip.Core
                 else
                 {
                     // "foo:" is not a filter, but it is still what the user typed: search it as text
-                    // and let the page warn that the tag is unknown.
-                    if (IsTagShaped(token, out string name)) AddUnknown(unknown, name);
+                    // and let the page warn that the tag is unknown. `tag:foo` says so explicitly.
+                    // The bare prefix "tag:" is text, and is not a tag named "tag".
+                    if (!token.Equals("tag:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (IsTagShaped(token, out string name)) AddUnknown(unknown, name);
+                        else if (token.StartsWith("tag:", StringComparison.OrdinalIgnoreCase) && token.Length > 4)
+                            AddUnknown(unknown, token.Substring(4));
+                    }
                     terms.Add(negate ? "-" + token : token);
                 }
             }
@@ -109,6 +115,11 @@ namespace Clip.Core
         static bool TryTagToken(string token, out string tag)
         {
             tag = null;
+            // `tag:image` is the explicit prefix the owner asked for; the bare `image:` form stays
+            // because the row chips and Ctrl+T write it. `tag:` alone is text, never a filter.
+            string body = token.StartsWith("tag:", StringComparison.OrdinalIgnoreCase) ? token.Substring(4) : token;
+            if (body.Length == 0) return false;
+            if (body.Length != token.Length) return TryCanonical(body, out tag);
             return IsTagShaped(token, out string name) && TryCanonical(name, out tag);
         }
 

@@ -125,14 +125,41 @@ export function createMockHost(): Host {
     const tags: string[] = []
     const terms: string[] = []
     const unknownTags: string[] = []
+    const addTag = (name: string): boolean => {
+      const alias =
+        name === 'excel' || name === 'sheet' || name === 'xls' || name === 'csv'
+          ? 'spreadsheet'
+          : name === 'img' || name === 'pic' || name === 'photo'
+            ? 'image'
+            : name === 'file'
+              ? 'files'
+              : name === 'url'
+                ? 'link'
+                : name
+      if (!KNOWN_TAGS.has(alias)) return false
+      tags.push(alias)
+      return true
+    }
     for (const token of query.trim().toLowerCase().split(/\s+/)) {
       if (!token) continue
+      // The bare prefix is text, not a tag named "tag".
+      if (token === 'tag:') {
+        terms.push(token)
+        continue
+      }
+      // `tag:image` is the explicit prefix; the bare `image:` form is what the chips write.
+      const explicit = /^tag:([a-z0-9-]+)$/.exec(token)
+      if (explicit) {
+        if (!addTag(explicit[1])) {
+          unknownTags.push(explicit[1])
+          terms.push(token)
+        }
+        continue
+      }
       const tag = /^([a-z0-9-]+):$/.exec(token)
       if (!tag) {
         terms.push(token)
-      } else if (KNOWN_TAGS.has(tag[1])) {
-        tags.push(tag[1])
-      } else {
+      } else if (!addTag(tag[1])) {
         // The host keeps an unknown `name:` as the text the owner typed; so do we.
         unknownTags.push(tag[1])
         terms.push(token)

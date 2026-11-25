@@ -43,7 +43,12 @@ test('Left/Right change tab in strip order and wrap', async ({ page }) => {
   await expect(activeTab(page)).toHaveText('Pinned')
   await expect(cardTitle(page)).toHaveText('Pinned clips')
   await page.keyboard.press('ArrowRight')
+  await expect(activeTab(page)).toHaveText('Images')
+  await expect(cardTitle(page)).toHaveText('Images')
+  await page.keyboard.press('ArrowRight')
   await expect(activeTab(page)).toHaveText('Work')
+  await page.keyboard.press('ArrowLeft')
+  await expect(activeTab(page)).toHaveText('Images')
   await page.keyboard.press('ArrowLeft')
   await expect(activeTab(page)).toHaveText('Pinned')
   await page.keyboard.press('ArrowLeft')
@@ -54,6 +59,29 @@ test('Left/Right change tab in strip order and wrap', async ({ page }) => {
   await expect(activeTab(page)).toHaveText('All')
   // A tab switch puts the new first row under the keyboard.
   await expect(selectedRow(page)).toBeFocused()
+})
+
+test('the Images tab is a saved image: view and matches the tag search', async ({ page }) => {
+  await page.keyboard.type('image:', { delay: 20 })
+  await expect(search(page)).toHaveValue('image:')
+  await expect(shown(page)).not.toHaveText('1,000 shown')
+  const expected = (await shown(page).textContent())?.trim() || ''
+  await page.keyboard.press('Escape')
+  await expect(shown(page)).toHaveText('1,000 shown')
+
+  await page.getByRole('tab', { name: /Images/ }).click()
+  await expect(activeTab(page)).toHaveText('Images')
+  await expect(cardTitle(page)).toHaveText('Images')
+  await expect(shown(page)).toHaveText(expected)
+
+  // `tag:` is the explicit prefix for the same filter.
+  await page.getByLabel('Search clips').fill('')
+  await page.keyboard.type('tag:image', { delay: 20 })
+  await expect(shown(page)).toHaveText(expected)
+
+  // An unknown tag under the prefix warns and searches as text.
+  await page.getByLabel('Search clips').fill('tag:zzz')
+  await expect(page.locator('.tag-hint')).toContainText('no tag named')
 })
 
 test('typing from the list searches; Escape clears the query', async ({ page }) => {

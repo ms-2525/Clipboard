@@ -61,6 +61,8 @@ function allCountOf(init: InitResult): number {
 
 /** The next-slice bridge methods answer "unknown method"; that is a gap, not a failure. */
 const isNotReady = (error: unknown) => /unknown method|not wired|not ready|phase 2/i.test(messageOf(error))
+/** The virtual Images tab's id; never a DB tab id (the store starts at 1). */
+const IMAGES_TAB = -1
 
 /** Local calendar day of a row's time: the boundary Ctrl+Up/Down walks. */
 const dayKey = (time: string) => {
@@ -112,6 +114,9 @@ export default function App() {
   const [init, setInit] = useState<InitResult | null>(null)
   const [tabRows, setTabRows] = useState<HostTab[]>([])
   const [allCount, setAllCount] = useState(0)
+  /** The virtual Images tab: it shows `image:` over All history and is never stored as a DB tab. */
+  const [images, setImages] = useState(false)
+  const [imageCount, setImageCount] = useState(0)
   const [tabOverlay, setTabOverlay] = useState(false)
   const [rowMenu, setRowMenu] = useState<{ clip: ClipItem; x: number; y: number } | null>(null)
   const [moveClip, setMoveClip] = useState<ClipItem | null>(null)
@@ -160,6 +165,13 @@ export default function App() {
       setTabRows(result.tabs)
     } catch (error) {
       showToast('Could not refresh tabs', messageOf(error), true)
+    }
+    // The Images tab is a count over the saved `image:` filter; it never becomes a DB tab.
+    try {
+      const images = await host.search({ query: 'image:', tabId: null, offset: 0, limit: 1 })
+      setImageCount(images.total)
+    } catch {
+      // A count is a hint; the list itself still works if this call fails.
     }
   }, [host, showToast])
 
@@ -216,6 +228,8 @@ export default function App() {
   const setSearchText = useCallback((value: string) => {
     searchTyped.current = value.trim().length > 0
     setSearch(value)
+    // Typing or clearing in the search box leaves the virtual Images tab; it becomes a normal search.
+    setImages(false)
   }, [])
   const setSearchProgrammatic = useCallback((value: string) => {
     searchTyped.current = false
@@ -257,6 +271,10 @@ export default function App() {
       .then((result) => {
         if (seq !== searchSeq.current) return
         setFound({ query, ...result })
+        // Focus is selection: a hit list with no selected row cannot be pasted or edited by keyboard.
+        setSelectedId((current) =>
+          current != null && result.items.some((row) => row.id === current) ? current : (result.items[0]?.id ?? null),
+        )
         setSearching(false)
       })
       .catch((error) => {
@@ -270,6 +288,7 @@ export default function App() {
   const selectTab = useCallback(
     (next: number | null) => {
       const previous = tab
+      setImages(false)
       // A typed query survives a tab change; a programmatic one (a tag chip) does not.
       if (!searchTyped.current && (search || query)) {
         lastQuery.current = ''
@@ -299,21 +318,47 @@ export default function App() {
 
   const tabs = useMemo(() => {
     const rows: StripTab[] = [{ id: null, label: 'All', count: allCount, kind: 'all' }]
+    const imagesTab: StripTab = { id: IMAGES_TAB, label: 'Images', count: imageCount, kind: 'images' }
+    let placed = false
     for (const hostTab of tabRows) {
       rows.push({ id: hostTab.id, label: hostTab.kind === 'pinned' ? 'Pinned' : hostTab.name, count: hostTab.count, kind: hostTab.kind })
+      if (hostTab.kind === 'pinned') {
+        rows.push(imagesTab)
+        placed = true
+      }
     }
+    if (!placed) rows.push(imagesTab)
     return rows
-  }, [tabRows, allCount])
+  }, [tabRows, allCount, imageCount])
 
-  /** Left/Right: All, then the custom tabs, then Pinned; wraps so the strip is one cycle. */
+  /** The Images tab is the saved `image:` view over All; it never becomes a DB tab. */
+  const selectImages = useCallback(() => {
+    setImages(true)
+    setTab(null)
+    setFound(null)
+    searchSeq.current++
+    lastQuery.current = ''
+    setSearchProgrammatic('image:')
+  }, [setSearchProgrammatic])
+
+  const chooseTab = useCallback(
+    (id: number | null) => {
+      if (id === IMAGES_TAB) selectImages()
+      else selectTab(id)
+    },
+    [selectImages, selectTab],
+  )
+
+  /** Left/Right: All, Pinned, Images, then the custom tabs; wraps so the strip is one cycle. */
   const cycleTab = useCallback(
     (direction: 1 | -1) => {
       if (tabs.length < 2) return
-      const at = tabs.findIndex((entry) => entry.id === tab)
+      const activeId = images ? IMAGES_TAB : tab
+      const at = tabs.findIndex((entry) => entry.id === activeId)
       const next = tabs[(Math.max(0, at) + direction + tabs.length) % tabs.length]
-      if (next) selectTab(next.id)
+      if (next) chooseTab(next.id)
     },
-    [selectTab, tab, tabs],
+    [chooseTab, images, tab, tabs],
   )
   const moveDestinations = useMemo(() => moveTargets(tabRows), [tabRows])
 
@@ -330,8 +375,8 @@ export default function App() {
 
   const selected = visible.find((clip) => clip.id === selectedId) ?? null
   const activeTab = tabs.find((entry) => entry.id === tab)
-  const tabLabel = activeTab?.label ?? 'All'
-  const tabCount = activeTab?.count ?? visible.length
+  const tabLabel = images ? 'Images' : (activeTab?.label ?? 'All')
+  const tabCount = images ? (found?.query === 'image:' ? found.total : imageCount) : (activeTab?.count ?? visible.length)
   // Every row in the Pinned tab is pinned; repeating the glyph there is noise.
   const pinnedTab = tab != null && tabs.some((entry) => entry.id === tab && entry.kind === 'pinned')
   const today = init?.counts?.today
@@ -339,22 +384,26 @@ export default function App() {
   const searchActive = query !== ''
   const activeSearch = found?.query === query ? found : null
   const emptyTitle =
-    searching && visible.length === 0
-      ? 'Searching…'
-      : searchActive
-        ? `Nothing matches “${query}”`
-        : tab == null
-          ? 'No clips yet'
-          : activeTab?.kind === 'pinned'
-            ? 'Nothing pinned'
-            : `Nothing in “${tabLabel}”`
-  const emptySub = searchActive
-    ? 'Try a different search, or clear it with Esc.'
-    : tab == null
-      ? 'Copy something and it will appear here.'
-      : activeTab?.kind === 'pinned'
-        ? 'Press Ctrl+P on a clip to keep it here.'
-        : 'Right-click a clip and move it here.'
+    images
+      ? 'No images yet'
+      : searching && visible.length === 0
+        ? 'Searching…'
+        : searchActive
+          ? `Nothing matches “${query}”`
+          : tab == null
+            ? 'No clips yet'
+            : activeTab?.kind === 'pinned'
+              ? 'Nothing pinned'
+              : `Nothing in “${tabLabel}”`
+  const emptySub = images
+    ? 'Copy a screenshot or a picture and it will show up here.'
+    : searchActive
+      ? 'Try a different search, or clear it with Esc.'
+      : tab == null
+        ? 'Copy something and it will appear here.'
+        : activeTab?.kind === 'pinned'
+          ? 'Press Ctrl+P on a clip to keep it here.'
+          : 'Right-click a clip and move it here.'
 
   const copyItem = useCallback(
     async (clip: ClipItem) => {
@@ -682,6 +731,7 @@ export default function App() {
   /** Programmatic filters (a chip or Ctrl+T) replace the query; only typed text survives a tab change. */
   const filterByTag = useCallback(
     (token: string | null) => {
+      setImages(false)
       setSearchProgrammatic(token ?? clearTagTokens(search))
     },
     [search, setSearchProgrammatic],
@@ -928,8 +978,8 @@ export default function App() {
         <div className="tabs-row">
           <TabStrip
             tabs={tabs}
-            activeId={tab}
-            onSelect={selectTab}
+            activeId={images ? IMAGES_TAB : tab}
+            onSelect={chooseTab}
             onCreate={createTab}
             onRename={renameTab}
             onDelete={deleteTab}
@@ -944,7 +994,7 @@ export default function App() {
         <main className="card">
           <div className="card-head">
             <div className="card-title">
-              <span className="t-title">{tabLabel} clips</span>
+              <span className="t-title">{images ? 'Images' : `${tabLabel} clips`}</span>
               <span className="chip">{tabCount.toLocaleString()}</span>
               {searchActive && <span className="chip accent">Filtered</span>}
               {activeSearch && activeSearch.unknownTags.length > 0 && (
@@ -1051,7 +1101,7 @@ export default function App() {
 
           <div className="footer">
             <div className="footer-left">
-              <span className="t-meta">{searchActive ? `Results for “${query}”` : `${tabLabel} history`}</span>
+              <span className="t-meta">{images ? 'Image results' : searchActive ? `Results for "${query}"` : `${tabLabel} history`}</span>
             </div>
             <span className="spacer" />
             <div className="footer-mid">
