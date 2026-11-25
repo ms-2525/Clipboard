@@ -19,9 +19,9 @@ and keeps everything on this computer.
 
 The newest clip is at the top. Each row shows:
 
-- **A number** — 01, 02, 03 and so on. These are not decoration: with the list active, pressing
-  **1**–**9** pastes the 1st–9th visible row straight into the app you came from. (While you are
-  typing in the search box, digits type normally.)
+- **A number** — 01, 02, 03 and so on. These are not decoration: with the list active,
+  **Ctrl+1**–**Ctrl+9** pastes the 1st–9th visible row straight into the app you came from. A bare
+  digit types into the search box, so you can search for `2024` or `1,250` without a modifier.
 - **The clip itself**, up to 10 lines. Long text is cut for display only; the whole clip is kept.
 - **Where it came from** — app, window title and the time it was copied.
 - **Tags** — what kind of thing it is, worked out automatically. Up to two tags fit on a row; the
@@ -147,7 +147,7 @@ Open Settings from the gear in the list, or right-click the tray icon and choose
 | Ctrl+K or Ctrl+F | jump to the search box |
 | Esc | clear the search, then hide the window |
 | ↑ ↓ / Home / End / PageUp / PageDown | move through the list |
-| 1–9 | paste the 1st–9th visible row |
+| Ctrl+1 … Ctrl+9 | paste the 1st-9th visible row (a bare digit searches) |
 | Enter | paste the selected clip |
 | F2 | edit the selected clip |
 | Ctrl+M | move the selected clip to a tab |

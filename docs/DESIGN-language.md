@@ -50,8 +50,8 @@ initial, provenance on every row, up to 10 lines.
 ```
 
 - **Index first:** zero-padded tabular digits (`01`…`99`), fixed 2ch column, right-aligned, `Fg35`.
-  It is the paste key — digits `1`–`9` already copy item N in the current app (`MainWindow.Keys.cs`
-  and the Ctrl+M picker), so the number is a promise, not decoration. No letter tile.
+  It is the paste key - `Ctrl+1`-`Ctrl+9` copy item N in the current list, so the number is a promise,
+  not decoration. A bare digit is search text (owner rule, 25 Nov). No letter tile.
 - **Body is the row:** source text first, wrapped, `-webkit-line-clamp: 10`. Height = measured
   content, **minimum 1 line, maximum 10**. Rows are variable height; the virtualizer measures every
   row (no fixed row size). An empty or whitespace-only clip still occupies one line.
