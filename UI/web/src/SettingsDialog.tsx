@@ -264,14 +264,15 @@ export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, o
                   ))}
                 </nav>
 
-                <div className="settings-pane" role="tabpanel" aria-label={SECTIONS.find((s) => s.id === section)?.label}>
+                <div className="settings-pane" key={section} role="tabpanel" aria-label={SECTIONS.find((s) => s.id === section)?.label}>
                   {section === 'general' && (
                     <>
                       <div className="settings-pane-head">
                         <div className="t-title">General</div>
-                        <div className="t-sec">Startup, the hotkey that opens Clip, and how times read.</div>
+                        <div className="t-sec">Startup, keyboard, and how Clip fits around Windows.</div>
                       </div>
                       <div className="set-group">
+                        <div className="set-subtitle">Startup</div>
                         <div className="set-row">
                           <div className="grow">
                             <div className="label">Launch at login</div>
@@ -290,6 +291,10 @@ export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, o
                             <span className="thumbdot" />
                           </Switch.Root>
                         </div>
+                      </div>
+
+                      <div className="set-group">
+                        <div className="set-subtitle">Keyboard</div>
                         <div className="set-row">
                           <div className="grow">
                             <div className="label">Open Clip hotkey</div>
@@ -315,16 +320,19 @@ export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, o
                             <Keycaps combo={capturing ? 'Press keys' : hotkey} />
                           </button>
                         </div>
-                      </div>
-
-                      <div className="set-group">
-                        <div className="radio-row" role="radiogroup" aria-label="Time format">
-                          <button className="radio-card" data-on={timeFormat === '24h'} role="radio" aria-checked={timeFormat === '24h'} onClick={() => setTimeFormat('24h')} type="button">
-                            24-hour
-                          </button>
-                          <button className="radio-card" data-on={timeFormat === '12h'} role="radio" aria-checked={timeFormat === '12h'} onClick={() => setTimeFormat('12h')} type="button">
-                            12-hour
-                          </button>
+                        <div className="set-row">
+                          <div className="grow">
+                            <div className="label">Time format</div>
+                            <div className="t-sec">List timestamps as 24-hour or 12-hour.</div>
+                          </div>
+                          <div className="radio-inline" role="radiogroup" aria-label="Time format">
+                            <button className="radio-card" data-on={timeFormat === '24h'} role="radio" aria-checked={timeFormat === '24h'} onClick={() => setTimeFormat('24h')} type="button">
+                              24-hour
+                            </button>
+                            <button className="radio-card" data-on={timeFormat === '12h'} role="radio" aria-checked={timeFormat === '12h'} onClick={() => setTimeFormat('12h')} type="button">
+                              12-hour
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </>
@@ -337,6 +345,7 @@ export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, o
                         <div className="t-sec">What Clip keeps, and what it skips.</div>
                       </div>
                       <div className="set-group">
+                        <div className="set-subtitle">What to keep</div>
                         <div className="set-row">
                           <div className="grow">
                             <div className="label">History limit</div>
@@ -350,21 +359,24 @@ export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, o
                           </Slider.Root>
                           <span className="set-value">{cap.toLocaleString()}</span>
                         </div>
-                        <div className="set-row" data-disabled="true" title="Rich capture is on in the v2 build">
-                          <div className="grow">
-                            <div className="label">Plain text only</div>
-                            <div className="t-sec">Rich capture is always on; Ctrl+Shift+V pastes plain when you want it.</div>
-                          </div>
-                          <Switch.Root className="switch" checked={false} disabled aria-label="Plain text only">
-                            <span className="thumbdot" />
-                          </Switch.Root>
-                        </div>
                         <div className="set-row">
                           <div className="grow">
                             <div className="label">Show images in Inbox</div>
                             <div className="t-sec">When off, image clips appear only in the Images tab.</div>
                           </div>
                           <Switch.Root className="switch" checked={showImagesInAll} onCheckedChange={setShowImagesInAll} aria-label="Show images in Inbox">
+                            <span className="thumbdot" />
+                          </Switch.Root>
+                        </div>
+                      </div>
+                      <div className="set-group">
+                        <div className="set-subtitle">Format</div>
+                        <div className="set-row" data-disabled="true" title="Rich capture is on in the v2 build">
+                          <div className="grow">
+                            <div className="label">Plain text only</div>
+                            <div className="t-sec">Rich capture is always on; Ctrl+Shift+V pastes plain when you want it.</div>
+                          </div>
+                          <Switch.Root className="switch" checked={false} disabled aria-label="Plain text only">
                             <span className="thumbdot" />
                           </Switch.Root>
                         </div>
@@ -379,6 +391,7 @@ export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, o
                         <div className="t-sec">Theme and zoom preview live; zoom saves the moment it changes.</div>
                       </div>
                       <div className="set-group">
+                        <div className="set-subtitle">Theme</div>
                         <div className="radio-row" role="radiogroup" aria-label="Theme">
                           <button className="radio-card" data-on={themeChoice === 'light'} role="radio" aria-checked={themeChoice === 'light'} onClick={() => pickTheme('light')} type="button">
                             <IconSun />
@@ -393,6 +406,9 @@ export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, o
                             System
                           </button>
                         </div>
+                      </div>
+                      <div className="set-group">
+                        <div className="set-subtitle">Zoom</div>
                         <div className="radio-row" role="radiogroup" aria-label="Zoom">
                           {ZOOMS.map((zoom) => (
                             <button key={zoom} className="radio-card" data-on={settings.uiZoom === zoom} role="radio" aria-checked={settings.uiZoom === zoom} onClick={() => pickZoom(zoom)} type="button">
@@ -439,6 +455,27 @@ export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, o
                         <div className="t-sec">Everything stays in a local database on this machine.</div>
                       </div>
                       <div className="set-group">
+                        <div className="set-subtitle">Local database</div>
+                        {storage && storage.limit > 0 && (
+                          <div className="storage-meter">
+                            <div
+                              className="storage-meter-track"
+                              role="progressbar"
+                              aria-label="Clip database usage"
+                              aria-valuemin={0}
+                              aria-valuemax={storage.limit}
+                              aria-valuenow={Math.min(storage.bytes, storage.limit)}
+                            >
+                              <div
+                                className="storage-meter-fill"
+                                style={{ width: `${Math.min(100, (storage.bytes / storage.limit) * 100).toFixed(1)}%` }}
+                              />
+                            </div>
+                            <div className="t-sec">
+                              {formatBytes(storage.bytes)} of {formatBytes(storage.limit)} used
+                            </div>
+                          </div>
+                        )}
                         {confirmClear ? (
                           <div className="set-row">
                             <div className="grow">
@@ -465,11 +502,6 @@ export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, o
                               <div className="label">Clear history</div>
                               <div className="t-sec">Delete all clips in Clipboard and Images; pinned clips and tabs stay.</div>
                             </div>
-                            {storage && (
-                              <span className="set-value" style={{ whiteSpace: 'nowrap' }} title="Storage used by your clips out of the guide limit">
-                                {formatBytes(storage.bytes)} of {formatBytes(storage.limit)}
-                              </span>
-                            )}
                             <button className="btn sm" onClick={() => setConfirmClear(true)}>
                               Clear…
                             </button>

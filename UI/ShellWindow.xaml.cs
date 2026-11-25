@@ -58,7 +58,8 @@ namespace Clip.UI
             // host dialog took the activation, which is not the user clicking away.
             Deactivated += (s, e) => { if (!_warming && !_modals.Open) Hide(); };
             // A hidden shell is no longer in plain-paste mode; arming survives only while it is on screen.
-            IsVisibleChanged += (s, e) => { if (!IsVisible) _host?.SetPlainMode(false); };
+            // Every hide (hotkey, Esc, click-away, paste) also stamps the reset clock the next show reads.
+            IsVisibleChanged += (s, e) => { if (!IsVisible) { _lastHideUtc = DateTime.UtcNow; _host?.SetPlainMode(false); } };
         }
 
         async void OnLoaded(object sender, RoutedEventArgs e)

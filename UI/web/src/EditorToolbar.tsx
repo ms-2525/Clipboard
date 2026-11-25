@@ -338,11 +338,11 @@ export function EditorToolbar({ editor, pop, setPop, size, onSize, onSingleLine,
 
       <span className="tool-sep" />
 
-      <button className="tool" onClick={() => onSize(Math.max(11, size - 1))} title="Smaller text" aria-label="Decrease text size" disabled={size <= 11}>
+      <button className="tool" onClick={() => onSize(Math.max(10, size - 1))} title="Smaller text" aria-label="Decrease text size" disabled={size <= 10}>
         <IconMinus />
       </button>
       <span className="size-readout">{size}</span>
-      <button className="tool" onClick={() => onSize(Math.min(24, size + 1))} title="Larger text" aria-label="Increase text size" disabled={size >= 24}>
+      <button className="tool" onClick={() => onSize(Math.min(23, size + 1))} title="Larger text" aria-label="Increase text size" disabled={size >= 23}>
         <IconPlus />
       </button>
 

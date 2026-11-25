@@ -222,8 +222,9 @@ export function TabStrip({ tabs, activeId, onSelect, onCreate, onRename, onDelet
                     value={tab.id === null ? 'all' : String(tab.id)}
                     className={
                       'tab' +
-                      (dragId === tab.id ? ' dragging' : '') +
-                      (dropId === tab.id && dragId !== tab.id ? ' drop-before' : '')
+                      // Inbox's id is null, same as the untouched drag state: compare only once a drag exists.
+                      (dragId != null && dragId === tab.id ? ' dragging' : '') +
+                      (dropId != null && dropId === tab.id && dragId !== tab.id ? ' drop-before' : '')
                     }
                     draggable={tab.kind === 'custom'}
                     onDragStart={(event) => {

@@ -3,7 +3,7 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import type { ClipBody, ClipItem } from './host'
 import { formatStamp, dateBucket, type TimeFormat } from './format'
 import { IconPin } from './icons'
-import { isRich, loadBody, RowBody } from './rich'
+import { isRich, loadBody, overflowTitle, clearTitle, RowBody } from './rich'
 
 const imageCache = new Map<number, string | null>()
 const IMAGE_MAX = 50
@@ -105,7 +105,9 @@ function FullImage({
       className="thumb"
       src={src}
       alt=""
-      title={title}
+      data-full={title}
+      onMouseEnter={overflowTitle}
+      onMouseLeave={clearTitle}
       draggable={false}
       style={{ width: '100%', height: 240, objectFit: 'contain', background: 'var(--field)' }}
     />

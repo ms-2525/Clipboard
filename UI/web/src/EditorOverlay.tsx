@@ -75,7 +75,7 @@ const ClipBlockFont = Extension.create({
 export function EditorOverlay({ clip, timeFormat, getItem, getImage, onSave, onSaveAs, onOpenInApp, onClose, onSaved }: Props) {
   const [dirty, setDirty] = useState(false)
   const [confirmDiscard, setConfirmDiscard] = useState(false)
-  const [size, setSize] = useState(15)
+  const [size, setSize] = useState(14)
   const [pop, setPop] = useState<EditorPop>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -113,6 +113,12 @@ export function EditorOverlay({ clip, timeFormat, getItem, getImage, onSave, onS
     ],
     content: '',
     autofocus: false,
+    editorProps: {
+      // Down-arrow through a long clip keeps the caret this far inside the scrollport,
+      // so the last line never hides behind the foot + bottom breathing room.
+      scrollThreshold: 80,
+      scrollMargin: 80,
+    },
     onUpdate: ({ editor: instance }) => {
       setDirty(instance.getHTML() !== baseline.current)
       setRevision((value) => value + 1)

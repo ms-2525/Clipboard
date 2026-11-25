@@ -26,24 +26,24 @@ test('the header has no Edit/Save-as buttons; the menu holds every action', asyn
   await expect(page.locator('.ctx-item.danger')).toHaveCSS('color', 'rgb(180, 35, 24)')
 })
 
-test('Clip info shows size, tags, full app and title, and the date', async ({ page }) => {
+test('Clip info shows the provenance grid, size and tags', async ({ page }) => {
   await page.locator('.row.selected').click({ button: 'right' })
   await page.getByRole('menuitem', { name: 'Clip info' }).click()
   const dialog = page.getByRole('dialog')
   await expect(dialog).toBeVisible()
   // Row 01 is the mock showcase link: Chrome · API reference · tag "link".
   await expect(dialog).toContainText('Clip info')
-  await expect(dialog).toContainText('Copied from')
   await expect(dialog).toContainText('Chrome')
   await expect(dialog).toContainText('API reference')
-  await expect(dialog).toContainText('Space taken')
+  await expect(dialog).toContainText('Stored as')
   // The exact size is fixture math; the promise is a readable byte value, never a raw number.
   await expect(dialog).toContainText(/\d+(\.\d+)? (B|KB|MB|GB)/)
   await expect(dialog).toContainText('Tags')
   await expect(dialog.locator('.chip.tag')).toHaveCount(1)
-  await expect(dialog).toContainText(/Date and time/)
+  await expect(dialog).toContainText(/Captured/)
   await expect(dialog).toContainText(/\d{2} [A-Za-z]{3} \d{4}, \d{2}:\d{2}/)
-  // Esc closes the dialog and puts the keyboard back on the row, not on the shell.
+  // The hint sits beside Close; Esc closes back onto the row.
+  await expect(dialog).toContainText('Esc close')
   await page.keyboard.press('Escape')
   await expect(page.getByRole('dialog')).toHaveCount(0)
   await expect(page.locator('.row.selected')).toBeFocused()

@@ -18,7 +18,18 @@ export function formatBytes(bytes: number): string {
   return `${rounded} ${units[unit]}`
 }
 
-/** The row truncates provenance to one line; this dialog shows every field in full. */
+/** What the store holds for this clip: the recorded formats, or the flags when those are empty. */
+function storedAs(clip: ClipItem): string {
+  if (clip.formats.length > 0) return clip.formats.join(', ')
+  const parts: string[] = []
+  if (clip.hasHtml) parts.push('HTML')
+  if (clip.hasRtf) parts.push('RTF')
+  if (clip.hasImage) parts.push('Image')
+  if (parts.length === 0) parts.push(clip.kind === 'files' ? 'Files' : 'Text')
+  return parts.join(', ')
+}
+
+/** Provenance plus a readable slice of the clip: the row truncates, this dialog does not. */
 export function ClipInfo({
   clip,
   timeFormat,
@@ -52,53 +63,62 @@ export function ClipInfo({
           }}
         >
           <div className="dialog-head">
-            <span className="confirm-icon" style={{ color: 'var(--fg55)' }} aria-hidden="true">
+            <span className="info-icon" aria-hidden="true">
               <IconInfo />
             </span>
             <div className="grow">
               <Dialog.Title className="t-title" style={{ margin: 0 }}>
                 Clip info
               </Dialog.Title>
-              <Dialog.Description id="clipinfo-desc" className="t-sec" style={{ marginTop: 4 }}>
-                Every detail of this clip, shown in full.
+              <Dialog.Description id="clipinfo-desc" className="t-sec" style={{ marginTop: 2 }}>
+                {clip ? `${clip.app} · ${formatStamp(clip.time, timeFormat)}` : 'Clip details'}
               </Dialog.Description>
             </div>
           </div>
-          <div className="dialog-body" style={{ paddingTop: 6 }}>
+          <div className="dialog-body">
             {clip && (
-              <>
-                <div className="set-row">
-                  <span className="label">Copied from</span>
-                  <span className="grow" style={{ wordBreak: 'break-word' }}>{clip.app}</span>
+              <dl className="info-grid">
+                <div className="info-row">
+                  <dt>From</dt>
+                  <dd>{clip.app}</dd>
                 </div>
-                <div className="set-row">
-                  <span className="label">Window title</span>
-                  <span className="grow" style={{ wordBreak: 'break-word' }}>
-                    {clip.title || 'Untitled clip'}
-                  </span>
+                <div className="info-row">
+                  <dt>Window</dt>
+                  <dd>{clip.title || 'Untitled clip'}</dd>
                 </div>
-                <div className="set-row">
-                  <span className="label">Date and time</span>
-                  <span className="grow">{formatStamp(clip.time, timeFormat)}</span>
+                <div className="info-row">
+                  <dt>Captured</dt>
+                  <dd>{formatStamp(clip.time, timeFormat)}</dd>
                 </div>
-                <div className="set-row">
-                  <span className="label">Space taken</span>
-                  <span className="grow">{formatBytes(clip.sizeBytes)}</span>
+                <div className="info-row">
+                  <dt>Size</dt>
+                  <dd>{formatBytes(clip.sizeBytes)}</dd>
                 </div>
-                <div className="set-row" style={{ alignItems: 'flex-start' }}>
-                  <span className="label">Tags</span>
-                  <span className="grow" style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                    {clip.tags.length === 0 && <span className="t-sec">No tags</span>}
-                    {clip.tags.map((id) => (
-                      <span key={id} className="chip tag">{id}</span>
-                    ))}
-                  </span>
+                <div className="info-row">
+                  <dt>Stored as</dt>
+                  <dd>{storedAs(clip)}</dd>
                 </div>
-              </>
+                <div className="info-row">
+                  <dt>Tags</dt>
+                  <dd>
+                    {clip.tags.length === 0 ? (
+                      <span className="t-sec">No tags</span>
+                    ) : (
+                      <span className="info-tags">
+                        {clip.tags.map((id) => (
+                          <span key={id} className="chip tag">
+                            {id}
+                          </span>
+                        ))}
+                      </span>
+                    )}
+                  </dd>
+                </div>
+              </dl>
             )}
           </div>
-          <div className="dialog-foot">
-            <span className="t-meta grow">Esc close</span>
+          <div className="dialog-foot clipinfo-foot">
+            <span className="t-meta">Esc close</span>
             <Dialog.Close asChild>
               <button className="btn ghost">Close</button>
             </Dialog.Close>

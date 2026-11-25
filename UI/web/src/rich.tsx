@@ -7,7 +7,7 @@
  * replaced with a drawn placeholder BEFORE the markup reaches the DOM, so the row can never
  * issue a network request. The body is fetched lazily per mounted row (see ClipList).
  */
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react'
 import DOMPurify from 'dompurify'
 import type { ClipBody, ClipItem } from './host'
 
@@ -63,14 +63,14 @@ function contrast(a: [number, number, number], b: [number, number, number]): num
   return (hi + 0.05) / (lo + 0.05)
 }
 
-/** Word font sizes arrive in pt; the row's functional floor is 11 px and its ceiling 16 px. */
+/** Word font sizes arrive in pt; the row's functional floor is 10 px and its ceiling 15 px. */
 function fontSize(value: string): string | null {
   const match = /^(\d+(?:\.\d+)?)\s*(pt|px|em|rem|%)?$/i.exec(value.trim())
   if (!match) return null
   const number = parseFloat(match[1])
   const unit = (match[2] ?? 'px').toLowerCase()
-  const px = unit === 'pt' ? number * (4 / 3) : unit === 'em' || unit === 'rem' ? number * 14 : unit === '%' ? (number * 14) / 100 : number
-  return `${Math.round(Math.min(16, Math.max(11, px)))}px`
+  const px = unit === 'pt' ? number * (4 / 3) : unit === 'em' || unit === 'rem' ? number * 13 : unit === '%' ? (number * 13) / 100 : number
+  return `${Math.round(Math.min(15, Math.max(10, px)))}px`
 }
 
 function fontWeight(value: string): string | null {
@@ -276,9 +276,32 @@ export function highlightParts(text: string, terms: string[] | undefined): React
   return out.length > 0 ? out : text
 }
 
+/**
+ * Native tooltip only when the row actually clips: hovering a fully-visible
+ * row must not pop a redundant tooltip. The full text rides in `data-full`;
+ * the `title` attribute is added on hover only when the content overflows.
+ */
+export function overflowTitle(e: ReactMouseEvent<HTMLElement>): void {
+  const el = e.currentTarget
+  const full = el.dataset.full
+  if (!full) {
+    el.removeAttribute('title')
+    return
+  }
+  // A wrapped-but-complete body is taller than one line yet not clipped:
+  // only a real overflow on either axis earns the tooltip.
+  const clipped = el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1
+  if (clipped) el.title = full
+  else el.removeAttribute('title')
+}
+
+/** A stale hover title must never survive the pointer leaving the row. */
+export function clearTitle(e: ReactMouseEvent<HTMLElement>): void {
+  e.currentTarget.removeAttribute('title')
+}
+
 /** The row body: rich HTML when the clip has a safe body, plain preview until it arrives. */
-export function RowBody({ clip, getItem, highlight }: { clip: ClipItem; getItem: GetItem; highlight?: string[] }) {
-  const rich = isRich(clip)
+export function RowBody({ clip, getItem, highlight }: { clip: ClipItem; getItem: GetItem; highlight?: string[] }) {  const rich = isRich(clip)
   const [body, setBody] = useState<ClipBody | null | undefined>(() => (rich ? bodyCache.get(clip.id) : undefined))
   const [recall, setRecall] = useState(0)
 
@@ -317,11 +340,11 @@ export function RowBody({ clip, getItem, highlight }: { clip: ClipItem; getItem:
   if (clip.kind === 'files') {
     const paths = pathsOf(clip.text)
     return (
-      <div className="row-text row-files" title={title}>
+      <div className="row-text row-files" data-full={title} onMouseEnter={overflowTitle} onMouseLeave={clearTitle}>
         {paths.slice(0, 2).map((path, index) => {
           const cut = Math.max(path.lastIndexOf('\\'), path.lastIndexOf('/'))
           return (
-            <span className="file-path" key={`${index}:${path}`} title={path}>
+            <span className="file-path" key={`${index}:${path}`} data-full={path} onMouseEnter={overflowTitle} onMouseLeave={clearTitle}>
               <span className="file-dir">{path.slice(0, cut + 1)}</span>
               <span className="file-name">{path.slice(cut + 1)}</span>
             </span>
@@ -344,7 +367,7 @@ export function RowBody({ clip, getItem, highlight }: { clip: ClipItem; getItem:
     return (
       <div className="row-ocr">
         {words && <div className="ocr-mark">Text read from image</div>}
-        <div className={'row-text' + (words ? '' : ' ocr-none')} title={title}>
+        <div className={'row-text' + (words ? '' : ' ocr-none')} data-full={title} onMouseEnter={overflowTitle} onMouseLeave={clearTitle}>
           {words ? highlightParts(words, highlight) : 'No text found in this image'}
         </div>
       </div>
@@ -352,7 +375,7 @@ export function RowBody({ clip, getItem, highlight }: { clip: ClipItem; getItem:
   }
 
   if (rich && safe) {
-    return <div className="row-text clip-rich" title={title} dangerouslySetInnerHTML={{ __html: safe }} />
+    return <div className="row-text clip-rich" data-full={title} onMouseEnter={overflowTitle} onMouseLeave={clearTitle} dangerouslySetInnerHTML={{ __html: safe }} />
   }
-  return <div className="row-text" title={title}>{highlightParts(plain, highlight)}</div>
+  return <div className="row-text" data-full={title} onMouseEnter={overflowTitle} onMouseLeave={clearTitle}>{highlightParts(plain, highlight)}</div>
 }

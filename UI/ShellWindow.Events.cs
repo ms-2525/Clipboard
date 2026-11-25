@@ -25,6 +25,9 @@ namespace Clip.UI
         bool _warming = true;
         bool _pageReady;
         bool _allowClose;
+        /// <summary>Last time the shell hid; a hidden-&gt;shown gap beyond <see cref="ResetIdleSeconds"/> resets the page to the 1st row.</summary>
+        DateTime _lastHideUtc;
+        const double ResetIdleSeconds = 5;
         readonly List<string> _hotkeyFailures = new List<string>();
 
         /// <summary>
@@ -56,13 +59,16 @@ namespace Clip.UI
         /// </summary>
         internal void ShowPlain() => ShowShell(true);
 
-        void ShowShell(bool plain)
+        void ShowShell(bool plain, bool allowReset = true)
         {
+            // Only a real hidden->shown transition can reset; arming plain mode or
+            // re-showing while already visible must keep the list exactly where it is.
+            bool wasHidden = !IsVisible;
             if (_warming) EndWarm(); // demanded before the first frame: finish the warm surface instead of reloading
             _host?.SetPlainMode(plain);
             // Warm() turned activation off; a later Show() would inherit that and never take the keyboard.
             ShowActivated = true;
-            if (!IsVisible) Show();
+            if (wasHidden) Show();
             Activate();
             // Activate() alone is refused while another app owns the foreground, and the page then never sees
             // a key. The explicit attach is what makes the first arrow, letter or Enter land.
@@ -70,6 +76,12 @@ namespace Clip.UI
             // A window activation does not hand the keyboard to the WebView; without this, the page's
             // key matrix (Enter to paste, typing to search) is dead until the user clicks inside.
             Web.Focus();
+
+            // A slow reopen lands back on the 1st row. The shell times this, not the page:
+            // hiding the window does not reliably blur the page, so DOM focus timing misses hides.
+            if (allowReset && wasHidden && _pageReady && _lastHideUtc != default &&
+                (DateTime.UtcNow - _lastHideUtc).TotalSeconds > ResetIdleSeconds)
+                Emit("reset", new { });
 
             // Every open path lands here, so the advisory storage check has one home. The page shows the
             // dialog once per run; while it is ignored this only re-emits an event the page already muted.
@@ -83,7 +95,8 @@ namespace Clip.UI
         /// <summary>Tray Settings: the page owns that surface and has no route yet, so its own button is clicked.</summary>
         internal void ShowForSettings()
         {
-            ShowShell();
+            // An explicit jump to Settings must not reset the list underneath it.
+            ShowShell(false, allowReset: false);
             _ = Web.CoreWebView2?.ExecuteScriptAsync(
                 "document.querySelector('button[aria-label=\"Settings\"]')?.click()");
         }

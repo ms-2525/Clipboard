@@ -66,8 +66,8 @@ It is the same as typing `image:`. Moving a clip into a tab does not remove it f
   in use is refused with a message.
 - **Rename:** double-click a tab, or right-click it and choose **Rename**. **Pinned** and **Inbox**
   cannot be renamed.
-- **Reorder:** drag a tab left or right; the order is kept. **Pinned** always stays first, and **Inbox**
-  and **Images** never move.
+- **Reorder:** drag a tab left or right; the order is kept. **Inbox** stays first, then
+  **Images**, then **Pinned**; your own tabs follow and only those move.
 - **Move a clip:** right-click the clip and choose a destination, or select it and press **Ctrl+M**.
   The choices are **Inbox**, your own tabs, and **Pinned**.
 - **Clip info:** right-click the clip and choose **Clip info** to see every detail in full — the app

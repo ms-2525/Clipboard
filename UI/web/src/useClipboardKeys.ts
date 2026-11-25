@@ -19,7 +19,7 @@ export interface KeyActions {
   onSection: (direction: 1 | -1) => void
   /** Ctrl+Shift+Left/Right: move the selected clip one tab along the strip order. */
   onMoveTab: (direction: 1 | -1) => void
-  /** Left/Right: change tab. The strip order is All, custom tabs, Pinned. */
+  /** Left/Right and Ctrl+Tab / Ctrl+Shift+Tab: change tab. */
   onTab: (direction: 1 | -1) => void
   onPaste: (clip: ClipItem, plain: boolean) => void
   onEdit: () => void
@@ -87,6 +87,14 @@ export function useClipboardKeys(actions: KeyActions) {
           actions.onMoveTab(key === 'ArrowRight' ? 1 : -1)
           return
         }
+        // Ctrl+Tab cycles tabs like Left/Right, from anywhere — including the search
+        // box while it holds text, where plain arrows belong to the caret.
+        // Plain Tab is untouched: it still moves focus and picks a tag suggestion.
+        if (key === 'Tab') {
+          take()
+          actions.onTab(event.shiftKey ? -1 : 1)
+          return
+        }
         if (lower === 'f' || lower === 'k') {
           take()
           actions.onSearchFocus()
@@ -136,8 +144,14 @@ export function useClipboardKeys(actions: KeyActions) {
       }
 
       // A text field owns its caret: only Escape, both arrows (into the list), Enter (paste the
-      // highlighted result) and F2 (edit it) may act. Delete/Home/End/digits keep their native meaning.
-      if (typing && key !== 'Escape' && key !== 'ArrowDown' && key !== 'ArrowUp' && key !== 'Enter' && key !== 'F2') return
+      // highlighted result) and F2 (edit it) may act — except an EMPTY search box, which is
+      // still the list: Left/Right/Home/End drive the tabs and rows while there is no text
+      // to move through. The moment it holds text, the caret owns those keys again.
+      const emptySearchBox =
+        (target === searchRef.current || focused === searchRef.current) && search.trim() === ''
+      const listKeyFromEmptySearch =
+        emptySearchBox && (key === 'ArrowLeft' || key === 'ArrowRight' || key === 'Home' || key === 'End')
+      if (typing && !listKeyFromEmptySearch && key !== 'Escape' && key !== 'ArrowDown' && key !== 'ArrowUp' && key !== 'Enter' && key !== 'F2') return
 
       // ArrowDown is measured by the list, so it works in the search box too.
       if (rows.length > 0 && !onControl) {

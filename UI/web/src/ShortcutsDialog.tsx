@@ -41,7 +41,7 @@ function sections(openHotkey: string, plainHotkey: string): Section[] {
         { combo: 'Shift+↑ / Shift+↓', label: 'Select a range of rows' },
         { combo: 'Home / End', label: 'First / last row' },
         { combo: 'PageUp / PageDown', label: 'Move one page' },
-        { combo: '← / →', label: 'Change tab' },
+        { combo: '← / → / Ctrl+Tab', label: 'Change tab' },
         { combo: 'Ctrl+↑ / Ctrl+↓', label: 'Previous / next day' },
         { combo: 'Ctrl+Shift+← / Ctrl+Shift+→', label: 'Move the clip to the next tab' },
         { combo: 'Esc', label: 'Clear the search, then hide Clip' },

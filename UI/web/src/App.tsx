@@ -134,6 +134,8 @@ export default function App() {
   /** `tag:` dropdown: highlighted row plus whole-library counts, snapshotted when it opens. */
   const [suggestIndex, setSuggestIndex] = useState(0)
   const [tagCounts, setTagCounts] = useState<Record<string, number> | null>(null)
+  /** The dropdown only lives while the caret is in the box: a tab click must never pop it. */
+  const [searchFocused, setSearchFocused] = useState(false)
 
   const toastId = useRef(0)
   const tabSeq = useRef(0)
@@ -303,6 +305,7 @@ export default function App() {
       const previous = tab
       setImages(false)
       // A typed query survives a tab change; a programmatic one (a tag chip) does not.
+      const keepQuery = searchTyped.current && (search.trim() !== '' || query !== '')
       if (!searchTyped.current && (search || query)) {
         lastQuery.current = ''
         setSearch('')
@@ -310,7 +313,17 @@ export default function App() {
       }
       setTab(next)
       setFound(null)
+      // Drop the old tab's rows at once: keeping them until the fetch lands flashes the
+      // previous tab (notably its images) inside the new one.
+      setItems([])
       searchSeq.current++
+      // A surviving typed query owns the list: the query effect searches the new tab,
+      // so an unfiltered fetch here would flash the wrong rows first.
+      if (keepQuery) {
+        setSearching(true)
+        void refreshTabs()
+        return
+      }
       const seq = ++tabSeq.current
       host
         .getItems({ tabId: next, offset: 0, limit: 1000 })
@@ -334,17 +347,15 @@ export default function App() {
   const tabs = useMemo(() => {
     // Hidden images still belong to the Images tab; the Inbox count drops them so the strip says what it shows.
     const all = showImagesInAll ? allCount : Math.max(0, allCount - imageCount)
-    const rows: StripTab[] = [{ id: null, label: 'Inbox', count: all, kind: 'all' }]
     const imagesTab: StripTab = { id: IMAGES_TAB, label: 'Images', count: imageCount, kind: 'images' }
-    let placed = false
+    // Fixed heads: Inbox, then the Images view, then Pinned, then the custom tabs in host order.
+    const rows: StripTab[] = [
+      { id: null, label: 'Inbox', count: all, kind: 'all' },
+      imagesTab,
+    ]
     for (const hostTab of tabRows) {
       rows.push({ id: hostTab.id, label: hostTab.kind === 'pinned' ? 'Pinned' : hostTab.name, count: hostTab.count, kind: hostTab.kind })
-      if (hostTab.kind === 'pinned') {
-        rows.push(imagesTab)
-        placed = true
-      }
     }
-    if (!placed) rows.push(imagesTab)
     return rows
   }, [tabRows, allCount, imageCount, showImagesInAll])
 
@@ -353,9 +364,14 @@ export default function App() {
     setImages(true)
     setTab(null)
     setFound(null)
+    // Same stale-row flash as a tab switch: the Inbox rows (with their images) must go
+    // now, not when the `tag:image` search answers.
+    setItems([])
+    setSearching(true)
     searchSeq.current++
     lastQuery.current = ''
-    setSearchProgrammatic('tag:image')
+    // Trailing space: the tag is done, so the `tag:` list stays closed.
+    setSearchProgrammatic('tag:image ')
   }, [setSearchProgrammatic])
 
   const chooseTab = useCallback(
@@ -366,7 +382,7 @@ export default function App() {
     [selectImages, selectTab],
   )
 
-  /** Left/Right: Inbox, Pinned, Images, then the custom tabs; wraps so the strip is one cycle. */
+  /** Left/Right: Inbox, Images, Pinned, then the custom tabs; wraps so the strip is one cycle. */
   const cycleTab = useCallback(
     (direction: 1 | -1) => {
       if (tabs.length < 2) return
@@ -418,10 +434,10 @@ export default function App() {
   const searchActive = query !== ''
   const activeSearch = found?.query === query ? found : null
   const emptyTitle =
-    images
-      ? 'No images yet'
-      : searching && visible.length === 0
-        ? 'Searching…'
+    searching && visible.length === 0
+      ? 'Searching…'
+      : images
+        ? 'No images yet'
         : searchActive
           ? `Nothing matches “${query}”`
           : tab == null
@@ -429,11 +445,14 @@ export default function App() {
             : activeTab?.kind === 'pinned'
               ? 'Nothing pinned'
               : `Nothing in “${tabLabel}”`
-  const emptySub = images
-    ? 'Copy a screenshot or a picture and it will show up here.'
-    : searchActive
-      ? 'Try a different search, or clear it with Esc.'
-      : tab == null
+  const emptySub =
+    searching && visible.length === 0
+      ? 'The new tab is loading.'
+      : images
+        ? 'Copy a screenshot or a picture and it will show up here.'
+        : searchActive
+          ? 'Try a different search, or clear it with Esc.'
+          : tab == null
         ? 'Copy something and it will appear here.'
         : activeTab?.kind === 'pinned'
           ? 'Press Ctrl+P on a clip to keep it here.'
@@ -453,7 +472,7 @@ export default function App() {
     if (rest.length > 0 && TAG_VOCAB.includes(frag.toLowerCase())) return null
     return frag
   }, [search])
-  const suggestOpen = tagFrag != null
+  const suggestOpen = tagFrag != null && searchFocused
   /** Snapshot whole-library counts once per open; names filter live as the fragment grows. */
   useEffect(() => {
     if (!suggestOpen) {
@@ -878,7 +897,8 @@ export default function App() {
   const filterByTag = useCallback(
     (token: string | null) => {
       setImages(false)
-      setSearchProgrammatic(token ?? clearTagTokens(search))
+      // Trailing space: the tag is done, so the `tag:` list stays closed.
+      setSearchProgrammatic(token ? `${token} ` : clearTagTokens(search))
     },
     [search, setSearchProgrammatic],
   )
@@ -896,6 +916,44 @@ export default function App() {
     if (active && active !== document.body && !emptySearch) return
     listRef.current?.focusSelected()
   }, [confirm, editorOpen, infoClip, moveClip, rowMenu, search, selectedId, settingsOpen, tabOverlay, tagClip])
+
+  /**
+   * A slow reopen lands back on the main list with keys ready: every parent-owned
+   * popup is closed, the search is cleared (stale text with list focus made
+   * Left/Right/Home/End look dead), then the 1st row of the current tab is selected.
+   * The shell decides when (a "reset" event); the page deliberately keeps no clock.
+   */
+  const resetToMain = useCallback(() => {
+    setEditorOpen(false)
+    setSettingsOpen(false)
+    setConfirm(null)
+    setRowMenu(null)
+    setMoveClip(null)
+    setTagClip(null)
+    setInfoClip(null)
+    setStorageNotice(null)
+    if (images) setImages(false)
+    // The cleared-query reload stays parked: lastQuery is already empty, so the
+    // query effect below early-returns and never fights this selection.
+    searchSeq.current++
+    lastQuery.current = ''
+    setFound(null)
+    setSearchProgrammatic('')
+    setQuery('')
+    setAnchorId(null)
+    setSelectedIds([])
+    const first = itemsRef.current[0]?.id
+    if (first != null) {
+      setSelectedId(first)
+      // Radix dialogs restore focus to their trigger on close; run after that.
+      window.setTimeout(() => {
+        listRef.current?.revealTop(first)
+        listRef.current?.focusSelected()
+      }, 50)
+    } else {
+      window.setTimeout(() => listRef.current?.focusSelected(), 50)
+    }
+  }, [images])
 
   useEffect(() => {
     const onShow = () => {
@@ -959,6 +1017,11 @@ export default function App() {
   useEffect(
     () =>
       host.onEvent(({ event, data }) => {
+        if (event === 'reset') {
+          // The shell hid more than 5s ago: land back on the main list, 1st row, keys ready.
+          resetToMain()
+          return
+        }
         if (event === 'captured') {
           const item = data as ClipItem | undefined
           if (!item || typeof item.id !== 'number') return
@@ -1042,7 +1105,7 @@ export default function App() {
           void refreshTabs()
         }
       }),
-    [applySettings, host, load, refreshTabs, reload, tab, showToast],
+    [applySettings, host, load, refreshTabs, reload, resetToMain, tab, showToast],
   )
 
   return (
@@ -1055,7 +1118,6 @@ export default function App() {
             </span>
             <div className="brand-text">
               <div className="brand-name">Clip</div>
-              <div className="brand-sub">Clipboard history</div>
             </div>
           </div>
 
@@ -1065,8 +1127,12 @@ export default function App() {
               ref={searchRef}
               value={search}
               onChange={(event) => setSearchText(event.target.value)}
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setSearchFocused(false)}
               onKeyDown={(event) => {
                 if (!suggestOpen) return
+                // Ctrl+Tab / Ctrl+Shift+Tab cycle tabs from anywhere; never eat them as a tag pick.
+                if (event.ctrlKey || event.metaKey) return
                 if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
                   event.preventDefault()
                   event.stopPropagation()
@@ -1095,7 +1161,7 @@ export default function App() {
                   }
                 }
               }}
-              placeholder="Search clips, apps, file names…"
+              placeholder="Search clips…"
               aria-label="Search clips"
               aria-expanded={suggestOpen}
               aria-autocomplete="list"
@@ -1177,6 +1243,8 @@ export default function App() {
               const next = !searchOpen
               setSearchOpen(next)
               if (next) window.setTimeout(() => searchRef.current?.focus(), 0)
+              // Collapsing back to the bare list: land on the selected row, not the toggle.
+              else listRef.current?.focusSelected()
             }}
           >
             <IconSearch />
@@ -1186,7 +1254,11 @@ export default function App() {
             <Tooltip.Trigger asChild>
               <button
                 className="icon-btn"
-                onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+                onClick={() => {
+                  setTheme(theme === 'light' ? 'dark' : 'light')
+                  // A theme click strands focus on this button, where Up/Down is dead.
+                  listRef.current?.focusSelected()
+                }}
                 aria-label="Toggle theme"
               >
                 {theme === 'light' ? <IconMoon /> : <IconSun />}
@@ -1281,7 +1353,8 @@ export default function App() {
               onCopy={copyItem}
               onContextMenu={(clip, x, y) => setRowMenu({ clip, x, y })}
               onTag={(id) => {
-                setSearchProgrammatic(tagToken(id))
+                // Trailing space: the tag is done, so the `tag:` list stays closed.
+                setSearchProgrammatic(`${tagToken(id)} `)
                 focusSearch()
               }}
               getThumb={host.getThumb}
@@ -1328,7 +1401,12 @@ export default function App() {
 
       <SettingsDialog
         open={settingsOpen}
-        onOpenChange={setSettingsOpen}
+        onOpenChange={(open) => {
+          setSettingsOpen(open)
+          // The dialog hands focus back to its header button, where Up/Down is dead.
+          // The main window's keyboard belongs to the list, so land on the selected row.
+          if (!open) window.setTimeout(() => listRef.current?.focusSelected(), 50)
+        }}
         settings={settings}
         onPreviewTheme={setTheme}
         onZoom={applyZoom}

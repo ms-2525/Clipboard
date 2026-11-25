@@ -42,17 +42,17 @@ test('arrows move the selection and focus follows, stopping at both ends', async
 
 test('Left/Right change tab in strip order and wrap', async ({ page }) => {
   await page.keyboard.press('ArrowRight')
-  await expect(activeTab(page)).toHaveText('Pinned')
-  await expect(footerScope(page)).toHaveText('Pinned history')
-  await page.keyboard.press('ArrowRight')
   await expect(activeTab(page)).toHaveText('Images')
   await expect(footerScope(page)).toHaveText('Image results')
   await page.keyboard.press('ArrowRight')
+  await expect(activeTab(page)).toHaveText('Pinned')
+  await expect(footerScope(page)).toHaveText('Pinned history')
+  await page.keyboard.press('ArrowRight')
   await expect(activeTab(page)).toHaveText('Work')
   await page.keyboard.press('ArrowLeft')
-  await expect(activeTab(page)).toHaveText('Images')
-  await page.keyboard.press('ArrowLeft')
   await expect(activeTab(page)).toHaveText('Pinned')
+  await page.keyboard.press('ArrowLeft')
+  await expect(activeTab(page)).toHaveText('Images')
   await page.keyboard.press('ArrowLeft')
   await expect(activeTab(page)).toHaveText('Inbox')
   await page.keyboard.press('ArrowLeft')
@@ -61,6 +61,25 @@ test('Left/Right change tab in strip order and wrap', async ({ page }) => {
   await expect(activeTab(page)).toHaveText('Inbox')
   // A tab switch puts the new first row under the keyboard.
   await expect(selectedRow(page)).toBeFocused()
+})
+
+test('Ctrl+Tab cycles tabs forward and Ctrl+Shift+Tab cycles back', async ({ page }) => {
+  await expect(activeTab(page)).toHaveText('Inbox')
+  await page.keyboard.press('Control+Tab')
+  await expect(activeTab(page)).toHaveText('Images')
+  await page.keyboard.press('Control+Tab')
+  await expect(activeTab(page)).toHaveText('Pinned')
+  await page.keyboard.press('Control+Shift+Tab')
+  await expect(activeTab(page)).toHaveText('Images')
+  // From the search box with text, plain arrows own the caret but Ctrl+Tab still cycles,
+  // and the typed query survives onto a normal tab.
+  // (Entering Images always replaces the query with its saved `tag:image` view.)
+  await page.getByRole('tab', { name: /Pinned/ }).click()
+  await expect(activeTab(page)).toHaveText('Pinned')
+  await search(page).fill('stripe')
+  await page.keyboard.press('Control+Tab')
+  await expect(activeTab(page)).toHaveText('Work')
+  await expect(search(page)).toHaveValue('stripe')
 })
 
 test('the Images tab is a saved tag:image view and matches the tag search', async ({ page }) => {
@@ -195,6 +214,8 @@ test('the Settings preview and the known-limits note are on screen', async ({ pa
   // G-03: at 900x700 each section must fit without a scroll; the limits note once pushed the sheet over.
   for (const section of ['General', 'Capture', 'Appearance', 'Notifications', 'Storage', 'About']) {
     await page.getByRole('button', { name: section }).click()
+    // The pane remounts per section (transition); measure only once the new section has committed.
+    await expect(page.locator('.settings-pane .t-title')).toHaveText(section)
     const overflow = await page.evaluate(() => {
       const body = document.querySelector('.dialog-body') as HTMLElement
       return body.scrollHeight - body.clientHeight
@@ -289,7 +310,23 @@ test('the Settings icon is in the top bar and works from the keyboard', async ({
   await page.keyboard.press('Escape')
   await expect(page.locator('.dialog')).toHaveCount(0)
   expect(await page.evaluate(() => (window as unknown as { __mockHideCalls?: number }).__mockHideCalls ?? -1)).toBe(0)
-  await expect(button).toBeFocused()
+  // Close lands back on the list, not the button: Up/Down work with no extra click.
+  await expect(selectedRow(page)).toBeFocused()
+  const first = (await page.locator('.row.selected .row-index').textContent()) ?? ''
+  await page.keyboard.press('ArrowDown')
+  const second = (await page.locator('.row.selected .row-index').textContent()) ?? ''
+  expect(second).not.toBe(first)
+})
+
+test('the theme toggle hands the keyboard back to the list', async ({ page }) => {
+  await page.locator('button[aria-label="Toggle theme"]').click()
+  await expect(selectedRow(page)).toBeFocused()
+  const first = (await page.locator('.row.selected .row-index').textContent()) ?? ''
+  await page.keyboard.press('ArrowDown')
+  const second = (await page.locator('.row.selected .row-index').textContent()) ?? ''
+  expect(second).not.toBe(first)
+  await page.keyboard.press('ArrowUp')
+  await expect(page.locator('.row.selected .row-index')).toHaveText(first)
 })
 
 test('both arrows move the list from the search box', async ({ page }) => {
@@ -320,21 +357,64 @@ test('Enter and F2 work while the search box has focus', async ({ page }) => {
 test('Left/Right from the tab strip itself change one tab, not two', async ({ page }) => {
   await page.locator('[role="tab"][aria-selected="true"]').focus()
   await page.keyboard.press('ArrowRight')
-  await expect(activeTab(page)).toHaveText('Pinned')
+  await expect(activeTab(page)).toHaveText('Images')
   await expect(page.locator('[role="tab"][aria-selected="true"]')).toBeFocused()
   await page.keyboard.press('ArrowLeft')
   await expect(activeTab(page)).toHaveText('Inbox')
 })
 
-test('Left/Right in the search field move the caret, never the tab', async ({ page }) => {
+test('Left/Right/Home/End in the search field move the caret, never the list or tab', async ({ page }) => {
   await page.keyboard.press('Control+k')
   await expect(search(page)).toBeFocused()
   await page.keyboard.type('ab')
   const tab = await activeTab(page).textContent()
+  const sel = await selectedRow(page).textContent()
   await page.keyboard.press('ArrowLeft')
   await expect(search(page)).toHaveValue('ab')
   await expect(activeTab(page)).toHaveText(tab || '')
+  await expect(selectedRow(page)).toHaveText(sel || '')
   expect(await search(page).evaluate((el) => (el as HTMLInputElement).selectionStart)).toBe(1)
+  await page.keyboard.press('Home')
+  expect(await search(page).evaluate((el) => (el as HTMLInputElement).selectionStart)).toBe(0)
+  await expect(selectedRow(page)).toHaveText(sel || '')
+  await page.keyboard.press('End')
+  expect(await search(page).evaluate((el) => (el as HTMLInputElement).selectionStart)).toBe(2)
+  await expect(search(page)).toHaveValue('ab')
+  await expect(selectedRow(page)).toHaveText(sel || '')
+  await expect(activeTab(page)).toHaveText(tab || '')
+})
+
+test('row tooltips only appear when the text is clipped', async ({ page }) => {
+  // Row 01 is a short one-line link: fully visible, so hovering sets no tooltip.
+  const short = page.locator('.row[data-id="1"] .row-text')
+  await short.hover()
+  await expect(short).not.toHaveAttribute('title')
+  // Row 02 is a long clamped clip: the tooltip carries the full text.
+  const long = page.locator('.row[data-id="2"] .row-text')
+  await long.hover()
+  const tip = await long.getAttribute('title')
+  expect(tip != null && tip.length > 0).toBe(true)
+})
+
+test('empty search still drives the list with Left/Right/Home/End', async ({ page }) => {
+  await search(page).focus()
+  await expect(search(page)).toHaveValue('')
+  await page.keyboard.press('End')
+  const last = (await page.locator('.row.selected .row-index').textContent()) ?? ''
+  expect(last).not.toBe('01')
+  await page.keyboard.press('Home')
+  await expect(page.locator('.row.selected .row-index')).toHaveText('01')
+  const tab = await activeTab(page).textContent()
+  await page.keyboard.press('ArrowRight')
+  await expect(activeTab(page)).not.toHaveText(tab || '')
+  // Right from Inbox lands on Images, which is a saved search: entering it fills the box.
+  await expect(activeTab(page)).toHaveText('Images')
+  await expect(search(page)).toHaveValue('tag:image ')
+  await page.keyboard.press('Escape')
+  await expect(activeTab(page)).toHaveText(tab || '')
+  // The caret never owned these keys: the box is empty again and keeps focus.
+  await expect(search(page)).toHaveValue('')
+  await expect(search(page)).toBeFocused()
 })
 
 test('the page makes no network request and logs no console error', async ({ page }) => {

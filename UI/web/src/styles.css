@@ -19,9 +19,9 @@
   --accent-text: #c2410c;
   --on-accent: #1a0d02;
   --accent-soft: #fff3ea;
-  /* Active tab only: burnt orange so the off-white ink clears 4.5:1 (plain accent + off-white is 2.48). */
-  --tab-active: #8f4200;
-  --tab-active-ink: #fff8f0;
+  /* Active tab: the same vivid accent + dark-ink treatment every other on-state uses (≈6.9:1). */
+  --tab-active: var(--accent);
+  --tab-active-ink: var(--on-accent);
   --row-selected: #fff6f1;
   --selection-ring: #b26e28;
   --rail: #a93a0c;
@@ -41,7 +41,6 @@
   --tip-bg: #141821;
   --tip-fg: #f6f7f9;
   --tip-line: #2c3648;
-  --count-bg: rgba(0, 0, 0, 0.16);
   --highlight: #fde68a;
   --shadow: 0 12px 32px rgba(16, 24, 40, 0.14);
   --shadow-sm: 0 2px 6px rgba(16, 24, 40, 0.06);
@@ -68,9 +67,9 @@
   --accent-text: #ff9550;
   --on-accent: #1a0d02;
   --accent-soft: #2a1a12;
-  /* Active tab only: burnt orange so the off-white ink clears 4.5:1. */
-  --tab-active: #a34a00;
-  --tab-active-ink: #fff8f0;
+  /* Active tab: same vivid treatment as every other on-state (see light theme). */
+  --tab-active: var(--accent);
+  --tab-active-ink: var(--on-accent);
   --row-selected: #1c2330;
   --selection-ring: #647ea6;
   --rail: #ff9c6b;
@@ -90,7 +89,6 @@
   --tip-bg: #1b202b;
   --tip-fg: #e7eaf0;
   --tip-line: #667284;
-  --count-bg: rgba(0, 0, 0, 0.2);
   --highlight: rgba(255, 122, 26, 0.28);
   --shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.35);
@@ -112,7 +110,7 @@ body {
   background: var(--app);
   color: var(--fg);
   font-family: Sora, Inter, 'Segoe UI Variable Text', 'Segoe UI', -apple-system, system-ui, sans-serif;
-  font-size: 14px;
+  font-size: 13px;
   line-height: 20px;
   -webkit-font-smoothing: antialiased;
   overflow: hidden;
@@ -140,7 +138,7 @@ a {
 }
 
 .t-micro {
-  font-size: 11px;
+  font-size: 10px;
   line-height: 16px;
   font-weight: 600;
   letter-spacing: 0.5px;
@@ -148,29 +146,29 @@ a {
   color: var(--fg48);
 }
 .t-meta {
-  font-size: 11px;
+  font-size: 10px;
   line-height: 16px;
   color: var(--fg48);
   font-variant-numeric: tabular-nums;
 }
 .t-sec {
-  font-size: 12px;
+  font-size: 11px;
   line-height: 18px;
   color: var(--fg55);
 }
 .t-body {
-  font-size: 14px;
+  font-size: 13px;
   line-height: 20px;
   color: var(--fg);
 }
 .t-title {
-  font-size: 15px;
+  font-size: 14px;
   line-height: 22px;
   font-weight: 600;
   letter-spacing: -0.1px;
 }
 .t-btn {
-  font-size: 12px;
+  font-size: 11px;
   line-height: 16px;
   font-weight: 600;
 }
@@ -187,7 +185,7 @@ a {
 }
 
 .topbar {
-  min-height: 44px;
+  min-height: 32px;
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -219,19 +217,10 @@ a {
   box-shadow: var(--shadow-sm);
 }
 .brand-name {
-  font-size: 16px;
+  font-size: 15px;
   line-height: 22px;
   font-weight: 600;
   letter-spacing: -0.2px;
-}
-.brand-sub {
-  font-size: 11px;
-  line-height: 14px;
-  color: var(--fg48);
-  letter-spacing: 0.4px;
-  text-transform: uppercase;
-  font-weight: 600;
-  margin-top: 1px;
 }
 
 .search {
@@ -263,7 +252,7 @@ a {
   background: transparent;
   color: var(--fg);
   font: inherit;
-  font-size: 13px;
+  font-size: 12px;
 }
 .search input::placeholder {
   color: var(--fg48);
@@ -292,7 +281,7 @@ a {
   padding: 7px 10px;
   border-radius: 6px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 12px;
 }
 .suggest-row.active {
   background: var(--field);
@@ -312,7 +301,7 @@ a {
 .suggest-empty {
   padding: 10px;
   color: var(--fg48);
-  font-size: 13px;
+  font-size: 12px;
 }
 mark.hit {
   background: var(--highlight);
@@ -333,7 +322,7 @@ mark.hit {
   border: 1px solid var(--key-line);
   color: var(--fg55);
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 10px;
   line-height: 1;
   font-weight: 600;
   white-space: nowrap;
@@ -382,6 +371,10 @@ mark.hit {
 .row:focus-visible {
   outline-offset: -2px;
 }
+/* The active tab's fill is its indicator; a focus ring around it reads as a second border with a gap. */
+.tab[data-state='active']:focus-visible {
+  outline: none;
+}
 .switch:focus-visible,
 .radio-card:focus-visible {
   outline-offset: 2px;
@@ -400,13 +393,10 @@ mark.hit {
   align-items: center;
   flex-wrap: nowrap;
   gap: 2px;
-  background: var(--raised);
-  border: 1px solid var(--control);
-  border-radius: 8px;
-  padding: 3px;
   min-width: 0;
   max-width: 100%;
-  /* The strip ends after `+`: an empty raised trough at 900 read as a missing control. */
+  /* No box of its own: the tabs sit directly on the card-head row, between the
+     card's top edge and the row's bottom divider. */
   flex: 0 1 auto;
   width: fit-content;
 }
@@ -443,7 +433,7 @@ mark.hit {
   flex-shrink: 0;
   background: transparent;
   color: var(--fg55);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   display: flex;
   align-items: center;
@@ -466,7 +456,7 @@ mark.hit {
   color: var(--tab-active-ink);
 }
 .tab-count {
-  font-size: 11px;
+  font-size: 10px;
   line-height: 16px;
   font-variant-numeric: tabular-nums;
   padding: 0 5px;
@@ -475,7 +465,7 @@ mark.hit {
   color: inherit;
 }
 .tab[data-state='active'] .tab-count {
-  background: var(--count-bg);
+  background: color-mix(in srgb, var(--on-accent) 16%, transparent);
 }
 /* Drag reorder: the dragged tab fades, the tab before the drop point shows an insertion line. */
 .tab.dragging {
@@ -520,7 +510,7 @@ mark.hit {
   background: var(--surface);
   color: var(--fg);
   font: inherit;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
 }
 .tab-edit-input:focus-visible {
@@ -535,7 +525,7 @@ mark.hit {
   white-space: normal;
   overflow-wrap: anywhere;
   color: var(--danger);
-  font-size: 10px;
+  font-size: 9px;
   line-height: 12px;
 }
 /* (tabs-hint retired with the strip's old band; footer keycaps remain) */
@@ -552,7 +542,7 @@ mark.hit {
   overflow: hidden;
 }
 .card-head {
-  min-height: 48px;
+  min-height: 40px;
   padding: 6px 12px;
   display: flex;
   align-items: center;
@@ -570,7 +560,7 @@ mark.hit {
   border-radius: 6px;
   background: var(--badge);
   color: var(--fg55);
-  font-size: 11px;
+  font-size: 10px;
   line-height: 1;
   font-weight: 600;
   letter-spacing: 0.2px;
@@ -594,7 +584,7 @@ mark.hit {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 11px;
+  font-size: 10px;
   color: var(--fg48);
 }
 
@@ -657,6 +647,22 @@ mark.hit {
   position: relative;
   left: auto;
   right: auto;
+  /* Segmented cards: every row shares this geometry, so selection swaps only
+     paint (background, ring, shadow) and the list never reflows under the arrows. */
+  margin: 2px 8px;
+  border-bottom: 1px solid transparent;
+  border-radius: 10px;
+}
+/* Light divider between every clipboard item. Absolute (never layout), so the
+   virtualizer's measured row heights do not move; inset past the cards. */
+.vitem::after {
+  content: "";
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 0;
+  height: 1px;
+  background: var(--divider);
 }
 .date-sep {
   display: flex;
@@ -682,7 +688,7 @@ mark.hit {
   background: linear-gradient(to left, transparent, var(--hairline));
 }
 .date-sep-label {
-  font-size: 10px;
+  font-size: 9px;
   line-height: 16px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -703,14 +709,11 @@ mark.hit {
 }
 .row.selected {
   background: var(--row-selected);
-  border-bottom-color: transparent;
-  border-radius: 10px;
-  margin: 2px 8px;
   box-shadow:
     inset 0 0 0 1px var(--selection-ring),
     var(--shadow-sm);
 }
-/* Row anatomy, DESIGN-language §3: index, body (1–10 lines), provenance line.
+/* Row anatomy, DESIGN-language §3: index, body (1–9 lines), provenance line.
    The row height is measured by the virtualizer — never fixed here. */
 .row-index {
   flex: 0 0 auto;
@@ -718,7 +721,7 @@ mark.hit {
      body column never shifts. */
   width: calc(3ch + 1px);
   padding-top: 1px;
-  font-size: 12px;
+  font-size: 11px;
   line-height: 18px;
   font-weight: 500;
   color: var(--fg48);
@@ -743,13 +746,13 @@ mark.hit {
   flex: 1;
   min-width: 0;
   min-height: 20px;
-  font-size: 14px;
+  font-size: 13px;
   line-height: 20px;
   color: var(--fg);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   display: -webkit-box;
-  -webkit-line-clamp: 10;
+  -webkit-line-clamp: 9;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -758,7 +761,7 @@ mark.hit {
   align-items: center;
   gap: 4px 6px;
   min-width: 0;
-  font-size: 11px;
+  font-size: 10px;
   line-height: 16px;
   color: var(--fg55);
   font-variant-numeric: tabular-nums;
@@ -819,7 +822,7 @@ mark.hit {
   flex-direction: column;
 }
 .ocr-mark {
-  font-size: 11px;
+  font-size: 10px;
   line-height: 16px;
   color: var(--fg48);
   margin-bottom: 2px;
@@ -827,14 +830,14 @@ mark.hit {
 .row-text.ocr-none {
   color: var(--fg55);
 }
-/* ---------- rich row body (DESIGN-language §3: 10-line ceiling) ---------- */
+/* ---------- rich row body (DESIGN-language §3: 9-line ceiling) ---------- */
 /* Source formatting keeps the row's own tokens: no source size larger than 16px, no source
    colour that is not proven against its own background (see rich.tsx). */
 .row-text.clip-rich {
   display: block;
   white-space: normal;
   line-height: 20px;
-  max-height: calc(10 * 20px);
+  max-height: calc(9 * 20px);
   overflow: hidden;
 }
 .clip-rich > :first-child {
@@ -860,7 +863,7 @@ mark.hit {
 .clip-rich h2,
 .clip-rich h3,
 .clip-rich h4 {
-  font-size: 15px;
+  font-size: 14px;
   line-height: 20px;
   font-weight: 600;
   margin: 2px 0 1px;
@@ -895,7 +898,7 @@ mark.hit {
 .clip-rich pre,
 .clip-rich code {
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: 11px;
   line-height: 20px;
 }
 .clip-rich code {
@@ -947,7 +950,7 @@ mark.hit {
   border-radius: 4px;
   background: var(--field);
   color: var(--fg48);
-  font-size: 11px;
+  font-size: 10px;
   vertical-align: middle;
 }
 /* Files rows: the folder part ellipsizes in the middle, the file name stays readable. */
@@ -957,9 +960,9 @@ mark.hit {
   align-items: flex-start;
   gap: 1px;
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: 11px;
   line-height: 18px;
-  max-height: calc(10 * 18px);
+  max-height: calc(9 * 18px);
 }
 .file-path {
   display: flex;
@@ -1034,7 +1037,7 @@ mark.hit {
   align-items: center;
   gap: 5px;
   color: var(--fg48);
-  font-size: 11px;
+  font-size: 10px;
 }
 
 /* ---------- buttons ---------- */
@@ -1049,7 +1052,7 @@ mark.hit {
   border: 1px solid var(--control);
   background: var(--raised);
   color: var(--fg);
-  font-size: 12px;
+  font-size: 11px;
   line-height: 16px;
   font-weight: 600;
   transition: background 100ms, border-color 100ms, color 100ms;
@@ -1160,6 +1163,58 @@ mark.hit {
 .dialog-head .grow {
   flex: 1;
 }
+/* Clip info: a neutral badge (never the danger confirm icon) and a
+   divider-free definition grid. The foot groups its hint with Close. */
+.info-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--field);
+  color: var(--fg55);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.clipinfo-foot {
+  align-items: center;
+}
+.info-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+}
+.info-row {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 12px;
+  margin: 0;
+  align-items: start;
+}
+.info-row dt {
+  font-size: 10px;
+  line-height: 18px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--fg48);
+  padding-top: 1px;
+}
+.info-row dd {
+  margin: 0;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--fg);
+  word-break: break-word;
+  min-width: 0;
+}
+.info-tags {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
 .dialog-body-wrap {
   position: relative;
   flex: 1 1 auto;
@@ -1225,14 +1280,14 @@ mark.hit {
   min-width: 0;
 }
 .set-row .label {
-  font-size: 13px;
+  font-size: 12px;
   line-height: 18px;
   font-weight: 500;
   color: var(--fg);
 }
 .set-value {
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 10px;
   color: var(--fg55);
   min-width: 40px;
   text-align: right;
@@ -1319,7 +1374,7 @@ mark.hit {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--fg55);
 }
@@ -1379,12 +1434,12 @@ mark.hit {
   flex: 1;
 }
 .toast .toast-title {
-  font-size: 12px;
+  font-size: 11px;
   line-height: 16px;
   font-weight: 600;
 }
 .toast .toast-sub {
-  font-size: 11px;
+  font-size: 10px;
   line-height: 16px;
   color: var(--fg55);
 }
@@ -1451,7 +1506,7 @@ mark.hit {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
@@ -1487,7 +1542,7 @@ mark.hit {
   border-radius: 12px;
   box-shadow: var(--shadow);
   color: var(--amber-ink);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
 }
 .discard-banner .grow {
@@ -1525,7 +1580,7 @@ mark.hit {
   align-items: center;
   justify-content: center;
   gap: 4px;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
 }
 .tool:hover {
@@ -1558,7 +1613,7 @@ mark.hit {
   flex-shrink: 0;
 }.size-readout {
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 10px;
   color: var(--fg55);
   min-width: 22px;
   text-align: center;
@@ -1568,7 +1623,9 @@ mark.hit {
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 12px 16px 80px;
+  padding: 12px 16px 24px;
+  /* Native scroll-into-view keeps the caret above the foot, not under it. */
+  scroll-padding-bottom: 96px;
 }
 .editor-page {
   width: 100%;
@@ -1577,7 +1634,7 @@ mark.hit {
   background: var(--surface);
   border: 1px solid var(--hairline);
   border-radius: 12px;
-  padding: 12px;
+  padding: 8px 12px 12px;
   box-shadow: none;
 }
 .editor-page:focus-within {
@@ -1589,7 +1646,7 @@ mark.hit {
   line-height: inherit;
   color: var(--fg);
   caret-color: var(--accent-text);
-  min-height: 260px;
+  min-height: 120px;
 }
 .editor-page .tiptap > *:first-child {
   margin-top: 0;
@@ -1601,7 +1658,7 @@ mark.hit {
   margin: 0 0 10px;
 }
 .editor-page .tiptap h2 {
-  font-size: 20px;
+  font-size: 19px;
   line-height: 28px;
   margin: 18px 0 8px;
 }
@@ -1666,7 +1723,7 @@ mark.hit {
   border: 0;
   background: transparent;
   border-radius: 5px;
-  font-size: 12px;
+  font-size: 11px;
   color: var(--fg);
   text-align: left;
 }
@@ -1693,7 +1750,7 @@ mark.hit {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 11px;
+  font-size: 10px;
   color: var(--fg48);
 }
 .ctx-menu [role='menu'] {
@@ -1711,7 +1768,7 @@ mark.hit {
   border: 0;
   background: transparent;
   border-radius: 5px;
-  font-size: 12px;
+  font-size: 11px;
   color: var(--fg);
   text-align: left;
 }
@@ -1783,7 +1840,7 @@ mark.hit {
 }
 .move-current {
   margin-left: auto;
-  font-size: 10px;
+  font-size: 9px;
   color: var(--fg48);
 }
 .move-picker {
@@ -1862,7 +1919,7 @@ mark.hit {
   background: var(--field);
   color: var(--fg);
   font: inherit;
-  font-size: 12px;
+  font-size: 11px;
 }
 .pop-input:focus-visible {
   outline: 2px solid var(--accent-text);
@@ -1881,12 +1938,12 @@ mark.hit {
 }
 /* editor body: headings, lists, tables and code the toolbar can insert */
 .editor-page .tiptap h1 {
-  font-size: 24px;
+  font-size: 23px;
   line-height: 32px;
   margin: 18px 0 8px;
 }
 .editor-page .tiptap h3 {
-  font-size: 17px;
+  font-size: 16px;
   line-height: 24px;
   margin: 16px 0 6px;
 }
@@ -1912,7 +1969,7 @@ mark.hit {
   margin: 12px 0;
   overflow-x: auto;
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: 11px;
 }
 .editor-page .tiptap pre code {
   background: none;
@@ -1960,7 +2017,7 @@ mark.hit {
   border: 1px solid var(--tip-line);
   border-radius: 6px;
   padding: 4px 7px;
-  font-size: 11px;
+  font-size: 10px;
   line-height: 16px;
   box-shadow: var(--shadow-sm);
   z-index: 80;
@@ -2010,9 +2067,6 @@ mark.hit {
 @media (max-width: 640px) {
   .app {
     padding: 10px 12px 12px;
-  }
-  .brand-sub {
-    display: none;
   }
   .topbar .search {
     order: 3;
@@ -2069,13 +2123,13 @@ mark.hit {
     padding: 4px 8px;
   }
   .editor-scroll {
-    padding: 10px 10px 80px;
+    padding: 10px 10px 24px;
   }
   .editor-page {
-    padding: 12px;
+    padding: 8px 12px 12px;
   }
   .editor-page .tiptap {
-    min-height: 200px;
+    min-height: 120px;
   }
   .dialog-head {
     padding: 16px 14px 10px;
@@ -2126,7 +2180,7 @@ mark.hit {
     padding: 0 8px;
   }
   .footer-mid .t-meta {
-    font-size: 10px;
+    font-size: 9px;
   }
   .editor-head .btn {
     padding: 0 8px;
@@ -2203,13 +2257,13 @@ mark.hit {
   min-height: 0;
 }
 .settings-nav {
-  width: 196px;
+  width: 216px;
   flex-shrink: 0;
   align-self: stretch;
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 6px 14px 8px 0;
+  gap: 4px;
+  padding: 8px 20px 8px 0;
   border-right: 1px solid var(--divider);
   position: sticky;
   top: 0;
@@ -2218,15 +2272,15 @@ mark.hit {
 .settings-nav-item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  min-height: 34px;
-  padding: 7px 10px;
+  gap: 12px;
+  min-height: 40px;
+  padding: 8px 12px;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: 10px;
   background: transparent;
   color: var(--fg55);
   font-size: 13px;
-  line-height: 18px;
+  line-height: 20px;
   font-weight: 600;
   text-align: left;
   width: 100%;
@@ -2240,6 +2294,9 @@ mark.hit {
   background: var(--accent-soft);
   border-color: color-mix(in srgb, var(--accent-text) 45%, transparent);
   color: var(--fg);
+}
+.settings-nav-item[data-on='true'] svg {
+  color: var(--accent-text);
 }
 .settings-nav-item:focus-visible {
   outline: 2px solid var(--accent-text);
@@ -2259,18 +2316,131 @@ mark.hit {
 .settings-pane-head {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding-bottom: 6px;
-  border-bottom: 1px solid var(--divider);
+  gap: 4px;
+}
+/* Thoughtful pane rhythm, scoped to the settings dialog: airy rows, real group
+   headings, controls with room. Nothing outside the dialog is touched. */
+.dialog.settings .settings-pane {
+  gap: 20px;
+  padding: 8px 4px 12px 32px;
+  animation: pane-in 170ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.dialog.settings .settings-pane-head .t-title {
+  font-size: 17px;
+  line-height: 24px;
+  letter-spacing: -0.2px;
+}
+.dialog.settings .set-group {
+  gap: 0;
+}
+.dialog.settings .set-subtitle {
+  font-size: 13px;
+  line-height: 20px;
+  font-weight: 600;
+  color: var(--fg);
+  margin: 0 0 2px;
+}
+.dialog.settings .set-group > .t-sec + .t-sec {
+  margin-top: 10px;
+}
+.dialog.settings .set-row {
+  gap: 16px;
+  padding: 12px 0;
+}
+.dialog.settings .set-row .label {
+  font-size: 13px;
+  line-height: 20px;
+}
+.dialog.settings .set-value {
+  font-size: 11px;
+}
+.dialog.settings .slider {
+  width: 184px;
+}
+.dialog.settings .hotkey-field {
+  min-width: 148px;
+  height: 32px;
+}
+.dialog.settings .radio-row {
+  gap: 10px;
+}
+.dialog.settings .radio-card {
+  padding: 13px 12px;
+  font-size: 13px;
+  justify-content: center;
+}
+/* Two short options sit inline with their label; three or more stack full-width. */
+.dialog.settings .radio-inline {
+  display: flex;
+  gap: 8px;
+  width: 224px;
+  flex-shrink: 0;
+}
+.dialog.settings .radio-inline .radio-card {
+  padding: 8px 6px;
+  font-size: 12px;
+}
+/* Storage meter: the advisory usage figure, drawn instead of just stated. */
+.storage-meter {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 2px 0 4px;
+}
+.storage-meter-track {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--field);
+  border: 1px solid var(--hairline);
+  overflow: hidden;
+}
+.storage-meter-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+}
+@keyframes pane-in {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
 }
 @media (min-width: 840px) {
   .dialog.settings {
-    width: 880px;
+    width: 920px;
   }
+}
+/* Fixed shell height: switching sections must never resize the dialog. */
+.dialog.settings {
+  height: min(620px, calc(100vh - 32px));
+}
+.dialog.settings .dialog-body {
+  display: flex;
+  flex-direction: column;
+}
+.settings-shell {
+  flex: 1 1 auto;
+  min-height: 0;
 }
 @media (max-width: 640px) {
   .settings-shell {
     flex-direction: column;
+  }
+  .dialog.settings .settings-pane {
+    padding: 12px 0 0;
+    gap: 16px;
+  }
+  .dialog.settings .set-row {
+    padding: 10px 0;
+  }
+  .dialog.settings .radio-inline {
+    width: 184px;
+  }
+  .dialog.settings .slider {
+    width: 132px;
+  }
+  .dialog.settings .hotkey-field {
+    min-width: 128px;
   }
   .settings-nav {
     width: auto;
@@ -2288,9 +2458,6 @@ mark.hit {
     width: auto;
     white-space: nowrap;
     flex-shrink: 0;
-  }
-  .settings-pane {
-    padding: 12px 0 0;
   }
 }
 @media (max-width: 520px) {

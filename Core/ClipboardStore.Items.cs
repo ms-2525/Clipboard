@@ -488,6 +488,16 @@ UPDATE items SET sort_seq = (SELECT COALESCE(MAX(sort_seq),0)+1 FROM items), cap
 DELETE FROM items WHERE tab_id IS NULL;
 DELETE FROM item_formats WHERE item_id NOT IN (SELECT id FROM items)";
             cmd.ExecuteNonQuery();
+            try
+            {
+                // DELETEs only free pages; without this the file (and the Settings meter) stays at its
+                // peak size until new clips reuse the space. A racing capture may hold the DB, so a failed
+                // compaction must never fail the clear itself: the rows are already gone.
+                using var vacuum = _conn.CreateCommand();
+                vacuum.CommandText = "VACUUM";
+                vacuum.ExecuteNonQuery();
+            }
+            catch (SqliteException) { }
         }
 
         public void EnforceCap(int max)
