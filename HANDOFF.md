@@ -3,6 +3,18 @@
 Read this top to bottom before touching anything. It says where the work lives, what is proven, what
 is not, and exactly what is left.
 
+> **Update, 25/11 10:10 - read these first, this file is a snapshot from earlier.**
+> The live acceptance round 2 found that the WPF shell owned Escape (it hid the window before the page
+> could clear the search, dismiss the editor or close Settings). That is fixed, along with live counts,
+> the discard path and a set of product gaps. The current truth lives in
+> `docs\SPEC-owner-requirements.md` (requirement matrix), `docs\AUDIT-live-acceptance-3.md` (fresh live
+> pass on the final exe), `docs\AUDIT-visual-3.md` (zoom 100/125/150 and 430 width) and
+> `docs\RELEASE-v2.md` (artifact and limits). The artifact is now **208,196,038 B, SHA-256
+> `221D045B05D1199DBD4160A07E6ECD3D0C007C0598326FB9D7229B1B67470548`** (plus the Settings-layout
+> rebuild), not the 208,187,846 B / `213AC8F4...` named below. New this round: Images tab, `tag:`
+> prefix, first-run hint, real-toast Preview in Settings, Known-limits note, over-budget format toast,
+> image decode/hash off the UI thread, toast auto-fits width too, `Ctrl+1..9` paste, wrapping arrows.
+
 ---
 
 ## 1. Where everything lives
