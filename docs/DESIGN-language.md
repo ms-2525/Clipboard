@@ -88,9 +88,10 @@ worse than a missing one.
 
 ### 3.2 Toast auto-fit
 
-The configured `Notification.Height` is the **maximum**; toast height follows content up to it, so a
-one-line copy gets a short toast and a long one stops at `MaxLines`. Width, position, offset and
-`MaxLines` stay as configured. Re-verify tap-target size and edge clamping at 150 % DPI.
+The configured `Notification.Width` and `Notification.Height` are **maximums**. Both dimensions follow
+content up to those caps: a short copy gets a narrow, short toast (minimum width 240 DIP); a long one
+wraps at the maximum width and stops at `MaxLines`/the maximum height. Position and offsets stay as
+configured. Re-verify tap-target size and edge clamping at 150 % DPI.
 
 ## 4. One grammar per control
 

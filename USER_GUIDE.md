@@ -132,7 +132,8 @@ Open Settings from the gear in the list, or right-click the tray icon and choose
   Clip keeps the old one and tells you.
 - **History limit** — how many clips **All** keeps (100 to 5,000). The oldest unpinned clips go
   first. Your own tabs and Pinned are not counted.
-- **Toast lines** — the longest a capture toast may grow; short copies still get a short toast.
+- **Toast lines** - the longest a capture toast may grow. The toast fits its content both ways: a short
+  copy gets a narrow, short toast; a long one widens to the maximum, wraps, and stops at the line cap.
 - **Theme** — Light, Dark or System (follows Windows).
 - **Zoom** — 80 %, 100 %, 125 % or 150 %. It changes on screen as you pick it; **Ctrl +** and
   **Ctrl −** step it, **Ctrl+0** returns to 100 %.

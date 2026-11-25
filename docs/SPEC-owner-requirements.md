@@ -53,7 +53,7 @@ page, live proof pending · **AWAITING SIGN** = fixed after a failed live read, 
 | 3 | Paste into Office (Excel grid, Word RTF) | BLOCKED | Office 16 installed, both COM servers fail `TYPE_E_CANTLOADLIBRARY`; no UI matrix run |
 | 4 | Tray, global hotkey, autostart, single instance | SHIPPED | Live tray show/hide; Alt+V; Exit 996 ms; duplicate launch exits |
 | 5 | Row: index first, body up to 10 lines, provenance app·title·time | SHIPPED | 65 px one-line / 245 px ten-line; index 4ch; time 107 px at 900 and 430 |
-| 6 | Toast auto-fits content; inside the work area | SHIPPED | 77 → 160 px by content; live two-line toast at 150 % DPI, no focus steal |
+| 6 | Toast auto-fits content in **both** dimensions, capped; inside the work area | SHIPPED (live re-measure pending) | Height 77 → 160 px by content; live two-line toast at 150 % DPI, no focus steal. Width now follows content too: minimum 240 DIP, configured 420 is the cap; a long body wraps at the cap and drops lines |
 | 7 | Reliable automatic tags (proven only; missing is normal) | SHIPPED | 28/28 fixture, zero prose false positives; chips on rows; `+N` overflow |
 | 8 | Search by tag (`image:`, `excel:`, `path:`, `code:`) | SHIPPED | Grammar 15/15; p50 9.3 ms at 1,000 rows; full-body match past char 3,001 |
 | 9 | Explicit `tag:` search prefix | **HEADLESS** | `tag:image` → image, `tag:excel` → spreadsheet, `-tag:files`, unknown warns; **C# 11/11** + page 12/12; live pending |

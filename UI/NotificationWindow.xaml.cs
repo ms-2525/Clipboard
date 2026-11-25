@@ -25,6 +25,8 @@ namespace Clip.UI
         const int HTCLIENT = 1;
         // Breathing room between a toast and the working area's edge, in DIP.
         const double EdgeGap = 12;
+        // The narrowest a short toast can get; content decides between this and the configured cap.
+        const double ToastMinWidth = 240;
 
         [DllImport("user32.dll")]
         static extern int GetWindowLong(IntPtr hWnd, int nIndex);
@@ -58,7 +60,7 @@ namespace Clip.UI
                 var h = new WindowInteropHelper(this).Handle;
                 int ex = GetWindowLong(h, GWL_EXSTYLE);
                 // No WS_EX_TRANSPARENT: clicks reach the window, and the hit-test hook
-                // lets everything outside the ✕ fall through to whatever is underneath.
+                // lets everything outside the âœ• fall through to whatever is underneath.
                 SetWindowLong(h, GWL_EXSTYLE, ex | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW);
                 WindowChrome.Apply(this);
                 HwndSource.FromHwnd(h)?.AddHook(HitTest);
@@ -150,7 +152,7 @@ namespace Clip.UI
         }
 
         /// <summary>
-        /// Auto-fit (DESIGN-language §3.2): the configured height is the maximum. Wraps at most
+        /// Auto-fit (DESIGN-language Â§3.2): the configured height is the maximum. Wraps at most
         /// <paramref name="maxLines"/> source lines, then drops lines until the measured toast fits, so the
         /// body is never cut mid-line. A one-line copy gets a short toast; a long one stops at the height.
         /// </summary>
@@ -190,7 +192,7 @@ namespace Clip.UI
             for (int i = 0; i < count; i++)
             {
                 if (i > 0) body.Append('\n');
-                body.Append(trimLines && lines[i].Length > 120 ? lines[i].Substring(0, 120) + "…" : lines[i]);
+                body.Append(trimLines && lines[i].Length > 120 ? lines[i].Substring(0, 120) + "â€¦" : lines[i]);
             }
             return body.ToString().TrimEnd();
         }
@@ -215,10 +217,13 @@ namespace Clip.UI
         void Present()
         {
             var n = _cfg.Notification;
-            // §3.2: content decides the height, the configured value caps it. Measuring the content before
-            // Show keeps the top/bottom placement honest instead of sizing after the toast is already visible.
-            Width = n.Width;
+            // Â§3.2: content decides both dimensions, the configured values cap them. A one-word copy
+            // gets a narrow toast; a long paragraph stops at the maximum width and wraps until the
+            // maximum height, never a fixed box with dead space.
             MeasureRoot(n.Width);
+            double width = Math.Min(n.Width, Math.Max(ToastMinWidth, Math.Ceiling(Root.DesiredSize.Width)));
+            Width = width;
+            MeasureRoot(width);
             Height = Math.Min(n.Height, Math.Ceiling(Root.DesiredSize.Height));
 
             var s = WF.Screen.FromPoint(WF.Cursor.Position);

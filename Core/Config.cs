@@ -63,7 +63,9 @@ namespace Clip.Core
         {
             public bool Enabled { get; set; } = true;
             public int DurationMs { get; set; } = 3000;
+            /// <summary>Maximum width in DIP; a short clip gets a narrower toast.</summary>
             public int Width { get; set; } = 420;
+            /// <summary>Maximum height in DIP; content decides the height below it.</summary>
             public int Height { get; set; } = 160;
             public string Position { get; set; } = "bottom-right";
             public int OffsetX { get; set; } = 16;
