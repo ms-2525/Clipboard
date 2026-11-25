@@ -2,10 +2,18 @@
 
 Everything here **passed** and its code has not changed since, so it is no longer a checklist row
 (24 Nov: 200+ rows → open-only files). Kept one line each so nothing is lost and nothing gets
-re-litigated. Evidence paths are relative to `docs\design-evidence\` unless absolute.
+re-litigated. Evidence paths are relative to `docs\design-evidence\` unless absolute. Rows under
+"Retired" were removed because their surface is gone, not because they passed.
 
 A row belongs here only when it **cannot fail any more**. If the code under it changes, the row
 moves back into a checklist.
+
+## Retired 25 Nov (v2 page replaced the WPF surface)
+- `ClipRow` 3-line clamp + `previewLines` outside-tooltip sizing · WPF row, unreachable; v2 clamps at 10
+- Identity tile, facts column, no-meta row · WPF anatomy, unreachable
+- `CanContentScroll=True` + `VirtualizationMode=Recycling` through the row redesign · WPF list, unreachable
+- Search 120 ms debounce + swap the collection instance (`Clear`+`Add` of 1,000) · WPF ItemsSource; v2
+  debounces and replaces the array — full-body search is proven at 9.3 ms p50 (`AUDIT-release-logic-2` §1.2)
 
 ## Core capture & storage
 - Tray-resident, no window at startup; Exit only via tray · `ShutdownMode=OnExplicitShutdown` · ACC-v2
