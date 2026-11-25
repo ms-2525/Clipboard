@@ -83,7 +83,7 @@ page, live proof pending · **AWAITING SIGN** = fixed after a failed live read, 
 | 33 | Paste when the target's editor lacks focus | LIMIT | The guard checks the foreground window, not the focused child; click into the document |
 | 34 | One exe, no runtime, UI embedded | SHIPPED | Content-verified: five unique page sequences inside the exe |
 | 35 | `--legacy` old UI for one release | SHIPPED | Flag documented; master untouched until merge |
-| 36 | Release guard: proxy tab | NOT BUILT | `G-06` tray gained a themed menu; fresh sign pending; `W-02` 125 % dialog and `W-05` 430 toast/export unsigned |
+| 36 | Release guard: tray, 125 % dialog, 430 toast/export signatures | PARTIAL | `G-06` tray gained a themed menu, fresh sign pending; `W-02` 125 % dialog and `W-05` 430 toast/export remain unsigned |
 | 37 | Files under the 400-line budget | NOT BUILT | Eleven files over, incl. `App.tsx`, `styles.css`, `ClipboardStore.Items.cs` |
 
 ## 4. User stories
