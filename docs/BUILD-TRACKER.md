@@ -56,7 +56,8 @@ clean; memory stated honestly; docs updated.
 | S17 | Close named limits: toolbar glyphs, char count, section jump, tab-move keys, delete wording | `UI\web\src\*` | DONE `141ec9e` | 52/52, re-run 07:42 on the 07:36 bundle: Ctrl+Up/Down 0 -> 39 -> 159 with both ends clamped; Ctrl+Shift+Left/Right All -> Work -> Design -> Snippets -> Pinned and wraps; count 35 -> 55 over 20 keys; delete says "cannot be undone"; injected corruption notice shows |
 | S18 | 430 px and dialog polish from the visual re-check | `UI\web\src\*` | DONE `8125132` | chips keep units at 430 (`+1.8k chars`, `+1 file`, `+1 tag`); `+` at x389-415 inside 430; duplicate error 2 lines, right edge 385 < 418; settings 520/520 at 900 and TIME row 51 px; all three dialogs open with a 2 px ring and `aria-modal` |
 | S19 | Rebuild the release exe, final visual sign-off, checklist resync | `dist`, docs | Checklists DONE `4ad7e1a` (uiux 46/1/7, features 6/5/21); sign-off running; rebuild after S20 | exe 208,187,846 B at 07:38, markers `more characters` / `cannot be undone`; 527.5 MB WS / 270.5 MB private measured on the 06:52 exe |
-| S20 | Keyboard access to tag filters (last uiux FAIL) | `UI\web\src\*`, checklists | IN PROGRESS | Ctrl+T picker applies `spreadsheet:`; K-08 PASS |
+| S20 | Keyboard access to tag filters (last uiux FAIL) | `UI\web\src\*`, checklists | DONE `84f9fe9` | 33/33; Ctrl+T picker; mock parity; uiux 48 PASS 0 FAIL 6 NOT RUN |
+| S21 | Rebuild the exe with the final page and sign G-02/G-04 | `dist`, docs | IN PROGRESS | exe 208,187,846 B at 08:08 contains `Filter by tag`; sign-off running |
 | S14 | Rewrite `CHECKLIST-uiux.md` for the v2 surface | `docs\` | DONE `02e23cd`, resynced 25 Nov | 54 rows: 46 PASS, 1 FAIL, 7 NOT RUN |
 | S15 | Six visual release defects | `UI\web\src\*` | DONE `50207bd` | Settings 860x657 fits 900x700 with zero scroll; hover 1.17/1.20; index 4ch; 20/20 tab trap |
 
