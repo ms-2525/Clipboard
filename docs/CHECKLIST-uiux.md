@@ -1,6 +1,6 @@
 # Clip — UI/UX Verification Checklist
 
-**Status 25 Nov (docs resync):** 54 rows — **49 PASS · 0 FAIL · 5 NOT RUN**. Release gate in §12.
+**Status 25 Nov (G-02 band sign-off):** 54 rows — **50 PASS · 0 FAIL · 4 NOT RUN**. Release gate in §12.
 
 **Surface (25 Nov):** the shipped UI is the React page in `UI\web`, rendered in the warm WebView2 shell
 (`UI\ShellWindow*`). The WPF popup is retired. Every row below describes the v2 page, plus the native
@@ -57,7 +57,7 @@ fresh visual pass may sign these.
 | ID | Surface | M | Status | Evidence |
 |---|---|---|---|---|
 | G-01 | **Popup list** — light, dark, long text: index first, body-first rows, in-row provenance, right-aligned facts | `[U]` | **PASS** | The two structural defects that failed this gate are measured fixed by the 07:17 fresh pass: index box identical at 99/100/101 (`x=35, w=30.98, right=65.98`, content `x=75.98`) and hover `1.17:1` light / `1.20:1` dark, visible as a grey wash without competing with the selected fill + ring + rail (`AUDIT-release-visual-2` §2.2/§2.3, §3.2; `17-index-three.png`, `10-states-crop-*`). |
-| G-02 | **Popup chrome** — header, tab strip, footer one band each; one type scale | `[U]` | **NOT RUN** | Prior signature (`AUDIT-release-visual-2` §2.6/§3.3: 36 px band, raised surface, accent active state, 11 px count pills) is **stale**: S20 changes the strip to end after `+` and adds a `Ctrl T` footer hint. Builder measured strip 506 px inside a 704.7 px row (`s20` J1) and read `07-strip-900.png`, `05-long-tab-430.png`. `AUDIT-release-signoff-2` §1 signs an item it labels **“G-02 — list surface”**, but its §2 measures rows (65/245 px, index, chips), **not** the header/strip/footer band this row names — the ID was reused for the row contract, so it does not sign this row. A fresh visual agent must re-read the band at 900 and 430. |
+| G-02 | **Popup chrome** — header, tab strip, footer one band each; one type scale | `[U]` | **PASS** | Fresh agent, current 08:05 bundle, headless Chromium DPR 1, `?mock=1000` and `?mock=real`, both themes at **900×700** and **430×400** (`%TEMP%\opencode\chrome-signoff\`: `list1000-*`, `real-*`, `settings-*`, `strip-manytabs-430x400-light.png`, `report.json`). **900:** header 44 px — mark + `Clip` 16 px/`CLIPBOARD HISTORY` 11 px, search pill (13 px input, `Ctrl K`), 32 px theme + settings, no rule under it; tab strip one raised 8 px-radius container ending after `+` (5 tabs, 12 px, 430 px wide in the 868 px row) with `move / Enter paste` on the same band; footer 42 px on a 1 px `#EDF0F4` hairline — `All history` · `1,000 clips` · `Ctrl T` / `Ctrl Shift V` / `Esc` keycaps, 10 px gaps, `right 871` inside `883`, no wrap. **430:** header wraps to 66 px (brand + search/theme/settings, then full-width search); strip fits all five tabs + `+` at rest (343/343, no scroll), and with four added tabs the 372 px scroller holds 610 px, scrolls to the end (`scrollLeft 238`) with the active tab and `+` still on screen; footer 36 px, one line, `All history` + `1,000 clips` — keycaps are deliberately `display:none` at this width (`.footer-right`), so nothing collides. Scale is 16/13/12/11 at both sizes; zero horizontal overflow and zero console errors in all 12 loads; every control labelled (`Search clips`, `Collapse/Expand search`, `Toggle theme`, `Settings`, `New tab`, `role=tab`). |
 | G-03 | **Editor** — toolbar, text area, footer; buttons hug labels; one icon family | `[U]` | **PASS** | `AUDIT-release-visual-2` §2.4/§3.4: 25 buttons, 21 drawn 16 px SVGs (one 12 px `Aa`), 4 text labels by convention (H1–H3, Clear, Single line); the old `☑ ❝ ▦ +▤ •≡` glyphs and `<>`/`1.`/`{}` are drawn now. Footer reads `1 character [1 format]`, `35 characters [1 format]` (`A1-toolbar.png`, `98-one-char.png`). |
 | G-04 | **Settings** — cards with icon + title + description; controls hug content; every group reachable | `[U]` | **PASS** | `AUDIT-release-signoff-2` §3 (fresh agent, current 08:05 bundle, both themes): at 900 the dialog is **860×563**, body **561/561**, not scrollable, two independent stacks **395 + 28 + 395**, all five groups populated and on screen, **TIME→DATA gap 14 px** (was the 173 px hole), last Capture row 8 px above the footer; at 430 the sheet is **430×400**, body **263/696**, a **30 px fade** at rest, wheel reaches `scrollTop 433` and every group is on screen. `settings-900x700-light/dark.png`, `settings-430x400-*-bottom.png`. |
 | G-05 | **In-page toast** — one radius, one shadow, one type scale | `[U]` | **PASS** | `AUDIT-release-visual` §1.4/§4: legible and coherent in both themes; title 17.96/14.74, sub 6.83/7.96. Toast component and tokens unchanged since. |
@@ -206,11 +206,10 @@ carry a written owner-accepted deviation in the release gate below.
 Cutover requires **all 54 rows PASS**, or a written owner-accepted deviation for the named row. A
 deviation is not a PASS and is recorded in this section before the release commit.
 
-**Not PASS today — 0 FAIL + 5 NOT RUN:**
+**Not PASS today — 0 FAIL + 4 NOT RUN:**
 
 | Row | Why |
 |---|---|
-| `G-02` NOT RUN | Tab strip/footer changed by S20. `AUDIT-release-signoff-2`'s “G-02” item is the **list surface**, not the chrome band this row names; the builder screenshots are the only band evidence and no fresh agent has re-read it. Needs a 5-minute fresh read at 900 and 430. |
 | `G-06` NOT RUN | Native toast + tray menu: no fresh agent has read the shell. |
 | `W-02` NOT RUN | 125 % zoom never measured (100 and 150 pass). |
 | `W-05` NOT RUN | Toast/export at 430: screenshots exist, unsigned. |
@@ -224,37 +223,36 @@ owner's written acceptance or a new ceiling.
 **Fresh sign-offs:** `docs\AUDIT-release-signoff.md` (25 Nov, fresh agent): 10/10 against its brief, and its
 four ranked defects are post-sign-off items. `docs\AUDIT-release-signoff-2.md` (25 Nov 08:23, fresh agent on
 the 08:05 bundle): signs **G-04** on the settings-surface evidence in its §3; its “G-02” verdict is the
-**list surface** (§2), which is why the band row above stays NOT RUN despite `BUILD-TRACKER.md` S21 saying
-both are signed. The tag-picker, typing-guard, editor-focus and edit-then-look rows are builder `[L]`
+**list surface** (§2), which is why the band row needed its own read — done 08:41 on the same bundle, see the
+G-02 row above. The tag-picker, typing-guard, editor-focus and edit-then-look rows are builder `[L]`
 harness evidence, not fresh `[U]` signatures.
 
 **What is no longer on this list:** the tag keyboard path, the typing-in-search guard, editor focus
 restore/background inert, edit-then-look, settings fit **and the S20 settings stack (`signoff-2` §3)**, the
 430 sheet cue, hover, the index column, the toolbar family, the disabled explanation, the character count,
-the tab delete wording, the dialog focus ring and `aria-modal` — all re-measured on the current bundle by
-the 07:17 fresh pass, the 07:42 harness, the S20 harness or signoff-2. The remaining 49 PASS rows are
+the tab delete wording, the dialog focus ring, `aria-modal` **and the G-02 chrome band (08:41 fresh read at
+900 and 430)** — all re-measured on the current bundle by the 07:17 fresh pass, the 07:42 harness, the S20
+harness, signoff-2 or the band pass. The remaining 50 PASS rows are
 regression-locked: any change to the code under them returns them to NOT RUN until re-proven, and
-`G-01`–`G-06` are re-run by a fresh visual agent on the release artifact. The S20 page is **not yet in
-`dist\Clip.exe`** (208,187,846 B, 07:38): rebuild before release.
+`G-01`–`G-06` are re-run by a fresh visual agent on the release artifact. The page now ships in
+`dist\Clip.exe` (208,187,846 B, rebuilt 08:08 from the 08:05 bundle): one page scan of that exe is still owed.
 
-## 13. Final tally (25 Nov docs resync)
+## 13. Final tally (25 Nov, G-02 band sign-off)
 
-**54 rows — 49 PASS · 0 FAIL · 5 NOT RUN.** Every PASS row names its artifact; no `[U]` row was signed by a
-builder. `G-04` moved from NOT RUN to PASS on `AUDIT-release-signoff-2` §3; `G-02` did **not** move because
-that signoff's G-02 item is the list surface, not the chrome band.
+**54 rows — 50 PASS · 0 FAIL · 4 NOT RUN.** Every PASS row names its artifact; no `[U]` row was signed by a
+builder. `G-04` moved from NOT RUN to PASS on `AUDIT-release-signoff-2` §3; `G-02` moved on the 08:41 fresh
+band read of the same 08:05 bundle (header/tab strip/footer at 900 and 430, both themes).
 
 ## 14. What still needs the owner
 
-1. **A fresh band read (G-02)** — one page load at 900 and 430, light and dark: header, tab strip, footer
-   each one band, one type scale. This is the only `[U]` row left that a fresh agent can close in minutes.
-2. **Native toast + tray menu on screen (G-06)** — click the tray icon, open the menu, trigger a capture;
+1. **Native toast + tray menu on screen (G-06)** — click the tray icon, open the menu, trigger a capture;
    no fresh agent has read the shell.
-3. **125 % zoom (W-02)** — the shell at 125 %, page, dialog and editor, zero overflow; only 100 and 150
+2. **125 % zoom (W-02)** — the shell at 125 %, page, dialog and editor, zero overflow; only 100 and 150
    were measured.
-4. **430 toast and export menu (W-05)** — `release-visual\37-430-toast.png` / `38-430-export.png` exist but
+3. **430 toast and export menu (W-05)** — `release-visual\37-430-toast.png` / `38-430-export.png` exist but
    were never read or signed.
-5. **Real IME (K-07)** — a composition open while the popup is up; Esc cancels the composition, Enter
+4. **Real IME (K-07)** — a composition open while the popup is up; Esc cancels the composition, Enter
    commits it.
-6. **Memory ceiling** — accept ~528 MB idle / ~643 MB with an image, or set a new ceiling.
-7. **Rebuild before release** — `UI\web\dist\index.html` is 2,862,374 B (08:05); `dist\Clip.exe` is the
-   07:38 build. The checklist signs the page; the exe must be rebuilt and re-scanned once.
+5. **Memory ceiling** — accept ~528 MB idle / ~643 MB with an image, or set a new ceiling.
+6. **Re-scan the artifact** — `UI\web\dist\index.html` is 2,862,374 B (08:05) and `dist\Clip.exe` was rebuilt
+   at 08:08 from it (`RELEASE-v2.md`); the checklist signs the bundle, so the exe needs one last page scan.

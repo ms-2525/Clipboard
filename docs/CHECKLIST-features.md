@@ -99,10 +99,14 @@ Harness sources are in `%TEMP%\opencode\` (scratch, not committed): `s17\verify-
 - [ ] **FAIL** — [U] **Ghost notification preview**: appears at the real toast coordinates, follows
       every value change, drag writes back offsets, auto-hides, pin keeps it up. v2 Settings has no
       preview at all.
-- [ ] **FAIL** — [L] First-run hint on the very first launch: "… is running — press Alt+V". `WasNew` is
-      read only by the legacy `--legacy` App.
+- [ ] **FAIL** — [L] First-run hint on the very first launch: v2 has **no first-run affordance at all** — no
+      host or page path reads `WasNew` (only the legacy `--legacy` App shows "… is running — press Alt+V"),
+      so a first launch lands silently in the tray.
 - [ ] **FAIL** — [L] Skipped captures (oversized image, over-budget clipboard) raise a notice — never
-      vanish. Oversized images notify; over-budget formats are still dropped silently.
+      vanish. Half shipped: an oversized image now reaches the quiet `Skipped` toast end to end (page
+      `aba6c71`, host `5d56b53`, injected headless — `%TEMP%\opencode\chrome-signoff\
+      skipped-toast-900x700-light.png`); a clipboard whose formats exceed `MaxItemBytes` still loses those
+      blobs silently in `ClipboardFormats.Snapshot`, with no toast.
 
 ## 7. (Retired with the WPF list — moved to the archive)
 
@@ -196,7 +200,8 @@ cold first popup (§1), the live paste matrix (§3), the F2 open cost (§4) and 
 4. **DPI and a second monitor** — native toast placement at 150 %, the shell at 125 % zoom, and
    placement on a second monitor.
 5. **Tray menu interaction** — open Settings, Clear history, Exit by hand; no fresh agent has clicked it.
-6. **First-run + reboot** — the "… is running — press Alt+V" hint and start-on-login surviving a reboot.
+6. **First-run + reboot** — v2 shows no first-run hint at all (§6), so only start-on-login surviving a
+   reboot can be checked.
 7. **Memory ceiling** — accept ~528 MB idle / ~643 MB with an image, or set a new ceiling.
 8. **Three product decisions (FAILs):** on-screen known-limits note, ghost notification preview,
    notice for over-budget clipboard formats; plus the 5 MB PNG off-thread fix (engineering, not a decision).
