@@ -17,6 +17,8 @@ export interface KeyActions {
   onSection: (direction: 1 | -1) => void
   /** Ctrl+Shift+Left/Right: move the selected clip one tab along the strip order. */
   onMoveTab: (direction: 1 | -1) => void
+  /** Left/Right: change tab. The strip order is All, custom tabs, Pinned. */
+  onTab: (direction: 1 | -1) => void
   onPaste: (clip: ClipItem, plain: boolean) => void
   onEdit: () => void
   onExport: () => void
@@ -156,16 +158,23 @@ export function useClipboardKeys(actions: KeyActions) {
         }
       }
 
-      // A focused button or tab keeps its own Enter/Space.
-      if (onControl) return
-
-      if (key === 'Enter') {
-        if (selected) {
-          take()
-          actions.onPaste(selected, false)
-        }
+      // Left/Right change tab. A text field returned above, so the caret is never stolen.
+      if (key === 'ArrowLeft' || key === 'ArrowRight') {
+        take()
+        actions.onTab(key === 'ArrowRight' ? 1 : -1)
         return
       }
+
+      // Escape is global: clear the search first, then hide the window. A focused button or tab
+      // must not swallow it, or the popup could not be dismissed from the keyboard.
+      if (key === 'Escape') {
+        take()
+        if (search) actions.onSearch('')
+        else actions.onHide()
+        return
+      }
+
+      // F2 is global too: open the editor. While the editor is open it owns F2 and closes itself.
       if (key === 'F2') {
         if (selected) {
           take()
@@ -173,19 +182,8 @@ export function useClipboardKeys(actions: KeyActions) {
         }
         return
       }
-      if (key === 'Escape') {
-        take()
-        if (search) actions.onSearch('')
-        else actions.onHide()
-        return
-      }
-      if (key === 'Delete') {
-        if (selected) {
-          take()
-          actions.onDelete()
-        }
-        return
-      }
+
+      // Digits 1-9 are the paste keys, not the first character of a search.
       if (/^[1-9]$/.test(key) && !inSearch) {
         const clip = rows[Number(key) - 1]
         if (clip) {
@@ -195,13 +193,29 @@ export function useClipboardKeys(actions: KeyActions) {
         return
       }
 
-      // Everything below would have to type; the search box already does it natively.
-      if (inSearch || typing) return
+      if (key === 'Delete') {
+        if (selected) {
+          take()
+          actions.onDelete()
+        }
+        return
+      }
 
-      if (key.length === 1) {
+      // Printable text starts a search from anywhere that is not a text field, so the window is
+      // usable the instant it appears. Space and the digit paste keys are the only exceptions.
+      if (key.length === 1 && key !== ' ') {
         take()
         actions.onSearchFocus()
         actions.onSearch(search + key)
+        return
+      }
+
+      // A focused button or tab keeps its own Enter/Space.
+      if (onControl) return
+
+      if (key === 'Enter' && selected) {
+        take()
+        actions.onPaste(selected, false)
       }
     }
 

@@ -304,6 +304,17 @@ export default function App() {
     }
     return rows
   }, [tabRows, allCount])
+
+  /** Left/Right: All, then the custom tabs, then Pinned; wraps so the strip is one cycle. */
+  const cycleTab = useCallback(
+    (direction: 1 | -1) => {
+      if (tabs.length < 2) return
+      const at = tabs.findIndex((entry) => entry.id === tab)
+      const next = tabs[(Math.max(0, at) + direction + tabs.length) % tabs.length]
+      if (next) selectTab(next.id)
+    },
+    [selectTab, tab, tabs],
+  )
   const moveDestinations = useMemo(() => moveTargets(tabRows), [tabRows])
 
   const visible = found?.items ?? items
@@ -676,6 +687,32 @@ export default function App() {
     [search, setSearchProgrammatic],
   )
 
+  /**
+   * The shell calls Web.Focus() when the window appears. Land that focus on the selected row so
+   * arrows, typing and Esc work from the first keystroke; a search field that already holds text
+   * keeps its caret.
+   */
+  const focusRowsOnShow = useCallback(() => {
+    if (editorOpen || settingsOpen || exportOpen || confirm != null || tabOverlay || rowMenu != null || moveClip != null || tagClip != null) return
+    if (selectedId == null) return
+    const active = document.activeElement
+    const emptySearch = active === searchRef.current && search.trim() === ''
+    if (active && active !== document.body && !emptySearch) return
+    listRef.current?.focusSelected()
+  }, [confirm, editorOpen, exportOpen, moveClip, rowMenu, search, selectedId, settingsOpen, tabOverlay, tagClip])
+
+  useEffect(() => {
+    window.addEventListener('focus', focusRowsOnShow)
+    return () => window.removeEventListener('focus', focusRowsOnShow)
+  }, [focusRowsOnShow])
+
+  // A warm window is already focused when the page mounts, so no focus event follows: do it once.
+  useEffect(() => {
+    if (status !== 'ready') return
+    const timer = window.setTimeout(() => listRef.current?.focusSelected(), 60)
+    return () => window.clearTimeout(timer)
+  }, [status])
+
   useClipboardKeys({
     enabled: !editorOpen && !settingsOpen && !exportOpen && confirm == null && !tabOverlay && rowMenu == null && moveClip == null && tagClip == null,
     rows: visible,
@@ -688,6 +725,7 @@ export default function App() {
     onPage: (direction) => listRef.current?.pageBy(direction),
     onSection: jumpSection,
     onMoveTab: moveToAdjacentTab,
+    onTab: cycleTab,
     onPaste: (clip, plain) => void pasteItem(clip, plain),
     onEdit: () => selected && setEditorOpen(true),
     onExport: openExport,

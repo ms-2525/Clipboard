@@ -107,6 +107,18 @@ export function EditorOverlay({ clip, timeFormat, getItem, onSave, onClose, onSa
     setConfirmDiscard(true)
   }, [dirty, onClose, saving])
 
+  // F2 toggles the editor: from the list it opens, and here it closes. Only a dirty body asks
+  // about discarding; a clean one just closes.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'F2') return
+      event.preventDefault()
+      requestClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [requestClose])
+
   // Esc cascade: popover → discard prompt → close. Radix owns the keystroke and the focus trap.
   const onEscape = useCallback(
     (event: KeyboardEvent) => {

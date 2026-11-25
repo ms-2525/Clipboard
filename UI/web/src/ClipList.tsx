@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react'
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import type { ClipBody, ClipItem } from './host'
 import { formatStamp, type TimeFormat } from './format'
@@ -38,6 +38,8 @@ export interface ClipListHandle {
   pageBy: (direction: 1 | -1) => void
   /** Section jumps put their first row at the top of the viewport, not wherever minimal scroll lands. */
   revealTop: (id: number) => void
+  /** The window just appeared: hand the keyboard to the selected row so arrows work immediately. */
+  focusSelected: () => void
 }
 
 function Thumb({ id, getThumb }: { id: number; getThumb: (id: number) => Promise<string | null> }) {
@@ -184,19 +186,18 @@ export const ClipList = forwardRef<ClipListHandle, Props>(function ClipList(
     return () => document.removeEventListener('focusin', onFocusIn)
   }, [])
 
-  // Focus and selection are the same thing: the row that is highlighted is the row
-  // that owns focus, so a keyboard user can never hit Enter on a clip they cannot see.
-  useEffect(() => {
-    if (!hadFocus.current || selectedId == null) return
-    const existing = rowEls.current.get(selectedId)
+  // Focus and selection are the same thing: a row that is highlighted but not focused cannot be
+  // pasted with the keyboard without guessing. Retry while the virtualizer mounts the row.
+  const focusRow = useCallback((id: number) => {
+    const existing = rowEls.current.get(id)
     if (existing) {
       existing.focus({ preventScroll: true })
-      return
+      return () => {}
     }
     let frame = 0
     let tries = 0
     const step = () => {
-      const el = rowEls.current.get(selectedId)
+      const el = rowEls.current.get(id)
       if (el) {
         el.focus({ preventScroll: true })
         return
@@ -205,7 +206,14 @@ export const ClipList = forwardRef<ClipListHandle, Props>(function ClipList(
     }
     frame = requestAnimationFrame(step)
     return () => cancelAnimationFrame(frame)
-  }, [selectedId, clips])
+  }, [])
+
+  // Focus and selection are the same thing: the row that is highlighted is the row
+  // that owns focus, so a keyboard user can never hit Enter on a clip they cannot see.
+  useEffect(() => {
+    if (!hadFocus.current || selectedId == null) return
+    return focusRow(selectedId)
+  }, [selectedId, clips, focusRow])
 
   useImperativeHandle(
     ref,
@@ -226,8 +234,12 @@ export const ClipList = forwardRef<ClipListHandle, Props>(function ClipList(
         const index = clips.findIndex((clip) => clip.id === id)
         if (index >= 0) virt.scrollToIndex(index, { align: 'start' })
       },
+      focusSelected: () => {
+        if (selectedId == null) return
+        focusRow(selectedId)
+      },
     }),
-    [clips, selectedId, onSelect, virt],
+    [clips, selectedId, onSelect, virt, focusRow],
   )
 
   const selectedIndex = clips.findIndex((clip) => clip.id === selectedId)
