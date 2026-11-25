@@ -5,8 +5,10 @@ SHA-256 `213AC8F4C67397068977DBDBE1A7932AAEC782C041B994BD9F08443B15BF1744`.
 The web UI is embedded in the binary (page SHA-256 `D17D65350A9780A1946BF9B72662C5234940FA6A1ECCB983B4AF1241DD1580F0`);
 nothing needs to sit beside the exe.
 
-**Branch:** `v2-phase1` in the `v2-stack` worktree, HEAD `c3d8d18`, 107 commits.
+**Branch:** `v2-phase1` in the `v2-stack` worktree, HEAD `9b78976`, 119 commits.
 The owner's live app on `master` was not touched; `--legacy` still opens the old WPF UI.
+The exe above was published at 08:08 from the S20 page (`Filter by tag` x2, `This clip has no tags`
+found inside the binary).
 
 ## What is in it
 
@@ -39,11 +41,11 @@ The owner's live app on `master` was not touched; `--legacy` still opens the old
 
 ## Verification state
 
-- **UI/UX checklist: 48 PASS, 0 FAIL, 6 NOT RUN.** Two fresh visual agents signed the release UI; the
-  final one signed G-02 and G-04 on the exact embedded page.
-- **Feature checklist: 6 PASS, 5 FAIL, 21 NOT RUN** - the FAIL and NOT RUN rows are live-only checks
-  (clipboard round-trips, IME, 125 % zoom in the shell, native toast/tray) blocked by an elevated
-  screenshot overlay that froze desktop input at 05:02.
+- **UI/UX checklist: 50 PASS, 0 FAIL, 4 NOT RUN.** Three fresh visual passes signed the release UI; the
+  last one signed the chrome bands (G-02) on the exact embedded page. The four open rows are native
+  toast/tray (G-06), 125 % zoom (W-02), the 430 toast/export menu (W-05) and a real IME (K-07).
+- **Feature checklist: 8 PASS, 5 FAIL, 19 NOT RUN** - the open rows are live checks (Office round-trip,
+  cold start, 1,000-item acceptance, IME) plus five old-app product items listed under limits.
 - **No P0 in any audit.** The data layer was audited three times (DB logic, tags/search, host actions)
   and re-swept on the release build.
 
