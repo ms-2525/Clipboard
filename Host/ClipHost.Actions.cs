@@ -231,27 +231,8 @@ namespace Clip.Host
 
         // ---- focus guard ------------------------------------------------------
 
-        /// <summary>True when the target owns the foreground, after one AttachThreadInput + SetForegroundWindow attempt.</summary>
-        static bool Foreground(IntPtr target)
-        {
-            if (!IsWindow(target)) return false;
-            if (GetForegroundWindow() == target) return true;
-
-            uint targetThread = GetWindowThreadProcessId(target, out _);
-            uint selfThread = GetCurrentThreadId();
-            bool attached = targetThread != 0 && targetThread != selfThread
-                && AttachThreadInput(selfThread, targetThread, true);
-            try
-            {
-                BringWindowToTop(target);
-                SetForegroundWindow(target);
-            }
-            finally
-            {
-                if (attached) AttachThreadInput(selfThread, targetThread, false);
-            }
-            return GetForegroundWindow() == target;
-        }
+        /// <summary>True when the target owns the foreground (one attach attempt; see ForegroundApp.Force).</summary>
+        static bool Foreground(IntPtr target) => ForegroundApp.Force(target);
 
         static string FocusError(IntPtr target)
         {

@@ -824,6 +824,9 @@ export default function App() {
           // A copy that already exists is reordered by the store; move that row and refresh its
           // fields instead of ignoring it. Selection is a separate id, so it does not move.
           setItems((rows) => moveToTop(rows, item))
+          // A copy made while the window was closed is what the next open should start on, not the row
+          // that happened to be selected before it.
+          if (!document.hasFocus()) setSelectedId(item.id)
           // A query is a view over the same rows: only reorder the row when the results hold it.
           setFound((current) =>
             current && current.items.some((row) => row.id === item.id)

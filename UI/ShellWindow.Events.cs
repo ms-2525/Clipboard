@@ -7,6 +7,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows;
 using Clip.Core;
+using Clip.Interop;
 using Microsoft.Web.WebView2.Core;
 
 namespace Clip.UI
@@ -39,6 +40,9 @@ namespace Clip.UI
 
         internal void Toggle()
         {
+            // While warming, the window is already "visible" at zero opacity: hiding it would look like a
+            // dead hotkey. A demand show always ends the warm state first.
+            if (_warming) { ShowShell(); return; }
             if (IsVisible) Hide();
             else ShowShell();
         }
@@ -55,8 +59,13 @@ namespace Clip.UI
         {
             if (_warming) EndWarm(); // demanded before the first frame: finish the warm surface instead of reloading
             _host?.SetPlainMode(plain);
+            // Warm() turned activation off; a later Show() would inherit that and never take the keyboard.
+            ShowActivated = true;
             if (!IsVisible) Show();
             Activate();
+            // Activate() alone is refused while another app owns the foreground, and the page then never sees
+            // a key. The explicit attach is what makes the first arrow, letter or Enter land.
+            ForegroundApp.Force(_shellHwnd);
             // A window activation does not hand the keyboard to the WebView; without this, the page's
             // key matrix (Enter to paste, typing to search) is dead until the user clicks inside.
             Web.Focus();

@@ -191,6 +191,20 @@ test('the Settings icon is in the top bar and works from the keyboard', async ({
   await expect(button).toBeFocused()
 })
 
+test('both arrows move the list from the search box', async ({ page }) => {
+  await search(page).focus()
+  await page.keyboard.type('stripe', { delay: 30 })
+  await expect(search(page)).toHaveValue('stripe')
+  const first = (await page.locator('.row.selected .row-index').textContent()) ?? ''
+  await page.keyboard.press('ArrowDown')
+  const second = (await page.locator('.row.selected .row-index').textContent()) ?? ''
+  expect(second).not.toBe(first)
+  await page.keyboard.press('ArrowUp')
+  await expect(page.locator('.row.selected .row-index')).toHaveText(first)
+  // The caret stays in the box while the arrows move the list.
+  await expect(search(page)).toBeFocused()
+})
+
 test('Enter and F2 work while the search box has focus', async ({ page }) => {
   await page.keyboard.type('stripe', { delay: 30 })
   await expect(search(page)).toHaveValue('stripe')
