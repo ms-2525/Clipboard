@@ -1,4 +1,4 @@
-import { useEffect, useRef, type KeyboardEvent as ReactKeyboardEvent } from 'react'
+import { useEffect, useRef, type KeyboardEvent as ReactKeyboardEvent, type RefObject } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
 import type { ClipItem, HostTab } from './host'
 
@@ -122,17 +122,31 @@ export function MovePicker({
   targets,
   onChoose,
   onClose,
+  returnFocus,
 }: {
   clip: ClipItem | null
   targets: MoveTarget[]
   onChoose: (tabId: number | null) => void
   onClose: () => void
+  /** The row that opened the picker; focus returns there on close. */
+  returnFocus?: RefObject<HTMLElement | null>
 }) {
   return (
     <Dialog.Root open={clip != null} onOpenChange={(open) => { if (!open) onClose() }}>
       <Dialog.Portal>
         <Dialog.Overlay className="overlay" />
-        <Dialog.Content className="dialog move-picker" aria-describedby="move-desc">
+        <Dialog.Content
+          className="dialog move-picker"
+          aria-describedby="move-desc"
+          aria-modal="true"
+          onCloseAutoFocus={(event) => {
+            event.preventDefault()
+            const target = returnFocus?.current?.isConnected
+              ? returnFocus.current
+              : document.querySelector<HTMLElement>('.row[tabindex="0"]')
+            target?.focus()
+          }}
+        >
           <div className="dialog-head">
             <div className="grow">
               <Dialog.Title className="t-title" style={{ margin: 0 }}>

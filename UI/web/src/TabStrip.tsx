@@ -42,6 +42,8 @@ export function TabStrip({ tabs, activeId, onSelect, onCreate, onRename, onDelet
   const [focusId, setFocusId] = useState<number | null | undefined>(undefined)
   const inputRef = useRef<HTMLInputElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
+  /** The tab the menu was opened on; focus returns there when the confirm closes. */
+  const confirmReturn = useRef<HTMLElement | null>(null)
 
   useEffect(
     () => onOverlayChange(edit != null || menu != null || confirm != null),
@@ -54,8 +56,8 @@ export function TabStrip({ tabs, activeId, onSelect, onCreate, onRename, onDelet
     if (!input) return
     input.focus()
     if (edit.mode === 'rename') input.select()
-    // The field sits at the end of the scroller; bring it into view without moving the page.
-    input.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+    // The field sits at the end of the scroller; bring field + error into view without moving the page.
+    input.parentElement?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
   }, [edit])
 
   const beginCreate = () => {
@@ -112,6 +114,7 @@ export function TabStrip({ tabs, activeId, onSelect, onCreate, onRename, onDelet
     if (tab.kind !== 'custom') return
     event.preventDefault()
     event.stopPropagation()
+    confirmReturn.current = event.currentTarget as HTMLElement
     setMenu({ tab, x: event.clientX, y: event.clientY })
   }
 
@@ -170,64 +173,68 @@ export function TabStrip({ tabs, activeId, onSelect, onCreate, onRename, onDelet
         activationMode="manual"
       >
         <div className="tabs">
-          <Tabs.List className="tabs-list" aria-label="Clip tabs">
-            {tabs.map((tab) => {
-              const editing = edit?.mode === 'rename' && edit.id === tab.id
-              if (editing) {
+          <div className="tabs-scroll">
+            <Tabs.List className="tabs-list" aria-label="Clip tabs">
+              {tabs.map((tab) => {
+                const editing = edit?.mode === 'rename' && edit.id === tab.id
+                if (editing) {
+                  return (
+                    <span className="tab-edit" key={tab.id ?? 'all'}>
+                      <input
+                        ref={inputRef}
+                        className="tab-edit-input"
+                        value={value}
+                        onChange={(event) => setValue(event.target.value)}
+                        onKeyDown={onEditKey}
+                        aria-label="Tab name"
+                        aria-invalid={error ? true : undefined}
+                        spellCheck={false}
+                        disabled={busy}
+                      />
+                      {error && <span className="tab-edit-error">{error}</span>}
+                    </span>
+                  )
+                }
                 return (
-                  <span className="tab-edit" key={tab.id ?? 'all'}>
-                    <input
-                      ref={inputRef}
-                      className="tab-edit-input"
-                      value={value}
-                      onChange={(event) => setValue(event.target.value)}
-                      onKeyDown={onEditKey}
-                      aria-label="Tab name"
-                      aria-invalid={error ? true : undefined}
-                      spellCheck={false}
-                      disabled={busy}
-                    />
-                    {error && <span className="tab-edit-error">{error}</span>}
-                  </span>
+                  <Tabs.Trigger
+                    key={tab.id ?? 'all'}
+                    value={tab.id === null ? 'all' : String(tab.id)}
+                    className="tab"
+                    // Radix leaves the tab stop on the list until something is focused; these keep one tab tabbable.
+                    tabIndex={(focusId === undefined ? tab.id === activeId : focusId === tab.id) ? 0 : -1}
+                    onFocus={() => setFocusId(tab.id)}
+                    onBlur={(event) => {
+                      if (!(event.relatedTarget as HTMLElement | null)?.closest?.('.tab')) setFocusId(undefined)
+                    }}
+                    onDoubleClick={() => beginRename(tab)}
+                    onContextMenu={(event) => openMenu(tab, event)}
+                  >
+                    <span className="tab-label" title={tab.label}>
+                      {tab.label}
+                    </span>
+                    <span className="tab-count">{tab.count.toLocaleString()}</span>
+                  </Tabs.Trigger>
                 )
-              }
-              return (
-                <Tabs.Trigger
-                  key={tab.id ?? 'all'}
-                  value={tab.id === null ? 'all' : String(tab.id)}
-                  className="tab"
-                  // Radix leaves the tab stop on the list until something is focused; these keep one tab tabbable.
-                  tabIndex={(focusId === undefined ? tab.id === activeId : focusId === tab.id) ? 0 : -1}
-                  onFocus={() => setFocusId(tab.id)}
-                  onBlur={(event) => {
-                    if (!(event.relatedTarget as HTMLElement | null)?.closest?.('.tab')) setFocusId(undefined)
-                  }}
-                  onDoubleClick={() => beginRename(tab)}
-                  onContextMenu={(event) => openMenu(tab, event)}
-                >
-                  {tab.label}
-                  <span className="tab-count">{tab.count.toLocaleString()}</span>
-                </Tabs.Trigger>
-              )
-            })}
-            {edit?.mode === 'create' && (
-              <span className="tab-edit">
-                <input
-                  ref={inputRef}
-                  className="tab-edit-input"
-                  value={value}
-                  onChange={(event) => setValue(event.target.value)}
-                  onKeyDown={onEditKey}
-                  placeholder="Tab name"
-                  aria-label="New tab name"
-                  aria-invalid={error ? true : undefined}
-                  spellCheck={false}
-                  disabled={busy}
-                />
-                {error && <span className="tab-edit-error">{error}</span>}
-              </span>
-            )}
-          </Tabs.List>
+              })}
+              {edit?.mode === 'create' && (
+                <span className="tab-edit">
+                  <input
+                    ref={inputRef}
+                    className="tab-edit-input"
+                    value={value}
+                    onChange={(event) => setValue(event.target.value)}
+                    onKeyDown={onEditKey}
+                    placeholder="Tab name"
+                    aria-label="New tab name"
+                    aria-invalid={error ? true : undefined}
+                    spellCheck={false}
+                    disabled={busy}
+                  />
+                  {error && <span className="tab-edit-error">{error}</span>}
+                </span>
+              )}
+            </Tabs.List>
+          </div>
           <button
             type="button"
             className="tab-add"
@@ -269,7 +276,19 @@ export function TabStrip({ tabs, activeId, onSelect, onCreate, onRename, onDelet
         <Dialog.Root open onOpenChange={(open) => { if (!open && !deleting) setConfirm(null) }}>
           <Dialog.Portal>
             <Dialog.Overlay className="overlay" />
-            <Dialog.Content className="dialog confirm" aria-describedby="tab-delete-desc">
+            <Dialog.Content
+              className="dialog confirm"
+              aria-describedby="tab-delete-desc"
+              aria-modal="true"
+              onCloseAutoFocus={(event) => {
+                // The context menu is gone; put focus back on the tab that opened it.
+                event.preventDefault()
+                const target = confirmReturn.current?.isConnected
+                  ? confirmReturn.current
+                  : document.querySelector<HTMLElement>('.tab[data-state="active"]')
+                target?.focus()
+              }}
+            >
               <div className="dialog-head">
                 <span className="confirm-icon" aria-hidden="true">
                   <IconWarning />

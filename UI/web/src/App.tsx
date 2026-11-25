@@ -131,6 +131,8 @@ export default function App() {
   const exportRef = useRef<HTMLDivElement>(null)
   const exportReturn = useRef<HTMLElement | null>(null)
   const settingsReturn = useRef<HTMLElement | null>(null)
+  const confirmReturn = useRef<HTMLElement | null>(null)
+  const moveReturn = useRef<HTMLElement | null>(null)
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
@@ -678,8 +680,16 @@ export default function App() {
     onPaste: (clip, plain) => void pasteItem(clip, plain),
     onEdit: () => selected && setEditorOpen(true),
     onExport: openExport,
-    onDelete: () => selected && setConfirm(selected),
-    onMove: () => selected && setMoveClip(selected),
+    onDelete: () => {
+      if (!selected) return
+      confirmReturn.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+      setConfirm(selected)
+    },
+    onMove: () => {
+      if (!selected) return
+      moveReturn.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+      setMoveClip(selected)
+    },
     onRestore: () => void undoDelete(),
     onPin: () => void pinItem(),
     onHide: () => void hideWindow(),
@@ -1018,7 +1028,12 @@ export default function App() {
         returnFocus={settingsReturn}
       />
 
-      <DeleteConfirm clip={confirm} onCancel={() => setConfirm(null)} onConfirm={() => void confirmDelete()} />
+      <DeleteConfirm
+        clip={confirm}
+        onCancel={() => setConfirm(null)}
+        onConfirm={() => void confirmDelete()}
+        returnFocus={confirmReturn}
+      />
 
       {rowMenu && (
         <MoveMenu
@@ -1042,6 +1057,7 @@ export default function App() {
           if (moveClip) void moveClipToTab(moveClip, tabId)
         }}
         onClose={() => setMoveClip(null)}
+        returnFocus={moveReturn}
       />
 
       {editorOpen && selected && (

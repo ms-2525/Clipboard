@@ -73,9 +73,14 @@ export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, o
   const wasOpen = useRef(false)
   // The fade is the scroll affordance: it is present exactly while content remains below.
   const [more, setMore] = useState(false)
+  // The scroll gutter exists only while the body really scrolls (a 10px reserve skews the two columns).
+  const [scrolls, setScrolls] = useState(false)
   const measure = useCallback(() => {
     const body = bodyRef.current
-    if (body) setMore(body.scrollHeight - body.scrollTop - body.clientHeight > 4)
+    if (body) {
+      setMore(body.scrollHeight - body.scrollTop - body.clientHeight > 4)
+      setScrolls(body.scrollHeight > body.clientHeight + 1)
+    }
   }, [])
 
   // Every open starts from the saved values; a live zoom change must not reset the draft underneath.
@@ -197,7 +202,7 @@ export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, o
           </div>
 
           <div className="dialog-body-wrap">
-            <div className="dialog-body" ref={bodyRef} onScroll={measure}>
+            <div className={'dialog-body' + (scrolls ? ' scrolling' : '')} ref={bodyRef} onScroll={measure}>
             <div className="set-group">
               <div className="t-micro">General</div>
               <div className="set-row">
