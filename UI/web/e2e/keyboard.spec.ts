@@ -109,6 +109,17 @@ test('the Settings icon is in the top bar and works from the keyboard', async ({
   await expect(button).toBeFocused()
 })
 
+test('Enter and F2 work while the search box has focus', async ({ page }) => {
+  await page.keyboard.type('stripe', { delay: 30 })
+  await expect(search(page)).toHaveValue('stripe')
+  await page.keyboard.press('Enter')
+  await expect(toast(page)).toContainText('Copied instead')
+  await page.keyboard.press('F2')
+  await expect(page.locator('.editor-overlay')).toBeVisible()
+  await page.keyboard.press('F2')
+  await expect(page.locator('.editor-overlay')).toHaveCount(0)
+})
+
 test('Left/Right from the tab strip itself change one tab, not two', async ({ page }) => {
   await page.locator('[role="tab"][aria-selected="true"]').focus()
   await page.keyboard.press('ArrowRight')

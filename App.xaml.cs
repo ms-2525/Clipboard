@@ -324,9 +324,19 @@ namespace Clip
             OpenTrayMenuAtCursor(menu);
         }
 
+        /// <summary>
+        /// An implicitly styled popup only finds UI\Themes\Popups.xaml once it is in a tree; the tray
+        /// menu is created unparented, so the style is applied by hand. Keeps stock WPF chrome out.
+        /// </summary>
+        static T Themed<T>(T element) where T : FrameworkElement
+        {
+            if (Application.Current?.TryFindResource(typeof(T)) is Style style) element.Style = style;
+            return element;
+        }
+
         void AddTrayItem(ContextMenu menu, string header, Action action)
         {
-            var item = new MenuItem { Header = header };
+            var item = Themed(new MenuItem { Header = header });
             item.Click += (s, e) => action();
             menu.Items.Add(item);
         }

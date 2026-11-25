@@ -208,18 +208,12 @@ namespace Clip
 
         void OpenV2TrayMenu()
         {
-            var menu = new ContextMenu();
+            var menu = Themed(new ContextMenu());
             AddTrayItem(menu, $"{Product}: show/hide", () => _shell?.Toggle());
             AddTrayItem(menu, "Settings\u2026", () => _shell?.ShowForSettings());
             AddTrayItem(menu, "Clear history\u2026", () => _shell?.ConfirmClearHistory());
-            menu.Items.Add(new System.Windows.Controls.Separator());
+            menu.Items.Add(Themed(new System.Windows.Controls.Separator()));
             AddTrayItem(menu, "Exit", ExitV2);
-            menu.Items.Add(new System.Windows.Controls.Separator());
-            menu.Items.Add(new MenuItem
-            {
-                Header = $"{Product} {Assembly.GetEntryAssembly().GetName().Version?.ToString(3)}",
-                IsEnabled = false
-            });
             OpenTrayMenuAtCursor(menu);
         }
 

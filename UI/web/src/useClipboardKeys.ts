@@ -124,9 +124,9 @@ export function useClipboardKeys(actions: KeyActions) {
         return
       }
 
-      // A text field owns its caret: only Escape, ArrowDown (into the list) and the search
-      // shortcuts above may act. Delete/Home/End/Enter/digits keep their native meaning.
-      if (typing && key !== 'Escape' && key !== 'ArrowDown') return
+      // A text field owns its caret: only Escape, ArrowDown (into the list), Enter (paste the
+      // highlighted result) and F2 (edit it) may act. Delete/Home/End/digits keep their native meaning.
+      if (typing && key !== 'Escape' && key !== 'ArrowDown' && key !== 'Enter' && key !== 'F2') return
 
       // ArrowDown is measured by the list, so it works in the search box too.
       if (rows.length > 0 && !onControl) {
