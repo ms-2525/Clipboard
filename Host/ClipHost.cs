@@ -157,6 +157,18 @@ namespace Clip.Host
                 case "moveToTab":
                     return MoveToTab(p);
 
+                case "listTabs":
+                    return ListTabs(p);
+
+                case "createTab":
+                    return CreateTab(p);
+
+                case "renameTab":
+                    return RenameTab(p);
+
+                case "deleteTab":
+                    return DeleteTab(p);
+
                 case "hide":
                     _hide();
                     return new { hidden = true };
