@@ -208,3 +208,29 @@ export const IconAddRow = () => (
     <path d="M12.8 7.2v5.2M10.2 9.8h5.2" />
   </Svg>
 )
+export const IconTrash = () => (
+  <Svg>
+    <path d="M2.8 4.2h10.4M6.5 4V2.8h3V4M4.3 4.2l.7 8.6a1 1 0 0 0 1 .9h3.9a1 1 0 0 0 1-.9l.7-8.6" />
+    <path d="M6.8 7v4.4M9.2 7v4.4" />
+  </Svg>
+)
+export const IconDownload = () => (
+  <Svg>
+    <path d="M8 2.5v7.6M5.2 7.3 8 10.1l2.8-2.8M2.8 13.5h10.4" />
+  </Svg>
+)
+export const IconOpen = () => (
+  <Svg>
+    <path d="M6.5 3.5H3.5v9h9V9.5M9.2 3.5h3.3v3.3M12.3 3.7 7.6 8.4" />
+  </Svg>
+)
+export const IconFolder = () => (
+  <Svg>
+    <path d="M2.5 4.6a1 1 0 0 1 1-1h2.9L8.6 5H12a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1h-8.5a1 1 0 0 1-1-1Z" />
+  </Svg>
+)
+export const IconChevronRight = () => (
+  <Svg size={12}>
+    <path d="m6.5 4.5 3.5 3.5-3.5 3.5" />
+  </Svg>
+)

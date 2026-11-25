@@ -22,19 +22,21 @@ test.beforeEach(async ({ page }) => {
   await expect(selectedRow(page)).toBeFocused()
 })
 
-test('arrows move the selection and focus follows, wrapping at both ends', async ({ page }) => {
+test('arrows move the selection and focus follows, stopping at both ends', async ({ page }) => {
   await expect(page.locator('.row.selected .row-index')).toHaveText('01')
   await page.keyboard.press('ArrowDown')
   await expect(page.locator('.row.selected .row-index')).toHaveText('02')
   await expect(selectedRow(page)).toBeFocused()
   await page.keyboard.press('ArrowUp')
   await expect(page.locator('.row.selected .row-index')).toHaveText('01')
-  // Wrap: up from the first row lands on the last, down from the last on the first.
+  // No wrap: up from the first row stays on the first, down from the last stays on the last.
   await page.keyboard.press('ArrowUp')
-  await expect(page.locator('.row.selected .row-index')).toHaveText('1000')
-  await expect(selectedRow(page)).toBeFocused()
-  await page.keyboard.press('ArrowDown')
   await expect(page.locator('.row.selected .row-index')).toHaveText('01')
+  await expect(selectedRow(page)).toBeFocused()
+  await page.keyboard.press('End')
+  await expect(page.locator('.row.selected .row-index')).toHaveText('1000')
+  await page.keyboard.press('ArrowDown')
+  await expect(page.locator('.row.selected .row-index')).toHaveText('1000')
   await expect(selectedRow(page)).toBeFocused()
 })
 
@@ -177,6 +179,42 @@ test('the Settings preview and the known-limits note are on screen', async ({ pa
   await expect(page.locator('.toast.error')).toHaveCount(0)
   await page.keyboard.press('Escape')
   await expect(page.locator('.dialog')).toHaveCount(0)
+})
+
+test('the image editor offers Open in app and Export; the files editor offers neither', async ({ page }) => {
+  const overlay = page.locator('.editor-overlay')
+  await page.keyboard.press('End')
+  await expect(page.locator('.row.selected .row-index')).toHaveText('1000')
+  await page.keyboard.press('F2')
+  await expect(overlay).toBeVisible()
+  await expect(overlay.getByRole('button', { name: 'Open in app' })).toBeVisible()
+  await expect(overlay.getByRole('button', { name: 'Export' })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(overlay).toHaveCount(0)
+
+  await page.keyboard.press('Home')
+  for (let i = 0; i < 3; i++) await page.keyboard.press('ArrowDown')
+  await expect(page.locator('.row.selected .row-index')).toHaveText('04')
+  await page.keyboard.press('F2')
+  await expect(overlay).toBeVisible()
+  await expect(overlay.getByRole('button', { name: 'Open in app' })).toHaveCount(0)
+  await expect(overlay.getByRole('button', { name: 'Export' })).toHaveCount(0)
+  await page.keyboard.press('Escape')
+  await expect(overlay).toHaveCount(0)
+})
+
+test('Ctrl+S saves without closing and flashes a green Saved bar', async ({ page }) => {
+  const overlay = page.locator('.editor-overlay')
+  await page.keyboard.press('F2')
+  await expect(overlay.locator('.ProseMirror')).toBeFocused()
+  await page.keyboard.type('X')
+  await expect(overlay.getByText('Unsaved changes').first()).toBeVisible()
+  await page.keyboard.press('Control+s')
+  await expect(overlay.getByText('Saved', { exact: true })).toBeVisible()
+  // Still open: Ctrl+S persists but never closes.
+  await expect(overlay).toHaveCount(1)
+  await page.keyboard.press('Escape')
+  await expect(overlay).toHaveCount(0)
 })
 
 test('Esc in the editor returns to the list: same row, same scroll, window stays open', async ({ page }) => {

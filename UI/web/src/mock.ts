@@ -303,6 +303,18 @@ export function createMockHost(): Host {
       const name = clip.title.replace(/[\\/:*?"<>|]/g, ' ').trim() || 'Clip'
       return wait({ saved: true, path: `C:\\Users\\Owner\\Documents\\${name}.${ext}` })
     },
+    openInApp: async ({ id }) => {
+      const clip = clips.find((entry) => entry.id === id)
+      if (!clip) throw new Error('Clip not found')
+      // Preview-only: a blob in a new tab stands in for the OS default app.
+      const thumb = real ? realThumbs.get(id) ?? null : mockThumb(id)
+      const url =
+        clip.hasImage && thumb
+          ? thumb
+          : URL.createObjectURL(new Blob([clip.text], { type: 'text/plain;charset=utf-8' }))
+      window.open(url, '_blank', 'noopener')
+      return wait({ launched: true })
+    },
     saveConfig: async (patch: SettingsPatch) => {
       const next: typeof settings = {
         ...settings,

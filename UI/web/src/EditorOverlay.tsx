@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
 import { EditorContent, useEditor } from '@tiptap/react'
+import { Extension } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
-import { Color, FontFamily, TextStyle } from '@tiptap/extension-text-style'
+import { BackgroundColor, Color, FontFamily, FontSize, TextStyle } from '@tiptap/extension-text-style'
 import Highlight from '@tiptap/extension-highlight'
 import { TableKit } from '@tiptap/extension-table'
 import TaskList from '@tiptap/extension-task-list'
@@ -11,7 +12,7 @@ import { EditorToolbar, type EditorPop } from './EditorToolbar'
 import { cfHtmlFragment } from './rich'
 import type { ClipBody, ClipItem } from './host'
 import { formatTime, type TimeFormat } from './format'
-import { IconClose, IconWarning } from './icons'
+import { IconCheck, IconClose, IconWarning } from './icons'
 
 interface Props {
   clip: ClipItem
@@ -20,6 +21,10 @@ interface Props {
   /** Full image for image clips; the OCR text below is what F2 is for. */
   getImage?: (id: number) => Promise<string | null>
   onSave: (html: string, text: string) => Promise<{ saved: boolean; error?: string }>
+  /** The main window's Export: the host shows the dialog and toasts; never throws. */
+  onSaveAs: (format: string) => Promise<void>
+  /** The host opens the stored clip in its default app and toasts; never throws. */
+  onOpenInApp: () => Promise<void>
   onClose: () => void
   onSaved: () => void
 }
@@ -39,7 +44,35 @@ const kindLabel = (kind: ClipItem['kind']) =>
 /** The host refuses these too; the page refuses first so a bad body never leaves the browser. */
 const MAX_HTML = 2_000_000
 
-export function EditorOverlay({ clip, timeFormat, getItem, getImage, onSave, onClose, onSaved }: Props) {
+/**
+ * Pasted HTML carries the font on the block (<p style="font-family…">), not only on spans.
+ * The list keeps block styles (rich.tsx preserves them on every element) but TipTap marks
+ * only read spans — without this the same clip renders in two different fonts.
+ */
+const ClipBlockFont = Extension.create({
+  name: 'clipBlockFont',
+  addGlobalAttributes() {
+    return [
+      {
+        types: ['paragraph', 'heading', 'blockquote', 'bulletList', 'orderedList', 'listItem', 'taskItem', 'codeBlock'],
+        attributes: {
+          fontFamily: {
+            default: null,
+            parseHTML: (element) => element.style.fontFamily || null,
+            renderHTML: (attributes) => (attributes.fontFamily ? { style: `font-family: ${attributes.fontFamily}` } : {}),
+          },
+          fontSize: {
+            default: null,
+            parseHTML: (element) => element.style.fontSize || null,
+            renderHTML: (attributes) => (attributes.fontSize ? { style: `font-size: ${attributes.fontSize}` } : {}),
+          },
+        },
+      },
+    ]
+  },
+})
+
+export function EditorOverlay({ clip, timeFormat, getItem, getImage, onSave, onSaveAs, onOpenInApp, onClose, onSaved }: Props) {
   const [dirty, setDirty] = useState(false)
   const [confirmDiscard, setConfirmDiscard] = useState(false)
   const [size, setSize] = useState(15)
@@ -48,6 +81,15 @@ export function EditorOverlay({ clip, timeFormat, getItem, getImage, onSave, onC
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [imgSrc, setImgSrc] = useState<string | null>(null)
+  /** Bumped on every successful save: the green bar shows until the next edit or its timeout. */
+  const [savedTick, setSavedTick] = useState(0)
+  const showSaved = savedTick > 0 && !dirty && !confirmDiscard
+
+  useEffect(() => {
+    if (!showSaved) return
+    const timer = window.setTimeout(() => setSavedTick(0), 2600)
+    return () => window.clearTimeout(timer)
+  }, [showSaved, savedTick])
   const [formats, setFormats] = useState<string[]>(clip.formats)
   /** Bumped on every editor update: the count must move on each keystroke, not only when `dirty` flips. */
   const [revision, setRevision] = useState(0)
@@ -60,7 +102,10 @@ export function EditorOverlay({ clip, timeFormat, getItem, getImage, onSave, onC
       StarterKit.configure({ link: { openOnClick: false } }),
       TextStyle,
       Color,
+      BackgroundColor,
       FontFamily,
+      FontSize,
+      ClipBlockFont,
       Highlight.configure({ multicolor: true }),
       TableKit.configure({ table: { resizable: false } }),
       TaskList,
@@ -157,21 +202,23 @@ export function EditorOverlay({ clip, timeFormat, getItem, getImage, onSave, onC
     [confirmDiscard, dirty, onClose, pop],
   )
 
-  const save = useCallback(async () => {
-    if (!editor || saving || loading) return
+  /** Writes the editor body to the store; true when the stored clip now matches the screen. Never closes. */
+  const persist = useCallback(async (): Promise<boolean> => {
+    if (!editor || saving || loading) return false
+    if (!dirty) return true
     const html = editor.getHTML()
     const text = editor.getText({ blockSeparator: '\n' })
     if (!text.trim()) {
       setError('The editor has no text, so nothing was saved.')
-      return
+      return false
     }
     if (html.length > MAX_HTML) {
       setError('The clip is over 2 MB of HTML, so it was not saved.')
-      return
+      return false
     }
     if (/<script/i.test(html)) {
       setError('The clip contains a script, so it was not saved.')
-      return
+      return false
     }
     setSaving(true)
     setError('')
@@ -180,15 +227,35 @@ export function EditorOverlay({ clip, timeFormat, getItem, getImage, onSave, onC
       if (!result.saved) {
         setError(result.error || 'The clip could not be saved.')
         setSaving(false)
-        return
+        return false
       }
+      baseline.current = editor.getHTML()
+      setDirty(false)
       onSaved()
-      onClose()
+      setSaving(false)
+      setSavedTick((tick) => tick + 1)
+      return true
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : String(failure))
       setSaving(false)
+      return false
     }
-  }, [editor, loading, onClose, onSave, onSaved, saving])
+  }, [dirty, editor, loading, onSave, onSaved, saving])
+
+  const save = useCallback(async () => {
+    // Ctrl+S / Save clip persist and stay open; Esc or Cancel closes. The green bar confirms the write.
+    await persist()
+  }, [persist])
+
+  // Open in app / Export act on the stored clip, so a dirty editor is written first; a failed
+  // write aborts before the host is asked. Both callbacks toast and never throw.
+  const openHere = useCallback(async () => {
+    if (await persist()) await onOpenInApp()
+  }, [persist, onOpenInApp])
+
+  const saveHereAs = useCallback(async () => {
+    if (await persist()) await onSaveAs('auto')
+  }, [persist, onSaveAs])
 
   // Ctrl+S / Cmd+S saves: the browser would otherwise open its Save-page dialog.
   useEffect(() => {
@@ -249,6 +316,26 @@ export function EditorOverlay({ clip, timeFormat, getItem, getImage, onSave, onC
             <button className="btn ghost" onClick={requestClose}>
               Cancel
             </button>
+            {clip.kind !== 'files' && (
+              <>
+                <button
+                  className="btn ghost"
+                  onClick={() => void openHere()}
+                  disabled={saving || loading}
+                  title={clip.kind === 'image' ? 'Open the image in its default app' : 'Open this clip in its default app'}
+                >
+                  Open in app
+                </button>
+                <button
+                  className="btn ghost"
+                  onClick={() => void saveHereAs()}
+                  disabled={saving || loading}
+                  title="Export this clip to a file"
+                >
+                  Export
+                </button>
+              </>
+            )}
             <button className="btn" onClick={() => void save()} disabled={saving || loading} title="Save clip (Ctrl+S)">
               {saving ? 'Saving…' : 'Save clip'}
             </button>
@@ -274,22 +361,36 @@ export function EditorOverlay({ clip, timeFormat, getItem, getImage, onSave, onC
                 Discard and close
               </button>
             </div>
+          ) : dirty ? (
+            <div className="discard-banner">
+              <IconWarning />
+              <span style={{ fontWeight: 600 }}>Unsaved changes</span>
+              <span className="banner-sub">Save the clip, or discard and keep the stored version.</span>
+              <span className="grow" />
+              <button
+                className="btn ghost sm"
+                onClick={() => {
+                  editor.commands.setContent(baseline.current, { emitUpdate: false })
+                  setDirty(false)
+                }}
+              >
+                Revert edits
+              </button>
+            </div>
           ) : (
-            dirty && (
-              <div className="discard-banner">
-                <IconWarning />
-                <span style={{ fontWeight: 600 }}>Unsaved changes</span>
-                <span className="banner-sub">Save the clip, or discard and keep the stored version.</span>
-                <span className="grow" />
-                <button
-                  className="btn ghost sm"
-                  onClick={() => {
-                    editor.commands.setContent(baseline.current, { emitUpdate: false })
-                    setDirty(false)
-                  }}
-                >
-                  Revert edits
-                </button>
+            showSaved && (
+              <div
+                className="discard-banner"
+                role="status"
+                style={{
+                  background: 'color-mix(in srgb, var(--sage) 14%, var(--surface))',
+                  borderBottom: '1px solid color-mix(in srgb, var(--sage) 45%, transparent)',
+                  color: 'var(--sage)',
+                }}
+              >
+                <IconCheck />
+                <span style={{ fontWeight: 600 }}>Saved</span>
+                <span className="banner-sub">Your edits are in this clip — keep editing, or press Esc to close.</span>
               </div>
             )
           )}
@@ -298,18 +399,6 @@ export function EditorOverlay({ clip, timeFormat, getItem, getImage, onSave, onC
 
           <div className="editor-scroll">
             <div className="editor-page">
-              <div className="editor-meta">
-                <span
-                  className="tile"
-                  style={{ width: 22, height: 22, borderRadius: 6, display: 'grid', placeItems: 'center', background: 'var(--badge)', color: 'var(--fg55)', fontSize: 11, fontWeight: 600 }}
-                >
-                  {(clip.app || '?').slice(0, 1)}
-                </span>
-                <span className="t-sec">{formats.length ? formats.join(' · ') : 'No extra formats'}</span>
-                <span className="spacer" />
-                {clip.truncated && <span className="chip">Full body</span>}
-                {dirty && <span className="chip accent">Unsaved</span>}
-              </div>
               {loading ? (
                 <div className="t-sec">Loading the full clip…</div>
               ) : (

@@ -27,6 +27,9 @@ namespace Clip.UI
         const double EdgeGap = 12;
         // The narrowest a short toast can get; content decides between this and the configured cap.
         const double ToastMinWidth = 240;
+        // Image toasts get this multiple of the configured caps; text toasts are unchanged.
+        const double ImageScale = 2.0;
+        bool _large;
 
         [DllImport("user32.dll")]
         static extern int GetWindowLong(IntPtr hWnd, int nIndex);
@@ -127,9 +130,10 @@ namespace Clip.UI
                     }
                     thumb.Freeze();
                     ThumbImg.Source = thumb;
-                    ThumbImg.MaxHeight = Math.Max(60, n.Height - 90);
+                    ThumbImg.MaxHeight = Math.Max(60, n.Height * ImageScale - 90);
                     ThumbImg.Visibility = Visibility.Visible;
                     Body.Visibility = Visibility.Collapsed;
+                    _large = true;
                 }
                 catch
                 {
@@ -142,10 +146,12 @@ namespace Clip.UI
             {
                 Body.Text = "Image copied";
                 Body.Foreground = (Brush)FindResource("Muted");
+                _large = false;
             }
             else
             {
                 SetBody(item.Text, n.MaxLines);
+                _large = false;
             }
 
             Present();
@@ -210,6 +216,7 @@ namespace Clip.UI
             Body.Foreground = (Brush)FindResource("Fg75");
             Body.Visibility = Visibility.Visible;
             SetBody(message ?? "", int.MaxValue, false);
+            _large = false;
             Present();
         }
 
@@ -220,16 +227,21 @@ namespace Clip.UI
             // Â§3.2: content decides both dimensions, the configured values cap them. A one-word copy
             // gets a narrow toast; a long paragraph stops at the maximum width and wraps until the
             // maximum height, never a fixed box with dead space.
-            MeasureRoot(n.Width);
-            double width = Math.Min(n.Width, Math.Max(ToastMinWidth, Math.Ceiling(Root.DesiredSize.Width)));
-            Width = width;
-            MeasureRoot(width);
-            Height = Math.Min(n.Height, Math.Ceiling(Root.DesiredSize.Height));
-
             var s = WF.Screen.FromPoint(WF.Cursor.Position);
             // "Clip" alone binds to Window.Clip (Geometry), so qualify globally.
             double sc = global::Clip.Interop.ScreenDpi.Scale(s);
             var wa = s.WorkingArea;
+
+            // Image toasts get the scaled caps so the thumbnail renders ~2x; text toasts
+            // keep the configured caps. Either way the toast never outgrows the screen.
+            double capW = Math.Min(_large ? n.Width * ImageScale : n.Width, wa.Width / sc - EdgeGap * 2);
+            double capH = Math.Min(_large ? n.Height * ImageScale : n.Height, wa.Height / sc - EdgeGap * 2);
+            MeasureRoot(capW);
+            double width = Math.Min(capW, Math.Max(ToastMinWidth, Math.Ceiling(Root.DesiredSize.Width)));
+            Width = width;
+            MeasureRoot(width);
+            Height = Math.Min(capH, Math.Ceiling(Root.DesiredSize.Height));
+
             string pos = (n.Position ?? "").ToLowerInvariant();
 
             // Offsets are DIP so the 16 DIP gap stays a gap at every display scale.

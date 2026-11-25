@@ -117,6 +117,12 @@ export interface ExportResult {
   path?: string
 }
 
+/** `export` with launch:true: the editor's "Open in app" — a temp file the OS opens. */
+export interface OpenInAppResult {
+  launched: boolean
+  path?: string
+}
+
 export interface Host {
   readonly mode: 'host' | 'mock'
   init(): Promise<InitResult>
@@ -140,6 +146,7 @@ export interface Host {
   /** Shows the real native toast at its real coordinates: the Settings preview. */
   previewNotification(): Promise<{ shown: boolean }>
   exportClip(params: { id: number; format: string }): Promise<ExportResult>
+  openInApp(params: { id: number }): Promise<OpenInAppResult>
   saveConfig(patch: SettingsPatch): Promise<SaveConfigResult>
   saveEditor(params: { id: number; html: string; text: string }): Promise<EditorSaveResult>
   clearHistory(): Promise<void>
@@ -394,6 +401,12 @@ class WebViewHost implements Host {
     const result = await this.send<ExportResult | null>('export', { id: params.id, format: params.format }, 10 * 60 * 1000)
     // A host that answers without the flag saved nothing; never claim a file we did not confirm.
     return { saved: result?.saved === true, cancelled: result?.cancelled === true, path: result?.path }
+  }
+
+  openInApp = async (params: { id: number }): Promise<OpenInAppResult> => {
+    // Same bytes Export would write, but to a temp file the OS opens: no dialog, no long timeout.
+    const result = await this.send<OpenInAppResult | null>('export', { id: params.id, format: 'auto', launch: true })
+    return { launched: result?.launched === true, path: result?.path }
   }
 
   saveConfig = async (patch: SettingsPatch): Promise<SaveConfigResult> => {

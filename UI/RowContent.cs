@@ -44,7 +44,7 @@ namespace Clip.UI
         static double TypeSize(string key, double fallback) =>
             Application.Current?.TryFindResource(key) is double d ? d : fallback;
 
-        internal static readonly FontFamily ContentFamily = new(new Uri("pack://application:,,,/"), "./Assets/Fonts/#Inter");
+        internal static readonly FontFamily ContentFamily = new(new Uri("pack://application:,,,/"), "./Assets/Fonts/#Sora");
         internal static readonly FontFamily MonoFamily = new(new Uri("pack://application:,,,/"), "./Assets/Fonts/#IBM Plex Mono");
 
         internal sealed class RichRun

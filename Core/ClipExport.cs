@@ -32,7 +32,7 @@ namespace Clip.Core
     }
 
     /// <summary>
-    /// Converts one clip to the bytes "Save as" writes. Frozen rules (STEP-PLAN export, 25/11/2026):
+    /// Converts one clip to the bytes "Export" writes. Frozen rules (STEP-PLAN export, 25/11/2026):
     /// text and markdown are the same UTF-8 bytes without a BOM; a spreadsheet exports as CSV from the
     /// clipboard's tab-separated text, UTF-8 WITH a BOM and never a "sep=" line; an image is the stored PNG
     /// untouched; a file list has nothing to save. No IO here except <see cref="Write"/>.

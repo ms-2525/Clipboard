@@ -1,16 +1,19 @@
 using System;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Text.Json;
 using System.Windows;
 using Clip.Core;
+using Clip.Interop;
 using Microsoft.Win32;
 
 namespace Clip.Host
 {
     /// <summary>
-    /// The "Save as" path. Conversion, the offered name and every refusal live in <see cref="ClipExport"/>;
+    /// The "Export" path. Conversion, the offered name and every refusal live in <see cref="ClipExport"/>;
     /// this file owns only the OS dialog and the one write to the path the user confirmed.
     /// </summary>
     internal sealed partial class ClipHost
@@ -19,8 +22,12 @@ namespace Clip.Host
         /// Bridge method "export". Runs on the UI thread (the dispatcher's nested message loop keeps the page
         /// alive while the dialog is open), so no lock and no async around ShowDialog.
         /// </summary>
-        object Export(JsonElement p) =>
-            Export(_store, _dbPath, Long(p, "id"), String(p, "format") ?? "auto", AskPath, _modals, _show);
+        object Export(JsonElement p)
+        {
+            // The editor's "Open in app": the same bytes Export would write, but to a temp file the OS opens.
+            if (Bool(p, "launch")) return ExportLaunch(_store, _dbPath, Long(p, "id"));
+            return Export(_store, _dbPath, Long(p, "id"), String(p, "format") ?? "auto", AskPath, _modals, _show);
+        }
 
         /// <summary>
         /// One export with the shell and its dialog injected, so a harness can drive save and cancel without a
@@ -104,9 +111,97 @@ namespace Clip.Host
             }
         }
 
-        /// <summary>The clip's captured time via the existing read-only helper; the fallback name is stamped with it.</summary>
-        static string CapturedAtOf(string dbPath, long id)
+        /// <summary>
+        /// The editor's "Open in app" (bridge "export" with launch:true). No dialog: the clip is written to a
+        /// temp file and handed to the OS default app. Rich text opens as Markdown (formatting is
+        /// the point); every other kind reuses the exact Save-as bytes, so a file list is refused the same way.
+        /// </summary>
+        internal static object ExportLaunch(ClipboardStore store, string dbPath, long id)
         {
+            var (path, ext) = TempClipFile(store, dbPath, id);
+            try
+            {
+                Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException("No app opens " + ext + " files: " + ex.Message);
+            }
+            return new { saved = false, launched = true, path };
+        }
+
+        /// <summary>The clip's Save-as bytes written to a temp file for the default app to open.</summary>
+        static (string path, string ext) TempClipFile(ClipboardStore store, string dbPath, long id)
+        {
+            var stored = store.GetImage(id);
+            if (stored == null) throw new ArgumentException("no clip with id " + id);
+            var formats = store.GetFormats(id).Select(f => f.fmt).ToList();
+            var rich = store.GetRich(id);
+            var item = new ClipboardItem
+            {
+                Id = id,
+                Kind = stored.Kind,
+                Text = store.GetText(id),
+                Image = stored.Image,
+                CapturedAt = CapturedAtOf(dbPath, id)
+            };
+
+            string ext = null;
+            byte[] bytes = null;
+            string fragment = null;
+            if (!string.IsNullOrEmpty(rich?.Html))
+            {
+                try { fragment = HtmlFragment.Extract(rich.Html); }
+                catch { fragment = null; } // not a CF_HTML envelope: plain text below still opens
+            }
+            if (!string.IsNullOrEmpty(fragment))
+            {
+                // Rich text opens as Markdown in the default .md app: headings, lists, tables,
+                // links and emphasis survive as real Markdown; colours and sizes ride along as
+                // inline HTML spans. A fragment that converts to nothing falls back to HTML below.
+                string markdown = null;
+                try { markdown = Clip.Core.HtmlToMarkdown.Convert(fragment); }
+                catch { markdown = null; } // a hostile fragment must not break Open in app
+                if (!string.IsNullOrWhiteSpace(markdown))
+                {
+                    ext = ".md";
+                    bytes = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false).GetBytes(markdown);
+                }
+            }
+            if (ext == null)
+            {
+                if (!string.IsNullOrEmpty(fragment))
+                {
+                    ext = ".html";
+                    bytes = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false).GetBytes(
+                        "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"utf-8\">\n<title>Clip</title>\n</head>\n<body>\n"
+                        + fragment + "\n</body>\n</html>");
+                }
+                else
+                {
+                    var planned = ClipExport.Prepare(item, formats, "auto");
+                    if (!planned.Ok) throw new InvalidOperationException(planned.Error);
+                    ext = planned.Extension;
+                    bytes = planned.Bytes;
+                }
+            }
+
+            string dir = Path.Combine(Path.GetTempPath(), "Clip");
+            Directory.CreateDirectory(dir);
+            string path = Path.Combine(dir, ClipExport.SuggestedName(item.Text, ext, CapturedAt(item.CapturedAt)));
+            try
+            {
+                File.WriteAllBytes(path, bytes);
+            }
+            catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+            {
+                throw new InvalidOperationException("Could not open the clip: " + ex.Message);
+            }
+            return (path, ext);
+        }
+
+        /// <summary>The clip's captured time via the existing read-only helper; the fallback name is stamped with it.</summary>
+        static string CapturedAtOf(string dbPath, long id)        {
             using var conn = OpenRead(dbPath);
             using var cmd = conn.CreateCommand();
             cmd.CommandText = "SELECT captured_at FROM items WHERE id = $id";

@@ -79,15 +79,17 @@ Select a clip and press **F2**, or click **Edit clip**. The editor opens on the 
 changes it in place, it does not make a second copy.
 
 - Use the toolbar for bold, italic, headings, lists, links and clearing formatting.
-- Click **Save clip** when you are done. A small dot beside the title means you have unsaved changes.
+- Press **Ctrl+S** or click **Save clip** any time — the editor stays open and a green **Saved**
+  bar confirms the write. A small dot beside the title means you have unsaved changes. Press **Esc**
+  when you are done.
 - If you try to close with unsaved changes, Clip asks **Discard changes?** Choose **Keep editing** or
   **Discard and close**.
 - An empty clip, a script, or more than 2 MB of formatting is refused with a message, so a bad save
   cannot destroy the clip.
 
-## 6. Saving a clip as a file
+## 6. Exporting a clip to a file
 
-Select a clip and press **Ctrl+E**, or click **Save as**. Pick a format:
+Select a clip and press **Ctrl+E**, or click **Export**. Pick a format:
 
 - **Text** saves as `.txt`, or **Markdown** as `.md` — same words, different file ending.
 - A **spreadsheet** clip saves as `.csv`.

@@ -246,7 +246,18 @@ export function EditorToolbar({ editor, pop, setPop, size, onSize, onSingleLine,
       <button className="tool" onClick={() => editor.chain().focus().redo().run()} disabled={!editor.can().redo()} title="Redo (Ctrl+Y)" aria-label="Redo">
         <IconRedo />
       </button>
-      <button className="tool text" onClick={() => editor.chain().focus().unsetAllMarks().clearNodes().run()} title="Clear formatting">
+      <button
+        className="tool text"
+        onClick={() => {
+          // Excel-style: marks only (colour, size, bold...), never the paragraphs or line breaks.
+          // No selection means the whole clip, so one click cleans a pasted mess.
+          const chain = editor.chain().focus()
+          if (editor.state.selection.empty) chain.selectAll()
+          chain.unsetAllMarks().run()
+        }}
+        title="Clear formatting"
+        aria-label="Clear formatting"
+      >
         Clear
       </button>
       <button className="tool text" onClick={onSingleLine} title="Collapse to one paragraph">

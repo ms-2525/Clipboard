@@ -1,5 +1,7 @@
 @font-face{font-family:Inter;src:url("Inter-Regular.ttf") format("truetype");font-weight:400;font-style:normal;font-display:block}
 @font-face{font-family:Inter;src:url("Inter-SemiBold.ttf") format("truetype");font-weight:600;font-style:normal;font-display:block}
+@font-face{font-family:Sora;src:url("Sora-Regular.ttf") format("truetype");font-weight:400;font-style:normal;font-display:block}
+@font-face{font-family:Sora;src:url("Sora-SemiBold.ttf") format("truetype");font-weight:600;font-style:normal;font-display:block}
 
 /* These three fallbacks are copies of the LIGHT theme's ContentCanvas / ContentInk / ContentLink
    (UI\Themes\Light.xaml). The host sends the live values in the query string. */
@@ -16,12 +18,12 @@ body{background:transparent}
 ::-webkit-scrollbar-thumb{background:color-mix(in srgb,var(--ink) 18%,transparent);border-radius:5px;border:2px solid transparent;background-clip:padding-box}
 ::-webkit-scrollbar-button{display:none}
 
-.ProseMirror{outline:none;font:400 14px/20px Inter,"Segoe UI",system-ui,sans-serif;color:var(--ink);caret-color:var(--ink)}
+.ProseMirror{outline:none;font:400 14px/20px Sora,Inter,"Segoe UI",system-ui,sans-serif;color:var(--ink);caret-color:var(--ink)}
 
 .ProseMirror p{margin:0 0 10px}
-.ProseMirror h1{font:600 20px/28px Inter,"Segoe UI",system-ui,sans-serif;margin:0 0 10px}
-.ProseMirror h2{font:600 16px/24px Inter,"Segoe UI",system-ui,sans-serif;margin:0 0 10px}
-.ProseMirror h3,.ProseMirror h4,.ProseMirror h5,.ProseMirror h6{font:600 15px/22px Inter,"Segoe UI",system-ui,sans-serif;margin:0 0 10px}
+.ProseMirror h1{font:600 20px/28px Sora,Inter,"Segoe UI",system-ui,sans-serif;margin:0 0 10px}
+.ProseMirror h2{font:600 16px/24px Sora,Inter,"Segoe UI",system-ui,sans-serif;margin:0 0 10px}
+.ProseMirror h3,.ProseMirror h4,.ProseMirror h5,.ProseMirror h6{font:600 15px/22px Sora,Inter,"Segoe UI",system-ui,sans-serif;margin:0 0 10px}
 
 .ProseMirror ul,.ProseMirror ol{margin:0 0 10px;padding-left:22px}
 .ProseMirror li p{margin:0}

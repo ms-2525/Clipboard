@@ -24,7 +24,7 @@ order, not a promise — using a step usually changes the next one.
 | Step | What you will be able to do | How you will check it | Status |
 |---|---|---|---|
 | **1** | **Search by tag.** Type `image:`, `file:`, `excel:`, `code:`, `link:` in the search box and see only those clips; combine them (`excel: link:` = both) and exclude one (`-image:`). | Search `image:` and see only pictures; `excel:` shows the spreadsheet clips; `-image:` hides pictures and keeps the rest. | Not started |
-| **2** | **Export a clip to a file.** Pick a clip → Save as. Text saves as `.txt`, Markdown as `.md`, a spreadsheet clip as `.csv`, an image as `.png`. The file name is offered and you can edit it before saving. | Export one text clip, one Excel clip as CSV (opens in Excel with columns intact) and one image as PNG; all three open correctly. | Not started |
+| **2** | **Export a clip to a file.** Pick a clip → Export. Text saves as `.txt`, Markdown as `.md`, a spreadsheet clip as `.csv`, an image as `.png`. The file name is offered and you can edit it before saving. | Export one text clip, one Excel clip as CSV (opens in Excel with columns intact) and one image as PNG; all three open correctly. | Not started |
 | **3** | **Read text inside images.** A copied picture gets its text extracted offline, so you can read and search it without opening the app it came from. | Search a word that only appears inside a screenshot; the image clip is found and shows the text. | Not started |
 
 Status moves: Not started → Logic Sheet approved → Built, waiting for your check → Checked by you.

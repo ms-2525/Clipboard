@@ -23,10 +23,10 @@ namespace Clip.UI
         /// <summary>
         /// The estimator's chars-per-line, never measured per row: a measured height would twitch on
         /// font fallback and undo the frozen-geometry contract (§1.2). Calibrated for the content size:
-        /// Inter 13 in the 526 px text column (660 DIP popup − 28 tile − 10 gap − 66 facts − 16 inset).
-        /// FormattedText at 150 % DPI measures ~6.2 px per character → 85.
+        /// Sora 13 in the 526 px text column (660 DIP popup − 28 tile − 10 gap − 66 facts − 16 inset).
+        /// Mean advance is 0.5775 em vs Inter's 0.554 (measured name-table widths) → 82.
         /// </summary>
-        public const double CharsPerLine = 85;
+        public const double CharsPerLine = 82;
 
         /// <summary>Rows in the list read as a list, not a document. Full text is the outside tooltip.</summary>
         public const int ListLinesMax = 3;

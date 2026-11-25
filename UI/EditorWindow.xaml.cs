@@ -177,6 +177,8 @@ namespace Clip.UI
                 "/editor.bundle.js" => (Embedded("clip.assets.editor.bundle.js"), "text/javascript"),
                 "/Inter-Regular.ttf" => (Font("Inter-Regular.ttf"), "font/ttf"),
                 "/Inter-SemiBold.ttf" => (Font("Inter-SemiBold.ttf"), "font/ttf"),
+                "/Sora-Regular.ttf" => (Font("Sora-Regular.ttf"), "font/ttf"),
+                "/Sora-SemiBold.ttf" => (Font("Sora-SemiBold.ttf"), "font/ttf"),
                 _ => (null, (string)null),
             };
 

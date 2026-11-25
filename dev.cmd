@@ -49,7 +49,7 @@ rem ---- vite dev server (minimized window, stays up until you close it) ----
 start "Clip web (vite dev - close me when done)" /min /D "%~dp0UI\web" npm.cmd run dev -- --port 5173 --strictPort
 
 echo Waiting for the web server on http://localhost:5173/ ...
-powershell -NoProfile -Command "$d=[DateTime]::UtcNow; while(([DateTime]::UtcNow-$d).TotalSeconds -lt 60){ try { $c=New-Object Net.Sockets.TcpClient; $c.Connect('127.0.0.1',5173); $c.Close(); exit 0 } catch { Start-Sleep -Milliseconds 500 } }; exit 1"
+powershell -NoProfile -Command "$d=[DateTime]::UtcNow; while(([DateTime]::UtcNow-$d).TotalSeconds -lt 60){ try { $c=New-Object Net.Sockets.TcpClient; $c.Connect('localhost',5173); $c.Close(); exit 0 } catch { Start-Sleep -Milliseconds 500 } }; exit 1"
 if errorlevel 1 (
     echo WARNING: no web server on port 5173 after 60s. The app will open blank;
     echo fix the vite window error, then press Ctrl+R in the Clip window to reload.

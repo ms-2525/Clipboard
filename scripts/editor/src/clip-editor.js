@@ -429,9 +429,14 @@ function run(cmd, arg) {
         case 'size':
             ok = editor.chain().setFontSize(`${arg}pt`).run();
             break;
-        case 'clearFormat':
-            ok = editor.chain().unsetAllMarks().run();
+        case 'clearFormat': {
+            // Excel-style: marks only (colour, size, bold...), never the paragraphs or line breaks.
+            // No selection means the whole clip, so one click cleans a pasted mess.
+            let chain = editor.chain();
+            if (editor.state.selection.empty) chain = chain.selectAll();
+            ok = chain.unsetAllMarks().run();
             break;
+        }
         case 'singleLine':
             ok = editor.commands.singleLine();
             break;

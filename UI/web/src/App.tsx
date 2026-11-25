@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as Tooltip from '@radix-ui/react-tooltip'
 import { ClipList, type ClipListHandle } from './ClipList'
 import { DeleteConfirm } from './DeleteConfirm'
 import { EditorOverlay } from './EditorOverlay'
-import { MoveMenu, MovePicker, moveTargets } from './MoveToTab'
+import { MovePicker, moveTargets } from './MoveToTab'
+import { RowMenu } from './RowMenu'
 import { SettingsDialog } from './SettingsDialog'
 import { TagPicker, clearTagTokens } from './TagPicker'
 import { TabStrip, type StripTab } from './TabStrip'
@@ -15,8 +16,6 @@ import {
   IconCheck,
   IconClipboard,
   IconClose,
-  IconEdit,
-  IconFile,
   IconMoon,
   IconSearch,
   IconSettings,
@@ -109,7 +108,6 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(previewUi && params.get('surface') === 'settings')
   const [editorOpen, setEditorOpen] = useState(previewUi && params.get('surface') === 'editor')
   const [confirm, setConfirm] = useState<ClipItem | null>(null)
-  const [exportOpen, setExportOpen] = useState(false)
   const [toasts, setToasts] = useState<Toast[]>([])
   const [init, setInit] = useState<InitResult | null>(null)
   const [tabRows, setTabRows] = useState<HostTab[]>([])
@@ -135,8 +133,6 @@ export default function App() {
   const searchRef = useRef<HTMLInputElement>(null)
   const searchTyped = useRef(false)
   const listRef = useRef<ClipListHandle>(null)
-  const exportRef = useRef<HTMLDivElement>(null)
-  const exportReturn = useRef<HTMLElement | null>(null)
   const settingsReturn = useRef<HTMLElement | null>(null)
   const confirmReturn = useRef<HTMLElement | null>(null)
   const moveReturn = useRef<HTMLElement | null>(null)
@@ -594,21 +590,22 @@ export default function App() {
     }
   }, [host, showToast])
 
-  const closeExport = useCallback((restoreFocus: boolean) => {
-    setExportOpen(false)
-    if (restoreFocus) exportReturn.current?.focus?.()
-  }, [])
-
-  const openExport = useCallback(() => {
-    if (!selected || exportOptions(selected).length === 0) return
-    exportReturn.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
-    setExportOpen(true)
-  }, [selected])
+  /** "Open in default app": the host writes a temp file and launches the default app. */
+  const openInApp = useCallback(
+    async (clip: ClipItem) => {
+      try {
+        const result = await host.openInApp({ id: clip.id })
+        if (result.launched) showToast('Opened', result.path || `${clip.app} · ${clip.title}`, false, result.path)
+      } catch (error) {
+        showToast('Could not open', messageOf(error), true)
+      }
+    },
+    [host, showToast],
+  )
 
   /** The host owns the dialog, the name and the bytes; the page only reports what came back. */
   const saveClip = useCallback(
     async (clip: ClipItem, format: string) => {
-      setExportOpen(false)
       try {
         const result = await host.exportClip({ id: clip.id, format })
         if (!result.saved) return // cancelled: no toast, no error
@@ -622,31 +619,11 @@ export default function App() {
     [host, showToast],
   )
 
-  // The menu is a small popover: Escape closes it, arrows walk its items, and a click outside closes it.
-  const onExportKey = (event: ReactKeyboardEvent<HTMLDivElement>) => {
-    if (event.key === 'Escape') {
-      event.preventDefault()
-      closeExport(true)
-      return
-    }
-    if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return
-    event.preventDefault()
-    const items = Array.from(exportRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])
-    if (items.length === 0) return
-    const at = items.indexOf(document.activeElement as HTMLElement)
-    items[(at + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length]?.focus()
-  }
-
-  useEffect(() => {
-    if (!exportOpen) return
-    const onDown = (event: MouseEvent) => {
-      if (!exportRef.current?.contains(event.target as Node)) setExportOpen(false)
-    }
-    window.addEventListener('mousedown', onDown)
-    return () => window.removeEventListener('mousedown', onDown)
-  }, [exportOpen])
-
-  useEffect(() => setExportOpen(false), [selectedId])
+  /** Ctrl+E: the host shows the Save dialog straight away; file lists have nothing to save. */
+  const quickSave = useCallback(() => {
+    if (!selected || exportOptions(selected).length === 0) return
+    void saveClip(selected, 'auto')
+  }, [saveClip, selected])
 
   const zoomRef = useRef(settings.uiZoom)
   zoomRef.current = settings.uiZoom
@@ -748,13 +725,13 @@ export default function App() {
    * keeps its caret.
    */
   const focusRowsOnShow = useCallback(() => {
-    if (editorOpen || settingsOpen || exportOpen || confirm != null || tabOverlay || rowMenu != null || moveClip != null || tagClip != null) return
+    if (editorOpen || settingsOpen || confirm != null || tabOverlay || rowMenu != null || moveClip != null || tagClip != null) return
     if (selectedId == null) return
     const active = document.activeElement
     const emptySearch = active === searchRef.current && search.trim() === ''
     if (active && active !== document.body && !emptySearch) return
     listRef.current?.focusSelected()
-  }, [confirm, editorOpen, exportOpen, moveClip, rowMenu, search, selectedId, settingsOpen, tabOverlay, tagClip])
+  }, [confirm, editorOpen, moveClip, rowMenu, search, selectedId, settingsOpen, tabOverlay, tagClip])
 
   useEffect(() => {
     const onShow = () => {
@@ -774,7 +751,7 @@ export default function App() {
   }, [status])
 
   useClipboardKeys({
-    enabled: !editorOpen && !settingsOpen && !exportOpen && confirm == null && !tabOverlay && rowMenu == null && moveClip == null && tagClip == null,
+    enabled: !editorOpen && !settingsOpen && confirm == null && !tabOverlay && rowMenu == null && moveClip == null && tagClip == null,
     rows: visible,
     selectedId,
     search,
@@ -788,7 +765,7 @@ export default function App() {
     onTab: cycleTab,
     onPaste: (clip, plain) => void pasteItem(clip, plain),
     onEdit: () => selected && setEditorOpen(true),
-    onExport: openExport,
+    onExport: quickSave,
     onDelete: () => {
       if (!selected) return
       confirmReturn.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
@@ -1005,45 +982,6 @@ export default function App() {
             <span className="spacer" />
             {searchActive && <span className="chip accent">Filtered</span>}
             <span className="t-meta shown-count">{visible.length.toLocaleString()} shown</span>
-            {selected && (
-              <button className="btn sm" onClick={() => setEditorOpen(true)} title="Preview the selected clip in the editor">
-                <IconEdit />
-                Edit clip
-                <span className="keycap edit-key">F2</span>
-              </button>
-            )}
-            {exportOptions(selected).length > 0 && (
-              <div className="tool-wrap" ref={exportRef}>
-                <button
-                  className="btn sm"
-                  onClick={() => (exportOpen ? closeExport(false) : openExport())}
-                  aria-haspopup="menu"
-                  aria-expanded={exportOpen}
-                  title="Save the selected clip as a file (Ctrl+E)"
-                >
-                  <IconFile />
-                  Save as
-                </button>
-                {exportOpen && selected && (
-                  <div className="popover export-pop" role="menu" aria-label="Save the selected clip" onKeyDown={onExportKey}>
-                    <button className="pop-item" role="menuitem" autoFocus onClick={() => void saveClip(selected, 'auto')}>
-                      Save as…
-                      <span className="keycap">Ctrl E</span>
-                    </button>
-                    {exportOptions(selected).map((option) => (
-                      <button
-                        key={option.format}
-                        className="pop-item"
-                        role="menuitem"
-                        onClick={() => void saveClip(selected, option.format)}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
           </div>
 
           {status === 'loading' && (
@@ -1150,12 +1088,39 @@ export default function App() {
       />
 
       {rowMenu && (
-        <MoveMenu
+        <RowMenu
           clip={rowMenu.clip}
           targets={moveDestinations}
           x={rowMenu.x}
           y={rowMenu.y}
-          onChoose={(tabId) => {
+          canSave={exportOptions(rowMenu.clip).length > 0}
+          canOpen={rowMenu.clip.kind !== 'files'}
+          onEdit={() => {
+            setRowMenu(null)
+            setEditorOpen(true)
+          }}
+          onCopy={() => {
+            const clip = rowMenu.clip
+            setRowMenu(null)
+            void copyItem(clip)
+          }}
+          onSaveAs={() => {
+            const clip = rowMenu.clip
+            setRowMenu(null)
+            void saveClip(clip, 'auto')
+          }}
+          onDelete={() => {
+            const clip = rowMenu.clip
+            setRowMenu(null)
+            confirmReturn.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+            setConfirm(clip)
+          }}
+          onOpenDefault={() => {
+            const clip = rowMenu.clip
+            setRowMenu(null)
+            void openInApp(clip)
+          }}
+          onMove={(tabId) => {
             const clip = rowMenu.clip
             setRowMenu(null)
             void moveClipToTab(clip, tabId)
@@ -1189,6 +1154,8 @@ export default function App() {
           getItem={host.getItem}
           getImage={host.getImage ?? host.getThumb}
           onSave={(html, text) => host.saveEditor({ id: selected.id, html, text })}
+          onSaveAs={(format) => saveClip(selected, format)}
+          onOpenInApp={() => openInApp(selected)}
           onSaved={() => {
             // The row is still mounted with the pre-edit body; drop it before the reload.
             forgetBody(selected.id)

@@ -3,10 +3,12 @@
 
   <!--
     THE button grammar (docs\CHECKLIST-uiux.md §1). One token-driven system for every surface:
-    Primary (accent fill + OnAccent ink), Secondary (Raised + ControlLine), Ghost (transparent →
-    4 % hover), Danger (Error border/ink). States: hover 4 % tint, pressed 8 %, disabled Fg48,
+    Primary (Accent fill + OnAccent ink, AccentText 1px edge), Secondary (Raised + ControlLine),
+    Ghost (transparent fill + ControlLine edge), Danger (Error border/ink), Icon (transparent
+    fill + ControlLine edge). States: hover 4 % tint, pressed 8 %, disabled Fg48 + Divider edge,
     keyboard-only 2 px AccentText ring (FocusVisualStyle is what WPF shows for keyboard focus only).
     Heights 36 default / 32 in a bar / 28 toolbar and icon. Radius 8. Colours live in the themes.
+    TabButton stays borderless on purpose: tabs are navigation (text + 2px underline), not actions.
   -->
 
   <Style x:Key="FocusRing">
@@ -63,7 +65,7 @@
 
   <Style x:Key="Primary" TargetType="Button" BasedOn="{StaticResource BtnBase}">
     <Setter Property="Background" Value="{DynamicResource AccentText}"/>
-    <Setter Property="BorderBrush" Value="Transparent"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource AccentText}"/>
     <Setter Property="Foreground" Value="{DynamicResource OnAccent}"/>
   </Style>
 
@@ -78,7 +80,7 @@
     <Setter Property="Padding" Value="12,0"/>
     <Setter Property="FontWeight" Value="Medium"/>
     <Setter Property="Background" Value="Transparent"/>
-    <Setter Property="BorderBrush" Value="Transparent"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource ControlLine}"/>
     <Setter Property="Foreground" Value="{DynamicResource Fg55}"/>
   </Style>
 
@@ -102,16 +104,17 @@
     <Setter Property="Height" Value="32"/><Setter Property="Padding" Value="12,0"/>
   </Style>
 
-  <!-- A bare 24 px icon target (✕, +): transparent, 4 % hover tint, no chrome. -->
+  <!-- A 28 px icon target: transparent fill + ControlLine edge, 4 % hover tint. -->
   <Style x:Key="IconButton" TargetType="Button" BasedOn="{StaticResource BtnBase}">
     <Setter Property="Width" Value="28"/><Setter Property="Height" Value="28"/>
     <Setter Property="Padding" Value="0"/>
     <Setter Property="Background" Value="Transparent"/>
-    <Setter Property="BorderBrush" Value="Transparent"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource ControlLine}"/>
     <Setter Property="Foreground" Value="{DynamicResource Fg48}"/>
   </Style>
 
-  <!-- Toggle grammar: unchecked = Ghost, checked = the surface's affirmative (accent fill). -->
+  <!-- Toggle grammar: unchecked = Ghost (transparent + ControlLine edge),
+       checked = the surface's affirmative (accent fill). -->
   <Style x:Key="ToggleGhost" TargetType="ToggleButton">
     <Setter Property="Height" Value="32"/>
     <Setter Property="Padding" Value="12,0"/>
@@ -119,7 +122,7 @@
     <Setter Property="FontWeight" Value="Medium"/>
     <Setter Property="Foreground" Value="{DynamicResource Fg55}"/>
     <Setter Property="Background" Value="Transparent"/>
-    <Setter Property="BorderBrush" Value="Transparent"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource ControlLine}"/>
     <Setter Property="BorderThickness" Value="1"/>
     <Setter Property="Cursor" Value="Hand"/>
     <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}"/>
@@ -140,7 +143,7 @@
             </Trigger>
             <Trigger Property="IsChecked" Value="True">
               <Setter TargetName="Fill" Property="Background" Value="{DynamicResource AccentText}"/>
-              <Setter TargetName="Fill" Property="BorderBrush" Value="Transparent"/>
+              <Setter TargetName="Fill" Property="BorderBrush" Value="{DynamicResource AccentText}"/>
               <Setter Property="Foreground" Value="{DynamicResource OnAccent}"/>
               <Setter Property="FontWeight" Value="SemiBold"/>
             </Trigger>
@@ -232,5 +235,9 @@
       </Setter.Value>
     </Setter>
   </Style>
+  <!-- Safety net: a Button/ToggleButton with no explicit Style still gets the bordered
+       grammar, never stock WPF chrome. Explicit styles above win where set. -->
+  <Style TargetType="Button" BasedOn="{StaticResource Secondary}"/>
+  <Style TargetType="ToggleButton" BasedOn="{StaticResource ToggleGhost}"/>
 
 </ResourceDictionary>

@@ -31,12 +31,17 @@
   </ItemGroup>
 
   <!-- Static faces: WPF cannot drive a variable font's wght axis, so 400/500/600 ship as three files.
-       Inter (SIL OFL) is the owner-picked face; IBM Plex Mono renders the row-number chips. -->
+       Sora (SIL OFL) is the owner-picked face with Inter kept as fallback; IBM Plex Mono renders mono. -->
   <ItemGroup>
+    <Resource Include="Assets\Fonts\Sora-Regular.ttf" />
+    <Resource Include="Assets\Fonts\Sora-Medium.ttf" />
+    <Resource Include="Assets\Fonts\Sora-SemiBold.ttf" />
     <Resource Include="Assets\Fonts\Inter-Regular.ttf" />
     <Resource Include="Assets\Fonts\Inter-Medium.ttf" />
     <Resource Include="Assets\Fonts\Inter-SemiBold.ttf" />
     <Resource Include="Assets\Fonts\IBMPlexMono-Regular.ttf" />
+    <Resource Include="Assets\Fonts\IBMPlexMono-Medium.ttf" />
+    <Resource Include="Assets\Fonts\IBMPlexMono-SemiBold.ttf" />
   </ItemGroup>
 
   <!-- The editor page ships inside the exe: the host serves these three over https://clip/. -->

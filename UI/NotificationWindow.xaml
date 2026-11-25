@@ -1,15 +1,15 @@
 <Window x:Class="Clip.UI.NotificationWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        WindowStyle="None" Background="{DynamicResource Surface}"
+        WindowStyle="None" Background="{DynamicResource Raised}"
         ShowInTaskbar="False" ShowActivated="False" Topmost="True"
         ResizeMode="NoResize" WindowStartupLocation="Manual"
         FontFamily="{StaticResource UiFont}"
         UseLayoutRounding="True" SnapsToDevicePixels="True"
-        TextOptions.TextFormattingMode="Display">
+        TextOptions.TextFormattingMode="Ideal" TextOptions.TextRenderingMode="Auto">
 
-  <Border x:Name="Root" Background="{DynamicResource Surface}" CornerRadius="12"
-          BorderBrush="{DynamicResource Hairline}" BorderThickness="1" Padding="16,14"
+  <Border x:Name="Root" Background="{DynamicResource Raised}" CornerRadius="10"
+          BorderBrush="{DynamicResource Hairline}" BorderThickness="1" Padding="10,8"
           Opacity="0">
 
     <Grid TextElement.FontFamily="{StaticResource UiFont}">
@@ -24,7 +24,7 @@
           <ColumnDefinition Width="Auto"/>
         </Grid.ColumnDefinitions>
 
-        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,8,0">
+        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,4,0">
           <TextBlock x:Name="AppName" Foreground="{DynamicResource AccentText}" FontSize="{DynamicResource FontCaptionSize}"
                      LineHeight="{DynamicResource FontCaptionLine}"
                      FontWeight="SemiBold" VerticalAlignment="Center"/>
@@ -33,13 +33,13 @@
                      VerticalAlignment="Center" Margin="8,0,0,0"/>
         </StackPanel>
 
-        <!-- Pinned to the toast's top-right corner with a 32 DIP target: the same corner
-             placement as every other close in the app, just easier to hit. -->
+        <!-- Pinned to the toast's top-right corner: same placement as every other
+             close in the app, kept small so a short toast stays short. -->
         <Button x:Name="CloseHit" Grid.Column="1" Style="{StaticResource IconButton}"
-                Width="32" Height="32" Margin="0,-7,-6,0"
+                Width="24" Height="24" Margin="0,-4,-4,0"
                 VerticalAlignment="Top" Foreground="{DynamicResource Fg55}"
                 AutomationProperties.Name="Dismiss notification" ToolTip="Dismiss">
-          <Viewbox Width="12" Height="12">
+          <Viewbox Width="10" Height="10">
             <Path Data="{StaticResource IconClose}" Stroke="{DynamicResource Fg55}" StrokeThickness="2"
                   StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
           </Viewbox>
@@ -47,11 +47,11 @@
       </Grid>
 
       <Image x:Name="ThumbImg" Grid.Row="1" Stretch="Uniform" StretchDirection="DownOnly"
-             Margin="0,4,0,0" Visibility="Collapsed"/>
+             Margin="0,6,0,0" Visibility="Collapsed"/>
 
       <TextBlock Grid.Row="1" x:Name="Body" Foreground="{DynamicResource Fg}" FontSize="{DynamicResource FontBodySize}"
                  LineHeight="{DynamicResource FontBodyLine}"
-                 Margin="0,4,0,0" TextWrapping="Wrap" TextTrimming="CharacterEllipsis"/>
+                 Margin="0,2,0,0" TextWrapping="Wrap" TextTrimming="CharacterEllipsis"/>
     </Grid>
   </Border>
 </Window>

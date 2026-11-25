@@ -71,65 +71,6 @@ const moveItems = (targets: MoveTarget[], currentTabId: number | null): PickerIt
 
 const moveKeyToId = (key: string) => (key === 'all' ? null : Number(key))
 
-/** Right-click menu: one job, the destination list, never a second dialog on top of the list. */
-export function MoveMenu({
-  clip,
-  targets,
-  x,
-  y,
-  onChoose,
-  onClose,
-}: {
-  clip: ClipItem
-  targets: MoveTarget[]
-  x: number
-  y: number
-  onChoose: (tabId: number | null) => void
-  onClose: () => void
-}) {
-  const ref = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const onDown = (event: MouseEvent) => {
-      if (!ref.current?.contains(event.target as Node)) onClose()
-    }
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault()
-        onClose()
-      }
-    }
-    window.addEventListener('mousedown', onDown)
-    window.addEventListener('keydown', onKey)
-    return () => {
-      window.removeEventListener('mousedown', onDown)
-      window.removeEventListener('keydown', onKey)
-    }
-  }, [onClose])
-
-  const height = Math.min(window.innerHeight - 16, 66 + targets.length * 26)
-  return (
-    <div
-      ref={ref}
-      className="popover move-menu"
-      style={{
-        left: Math.max(8, Math.min(x, window.innerWidth - 228)),
-        top: Math.max(8, Math.min(y, window.innerHeight - height - 8)),
-      }}
-    >
-      <div className="move-title">Move to tab</div>
-      <div className="move-sub" title={`${clip.app} · ${clip.title}`}>
-        {clip.app} · {clip.title || 'Untitled clip'}
-      </div>
-      <PickerList
-        label="Move clip to tab"
-        items={moveItems(targets, clip.tabId)}
-        onChoose={(key) => onChoose(moveKeyToId(key))}
-      />
-    </div>
-  )
-}
-
 /** Ctrl+M: the same destinations as a small, focus-trapped picker. */
 export function MovePicker({
   clip,
