@@ -199,7 +199,8 @@ namespace Clip.Core
             void Item()
             {
                 if (!AtRoot) return;
-                if (_wroteAny) Newline(); else _lineStart = true;
+                Flush(); // honor a pending gap (e.g. the blank line after a heading)
+                if (!_lineStart) Newline(); // CloseItem already ended the previous line
                 _gap = 0;
                 _pendingItem = true;
                 _hasChecked = false;
@@ -232,7 +233,7 @@ namespace Clip.Core
             {
                 if (!AtRoot) return;
                 if (_pendingItem) { _pendingItem = false; return; } // empty <li>: no bullet, like HtmlToRtf
-                Newline(); // items stay tight: no blank line between them
+                if (!_lineStart) Newline(); // items stay tight: no blank line between them
             }
 
             // ---- tables ------------------------------------------------------

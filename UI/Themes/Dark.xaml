@@ -2,7 +2,6 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
   <FontFamily x:Key="UiFont">pack://application:,,,/Assets/Fonts/#Sora</FontFamily>
-  <FontFamily x:Key="MonoFont">pack://application:,,,/Assets/Fonts/#IBM Plex Mono</FontFamily>
 
   <!-- Tools3000-derived language (docs\DESIGN-language.md). Every ratio below is computed, not guessed:
        node %TEMP%\opencode\contrast.mjs prints the table. Text >= 4.5, UI boundaries >= 3.0. -->

@@ -34,7 +34,7 @@ Every requested interaction gets one home:
 
 - automatic tags are derived at read time by one classifier and shown as chips;
 - search has one grammar: plain terms, phrases, `-exclude`, `<tag>:` and `tag:<tag>` (aliases included);
-- the Images tab is a saved `image:` view over All history, never a duplicated DB tab;
+- the Images tab is a saved `image:` view over Inbox, never a duplicated DB tab;
 - the keyboard has one matrix: focus starts on the selected row, arrows move and wrap, Left/Right change
   tab, typing searches, Esc clears then hides, F2 toggles the editor with a discard prompt only when dirty,
   `Ctrl+1`–`Ctrl+9` paste a visible row, and a bare digit is search text;
@@ -75,14 +75,14 @@ page, live proof pending · **AWAITING SIGN** = fixed after a failed live read, 
 | 25 | No data loss (truncation, corrupt DB, cap) | SHIPPED | Emoji truncation fixed and guarded; corrupt DB set aside + notice; cap exact; tab purge counted |
 | 26 | Memory honest and acceptable | LIMIT / decision | 527.5 MB WS / 270.5 MB private, 7 processes (06:52 exe); newest exe not re-measured; owner must accept or set a ceiling |
 | 27 | Cold first open <= 150 ms | LIMIT / decision | Live **160.8 ms** (150 % DPI, 11 ms over); warm median **97.9 ms**; internal show 3.5 ms |
-| 28 | First-run hint ("… is running, press Alt+V") | SHIPPED (live pending) | `App.V2.cs` shows "Clip is running. Press Alt+V to open the list." once when `Config.WasNew`; the legacy path had it, the v2 path did not. Fresh-profile live check running |
+| 28 | First-run hint ("… is running, press Alt+V") | SHIPPED (live pending) | `App.V2.cs` shows "Clip is running. Press Alt+V to open the list." once when `Config.WasNew`; the old path had it, this one did not. Fresh-profile live check running |
 | 29 | Ghost notification preview in Settings | PARTIAL | Settings → **Preview** now calls the host and shows the **real** native toast at its real coordinates with the current settings (`previewNotification` → `NotificationWindow.ShowFor`). Drag-to-move and live-follow on every slider tick are not built |
 | 30 | On-screen known-limits note | SHIPPED (live pending) | Settings → **Known limits**: colour emoji in the preview, Google Docs/Notion HTML degradation, OCR never for amounts, Excel `007` → `7` in CSV |
 | 31 | Notice for over-budget clipboard formats | SHIPPED (live pending) | `ClipboardFormats.Snapshot` reports every dropped format name; `CaptureService` toasts "Part of the copy was not saved: <formats> over the N MB clip limit". Oversized images already toasted |
 | 32 | 5 MB image decode off the UI thread | SHIPPED (live pending) | Capture reads the clipboard on the UI thread only; decode, thumbnail, DIB re-encode and SHA-256 run on a worker, the hash precomputed into `ClipboardItem.ImageHash`, and the store falls back to hashing when absent |
 | 33 | Paste when the target's editor lacks focus | LIMIT | The guard checks the foreground window, not the focused child; click into the document |
 | 34 | One exe, no runtime, UI embedded | SHIPPED | Content-verified: five unique page sequences inside the exe |
-| 35 | `--legacy` old UI for one release | SHIPPED | Flag documented; master untouched until merge |
+| 35 | `--legacy` old UI for one release | DONE, THEN REMOVED | Flag shipped in the v2 release; the old WPF app and `--legacy` were deleted on 25 Nov 2026 |
 | 36 | Release guard: tray, 125 % dialog, 430 toast/export signatures | PARTIAL | `G-06` tray gained a themed menu, fresh sign pending; `W-02` 125 % dialog and `W-05` 430 toast/export remain unsigned |
 | 37 | Files under the 400-line budget | NOT BUILT | Eleven files over, incl. `App.tsx`, `styles.css`, `ClipboardStore.Items.cs` |
 
@@ -194,8 +194,8 @@ page, live proof pending · **AWAITING SIGN** = fixed after a failed live read, 
   stored bytes verbatim.
 - **OCR** runs on Windows.Media.Ocr, serialized process-wide, writes into the clip's text only when it
   cannot overwrite a user edit, and never becomes the paste payload.
-- **Release artifact** is one self-contained single-file exe with the page embedded; `--legacy` opens the
-  old WPF UI for one release.
+- **Release artifact** is one self-contained single-file exe with the page embedded; the old WPF UI
+  and its `--legacy` flag were removed on 25 Nov 2026.
 - **Owner-changed rules (25 Nov):** bare digits search; `Ctrl+1`–`Ctrl+9` paste; both arrows and tabs
   wrap; F2 toggles; Settings is a gear.
 

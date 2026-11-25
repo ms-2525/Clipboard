@@ -12,7 +12,7 @@ namespace Clip.UI
         Window _clearDialog;
 
         /// <summary>
-        /// Tray "Clear history…": the old app's inline confirmation, same words and same scope — main history
+        /// Inline confirmation, same words and same scope — main history
         /// only, pinned clips and tab items stay (<see cref="Clip.Core.ClipboardStore.Clear"/>).
         /// </summary>
         internal void ConfirmClearHistory()

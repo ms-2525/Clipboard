@@ -6,9 +6,9 @@ import { PickerList, type PickerItem } from './MoveToTab'
 /** The ids Core\ClipSearch.cs treats as `code:`; every other id filters as itself. */
 const LANGUAGES = ['csharp', 'typescript', 'javascript', 'python', 'rust', 'php', 'go', 'java', 'shell']
 
-/** The search token for a canonical tag id: `spreadsheet:`, `code:` for any language, else `id:`. */
+/** The search token for a canonical tag id: `tag:spreadsheet`, `tag:code` for any language. */
 export function tagToken(tag: string): string {
-  return LANGUAGES.includes(tag) ? 'code:' : `${tag}:`
+  return LANGUAGES.includes(tag) ? 'tag:code' : `tag:${tag}`
 }
 
 /** The clip's tags as query tokens, in first-seen order, without duplicates (`code:` once). */
@@ -16,8 +16,15 @@ export function tagTokens(tags: string[]): string[] {
   return [...new Set(tags.map(tagToken))]
 }
 
-/** Host grammar (ClipSearch.IsTagShaped): a letter, then 1+ letters/digits/-/_, then the colon. */
-const isTagToken = (word: string) => /^[A-Za-z][A-Za-z0-9_-]+:$/.test(word)
+/** Every canonical id `tag:` can name, plus the `code` union. Shown a–z in the search dropdown. */
+export const TAG_VOCAB = [
+  'code', 'color', 'csharp', 'email', 'files', 'go', 'html', 'image', 'java',
+  'javascript', 'json', 'link', 'number', 'path', 'php', 'python', 'rust',
+  'shell', 'sql', 'spreadsheet', 'typescript', 'xml',
+]
+
+/** Host grammar: `tag:name` (case-insensitive); `tag:` alone is text, never a filter. */
+const isTagToken = (word: string) => /^tag:[A-Za-z][A-Za-z0-9_-]*$/i.test(word)
 
 /** Tag filters already in the query; a negated `-foo:` counts, a drive `C:` does not. */
 export function activeTagTokens(query: string): string[] {
@@ -64,6 +71,10 @@ export function TagPicker({
           className="dialog move-picker"
           aria-describedby="tag-desc"
           aria-modal="true"
+          onEscapeKeyDown={(event) => {
+            // Radix still closes; this only keeps the same keystroke from the window key matrix.
+            event.stopPropagation()
+          }}
           onCloseAutoFocus={(event) => {
             event.preventDefault()
             const target = returnFocus?.current?.isConnected

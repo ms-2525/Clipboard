@@ -33,6 +33,24 @@ export function formatTime(value: string, timeFormat: TimeFormat = '24h', now = 
 }
 
 /**
+ * Bucket divider for the All/Images list: Today / Yesterday / Previous 7 days /
+ * Previous 30 days / Older. Calendar-based (local midnight), newest first.
+ * Future stamps group as Today so a clock skew never hides a row.
+ */
+export function dateBucket(value: string, now = new Date()): string {
+  if (!value) return 'Older'
+  const when = new Date(value)
+  if (Number.isNaN(when.getTime())) return 'Older'
+  const startOfDay = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()
+  const days = Math.round((startOfDay(now) - startOfDay(when)) / 86400000)
+  if (days <= 0) return 'Today'
+  if (days === 1) return 'Yesterday'
+  if (days <= 7) return 'Previous 7 days'
+  if (days <= 30) return 'Previous 30 days'
+  return 'Older'
+}
+
+/**
  * Full provenance stamp for a list row: "24 Nov 2026, 21:25". Rows always carry the
  * date — a bare clock is ambiguous once the list holds more than one day.
  */

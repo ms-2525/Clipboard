@@ -114,6 +114,15 @@ export function makeClips(count = 1000): ClipItem[] {
       tags: [],
       truncated: full.length > text.length,
       remainingChars: full.length - text.length,
+      // Plausible stored sizes so the Info dialog reads like a real host (images are the heavy ones).
+      sizeBytes:
+        kind === 'image'
+          ? 240_000 + (i % 13) * 61_000
+          : kind === 'rich'
+            ? text.length * 3 + 2_400
+            : kind === 'files'
+              ? files.length * 420 + 96
+              : text.length * 2 + 64,
     })
   }
 

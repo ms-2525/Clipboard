@@ -55,22 +55,29 @@ There is no OR search and no saved searches in this release.
 
 ## 4. Tabs
 
-The strip above the list holds **All**, **Pinned**, **Images**, and any tabs you make.
+The strip above the list holds **Inbox**, **Pinned**, **Images**, and any tabs you make.
 
-**Images** is a built-in view, not a folder: it shows every picture in All history, with a live count.
+**Inbox** is the arrival list: every clip you have not filed into a tab or pinned. Move a clip to a tab, or pin it, and it leaves the Inbox.
+
+**Images** is a built-in view, not a folder: it shows every picture in Inbox, with a live count.
 It is the same as typing `image:`. Moving a clip into a tab does not remove it from Images.
 
 - **Create:** click **+**, type a name, press **Enter**. **Esc** cancels. A blank name or one already
   in use is refused with a message.
-- **Rename:** double-click a tab, or right-click it and choose **Rename**. **Pinned** and **All**
+- **Rename:** double-click a tab, or right-click it and choose **Rename**. **Pinned** and **Inbox**
   cannot be renamed.
+- **Reorder:** drag a tab left or right; the order is kept. **Pinned** always stays first, and **Inbox**
+  and **Images** never move.
 - **Move a clip:** right-click the clip and choose a destination, or select it and press **Ctrl+M**.
-  The choices are **All history**, your own tabs, and **Pinned**.
+  The choices are **Inbox**, your own tabs, and **Pinned**.
+- **Clip info:** right-click the clip and choose **Clip info** to see every detail in full — the app
+  and window title it came from (nothing cut short, unlike the row), the date and time, the space it
+  takes, and its tags. **Esc** or **Close** returns you to the row.
 - **Delete a tab:** right-click it and choose **Delete tab**. Clip tells you exactly how many clips
   are inside and asks first. **Deleting a tab deletes the clips inside it.** Pinned clips are not
   affected, because Pinned is its own tab.
 
-The history limit in Settings applies to **All** only. Clips in your own tabs and in Pinned are never
+The history limit in Settings applies to **Inbox** only. Clips in your own tabs and in Pinned are never
 removed automatically.
 
 ## 5. Editing a clip
@@ -91,7 +98,7 @@ changes it in place, it does not make a second copy.
 
 Select a clip and press **Ctrl+E**, or click **Export**. Pick a format:
 
-- **Text** saves as `.txt`, or **Markdown** as `.md` — same words, different file ending.
+- **Text** saves as `.txt`: the plain words, exactly as copied. **Markdown** saves as `.md`: a rich clip keeps its headings, lists and emphasis as Markdown; a plain clip saves the same words.
 - A **spreadsheet** clip saves as `.csv`.
 - An **image** saves as `.png`, exactly the picture that was copied.
 - A **file list** has no save option; it is a list of file locations, not a document.
@@ -132,8 +139,13 @@ Open Settings from the gear in the list, or right-click the tray icon and choose
 - **Launch at login** — start Clip with Windows.
 - **Open Clip hotkey** — click the keys, then press the new combination. If another app owns it,
   Clip keeps the old one and tells you.
-- **History limit** — how many clips **All** keeps (100 to 5,000). The oldest unpinned clips go
+- **History limit** — how many clips **Inbox** keeps (100 to 5,000). The oldest unpinned clips go
   first. Your own tabs and Pinned are not counted.
+- **Storage guide** — everything lives in one storage file with a 1 GB guide, far above normal use
+  (a full day of copying is a few MB). If it is ever crossed, Clip says so the next time the list
+  opens and suggests deleting clips you no longer need or clearing history. Copies keep being saved
+  either way — nothing is ever dropped because of the guide.
+- **Show images in Inbox** — when off, picture clips appear only in the **Images** tab, never in **Inbox**.
 - **Toast lines** - the longest a capture toast may grow. The toast fits its content both ways: a short
   copy gets a narrow, short toast; a long one widens to the maximum, wraps, and stops at the line cap.
   **Preview** next to it shows the real toast, where it will appear, with your current settings.
@@ -143,8 +155,8 @@ Open Settings from the gear in the list, or right-click the tray icon and choose
 - **Zoom** — 80 %, 100 %, 125 % or 150 %. It changes on screen as you pick it; **Ctrl +** and
   **Ctrl −** step it, **Ctrl+0** returns to 100 %.
 - **Time** — 12-hour or 24-hour clock on every row.
-- **Clear history** — deletes the clips in **All** and the image history. Pinned clips and your tabs
-  stay. It asks first and cannot be undone.
+- **Clear history** — deletes the clips in **Inbox** and the image history. Pinned clips and your tabs
+  stay. The row shows how much storage your clips use out of the 1 GB guide. It asks first and cannot be undone.
 - **Save changes** keeps your choices. Two settings are fixed in this release: Clip always starts in
   the tray, and rich capture is always on (use **Ctrl+Shift+V** when you want a plain paste).
 
@@ -182,5 +194,4 @@ file is set aside with a `.corrupt-<date>-<time>` ending, a fresh history is sta
 notification says **"Clip history could not be read and was moved aside. A fresh history has
 started."** The old file remains in that folder if it ever needs to be recovered.
 
-This release also keeps the old Clip window available if the program is started with `--legacy`.
-It will be removed in the next release; use the window described here for daily work.
+This is the only Clip window: the older WPF window is gone from this release.

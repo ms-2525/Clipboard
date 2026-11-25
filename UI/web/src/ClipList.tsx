@@ -1,7 +1,7 @@
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react'
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import type { ClipBody, ClipItem } from './host'
-import { formatStamp, type TimeFormat } from './format'
+import { formatStamp, dateBucket, type TimeFormat } from './format'
 import { IconPin } from './icons'
 import { isRich, loadBody, RowBody } from './rich'
 
@@ -20,9 +20,13 @@ const compact = (value: number) =>
 interface Props {
   clips: ClipItem[]
   selectedId: number | null
+  /** Shift+Up/Down range; the cursor (selectedId) is always one of these when non-empty. */
+  selectedIds?: number[]
   timeFormat: TimeFormat
   /** The Pinned tab: every row there is pinned, so the per-row glyph is noise. */
   hidePins: boolean
+  /** Inbox + Images only: visual bucket dividers, never in custom/Pinned tabs. */
+  showGroups?: boolean
   onSelect: (id: number) => void
   onCopy: (clip: ClipItem) => void
   onContextMenu: (clip: ClipItem, x: number, y: number) => void
@@ -33,6 +37,8 @@ interface Props {
   getItem: (id: number) => Promise<ClipBody | null>
   emptyTitle: string
   emptySub: string
+  /** Plain query words (no `tag:` filter): what plain row text highlights. */
+  highlight?: string[]
 }
 
 /** PageUp/PageDown must move by what is actually on screen, which only the list knows. */
@@ -107,7 +113,7 @@ function FullImage({
 }
 
 export const ClipList = forwardRef<ClipListHandle, Props>(function ClipList(
-  { clips, selectedId, timeFormat, hidePins, onSelect, onCopy, onContextMenu, onTag, getThumb, getImage, getItem, emptyTitle, emptySub },
+  { clips, selectedId, selectedIds, timeFormat, hidePins, showGroups, onSelect, onCopy, onContextMenu, onTag, getThumb, getImage, getItem, emptyTitle, emptySub, highlight },
   ref,
 ) {
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -272,6 +278,14 @@ export const ClipList = forwardRef<ClipListHandle, Props>(function ClipList(
   const selectedIndex = clips.findIndex((clip) => clip.id === selectedId)
   const tabbableId = selectedIndex >= 0 ? selectedId : clips[0]?.id ?? null
 
+  // Visual bucket dividers only (Inbox + Images): same order, arrows never land on them.
+  const buckets = useMemo(() => clips.map((clip) => dateBucket(clip.time)), [clips])
+  const bucketCounts = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const bucket of buckets) counts.set(bucket, (counts.get(bucket) ?? 0) + 1)
+    return counts
+  }, [buckets])
+
   return (
     <div className="list-wrap" ref={wrapRef}>
       <div className="list" ref={scrollRef} onScroll={rememberAnchor} role="listbox" aria-label="Clipboard history">
@@ -288,45 +302,65 @@ export const ClipList = forwardRef<ClipListHandle, Props>(function ClipList(
           <div style={{ height: virt.getTotalSize(), position: 'relative' }}>
             {virt.getVirtualItems().map((v) => {
               const clip = clips[v.index]
-              const selected = clip.id === selectedId
+              const selected = clip.id === selectedId || (selectedIds?.includes(clip.id) ?? false)
               const tags = clip.tags
               const richOnly = clip.hasRtf && !clip.hasHtml
               // The row's tag slot keeps the 2-chip ceiling; the RTF marker takes one slot.
               const shownTags = tags.slice(0, richOnly ? 1 : 2)
               const hiddenTags = tags.length - shownTags.length
               const extra = clip.truncated ? Math.max(0, clip.remainingChars) : 0
+              const bucket = buckets[v.index]
+              const showSep = !!showGroups && !!bucket && (v.index === 0 || buckets[v.index - 1] !== bucket)
               return (
                 <div
                   key={v.key}
                   data-index={v.index}
                   data-id={clip.id}
                   ref={(el) => {
-                    rowEls.current.set(clip.id, el)
-                    virt.measureElement(el)
+                    if (el) virt.measureElement(el)
                   }}
-                  role="option"
-                  aria-selected={selected}
-                  aria-posinset={v.index + 1}
-                  aria-setsize={clips.length}
-                  tabIndex={clip.id === tabbableId ? 0 : -1}
-                  className={'row' + (selected ? ' selected' : '') + (v.index % 2 === 1 ? ' alt' : '')}
+                  className="vitem"
                   style={{ transform: `translateY(${v.start}px)` }}
-                  onClick={() => onSelect(clip.id)}
-                  onFocus={() => onSelect(clip.id)}
-                  onDoubleClick={() => onCopy(clip)}
-                  onContextMenu={(event) => {
-                    event.preventDefault()
-                    onSelect(clip.id)
-                    onContextMenu(clip, event.clientX, event.clientY)
-                  }}
                 >
+                  {showSep && (
+                    <div className="date-sep" aria-hidden="true">
+                      <span className="date-sep-line" />
+                      <span className="date-sep-label">
+                        {bucket} ({bucketCounts.get(bucket) ?? 0})
+                      </span>
+                      <span className="date-sep-line" />
+                    </div>
+                  )}
+                  <div
+                    ref={(el) => {
+                      rowEls.current.set(clip.id, el)
+                    }}
+                    role="option"
+                    data-index={v.index}
+                    data-id={clip.id}
+                    aria-selected={selected}
+                    aria-posinset={v.index + 1}
+                    aria-setsize={clips.length}
+                    tabIndex={clip.id === tabbableId ? 0 : -1}
+                    className={'row vrow' + (selected ? ' selected' : '') + (v.index % 2 === 1 ? ' alt' : '')}
+                    onClick={() => onSelect(clip.id)}
+                    // Focusing the row that is already the cursor is a no-op: without this,
+                    // the focus-follows-selection effect would collapse a Shift+Up/Down range.
+                    onFocus={() => { if (clip.id !== selectedId) onSelect(clip.id) }}
+                    onDoubleClick={() => onCopy(clip)}
+                    onContextMenu={(event) => {
+                      event.preventDefault()
+                      onSelect(clip.id)
+                      onContextMenu(clip, event.clientX, event.clientY)
+                    }}
+                  >
                   <div className="row-index">{String(v.index + 1).padStart(2, '0')}</div>
                   <div className="row-content">
                     <div className="row-body">
                       {clip.hasImage ? (
                         <FullImage id={clip.id} title={clip.title || 'Image'} getImage={getImage} getThumb={getThumb} />
                       ) : (
-                        <RowBody clip={clip} getItem={getItem} />
+                        <RowBody clip={clip} getItem={getItem} highlight={highlight} />
                       )}
                     </div>
                     <div className="row-prov">
@@ -373,6 +407,7 @@ export const ClipList = forwardRef<ClipListHandle, Props>(function ClipList(
                         </span>
                       )}
                     </div>
+                  </div>
                   </div>
                 </div>
               )

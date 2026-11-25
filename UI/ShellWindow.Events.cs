@@ -7,6 +7,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows;
 using Clip.Core;
+using Clip.Host;
 using Clip.Interop;
 using Microsoft.Web.WebView2.Core;
 
@@ -69,7 +70,15 @@ namespace Clip.UI
             // A window activation does not hand the keyboard to the WebView; without this, the page's
             // key matrix (Enter to paste, typing to search) is dead until the user clicks inside.
             Web.Focus();
+
+            // Every open path lands here, so the advisory storage check has one home. The page shows the
+            // dialog once per run; while it is ignored this only re-emits an event the page already muted.
+            long storage = DbBytes(_dbPath);
+            if (storage > _cfg.MaxStorageBytes) NotifyStorage(storage, _cfg.MaxStorageBytes);
         }
+
+        /// <summary>clip.db plus its WAL; 0 when the files cannot be read, because the notice is advisory.</summary>
+        static long DbBytes(string dbPath) => ClipHost.DbBytes(dbPath);
 
         /// <summary>Tray Settings: the page owns that surface and has no route yet, so its own button is clicked.</summary>
         internal void ShowForSettings()
@@ -110,6 +119,12 @@ namespace Clip.UI
         public void NotifyCaptured(ClipboardItem item) => _host?.EmitCaptured(item);
 
         public void NotifySkipped(string reason) => Emit("skipped", new { reason });
+
+        /// <summary>
+        /// Advisory only: clip.db (+ WAL) crossed <see cref="Config.MaxStorageBytes"/>. The page asks once
+        /// per run; capture keeps saving regardless, so no copy is ever lost to the limit.
+        /// </summary>
+        public void NotifyStorage(long bytes, long limit) => Emit("storage", new { bytes, limit });
 
         public void NotifyHotkeyFailed(string combo)
         {

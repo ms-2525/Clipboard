@@ -14,12 +14,15 @@ const MOCK_TAGS: Record<number, string[]> = {
   9: ['image', 'files', 'spreadsheet'], // exercises the 2 + "+N" fold
 }
 
-/** The vocabulary a `tag:` query may name; anything else is searched as text. */
+/** The vocabulary a `tag:` query may name; anything else is searched as text. Mirrors Core\ClipSearch.TryCanonical. */
 const KNOWN_TAGS = new Set([
-  'image', 'files', 'spreadsheet', 'link', 'email', 'path', 'colour', 'number',
+  'image', 'files', 'spreadsheet', 'link', 'email', 'path', 'color', 'number',
   'json', 'html', 'sql', 'xml', 'javascript', 'typescript', 'python', 'csharp',
-  'rust', 'go', 'java', 'powershell',
+  'rust', 'php', 'go', 'java', 'shell',
 ])
+
+/** Mirrors Core\ClipSearch.LanguageTags: `code:` means any of these. */
+const LANGUAGES = ['csharp', 'typescript', 'javascript', 'python', 'rust', 'php', 'go', 'java', 'shell']
 
 /** Deterministic 1,000-clip fixture for `npm run dev` and screenshots. Never used in WebView2. */
 export function createMockHost(): Host {
@@ -128,17 +131,22 @@ export function createMockHost(): Host {
     const terms: string[] = []
     const unknownTags: string[] = []
     const addTag = (name: string): boolean => {
+      // Mirrors Core\ClipSearch.TryCanonical (colour/powershell/bash/sh aliases included).
       const alias =
         name === 'excel' || name === 'sheet' || name === 'xls' || name === 'csv'
           ? 'spreadsheet'
-          : name === 'img' || name === 'pic' || name === 'photo'
+          : name === 'img' || name === 'pic' || name === 'photo' || name === 'screenshot'
             ? 'image'
-            : name === 'file'
+            : name === 'file' || name === 'attachment'
               ? 'files'
-              : name === 'url'
+              : name === 'url' || name === 'website'
                 ? 'link'
-                : name
-      if (!KNOWN_TAGS.has(alias)) return false
+                : name === 'colour'
+                  ? 'color'
+                  : name === 'powershell' || name === 'bash' || name === 'sh'
+                    ? 'shell'
+                    : name
+      if (!KNOWN_TAGS.has(alias) && alias !== 'code') return false
       tags.push(alias)
       return true
     }
@@ -149,7 +157,7 @@ export function createMockHost(): Host {
         terms.push(token)
         continue
       }
-      // `tag:image` is the explicit prefix; the bare `image:` form is what the chips write.
+      // `tag:image` is the only filter syntax; a bare `image:` is plain text.
       const explicit = /^tag:([a-z0-9-]+)$/.exec(token)
       if (explicit) {
         if (!addTag(explicit[1])) {
@@ -158,18 +166,13 @@ export function createMockHost(): Host {
         }
         continue
       }
-      const tag = /^([a-z0-9-]+):$/.exec(token)
-      if (!tag) {
-        terms.push(token)
-      } else if (!addTag(tag[1])) {
-        // The host keeps an unknown `name:` as the text the owner typed; so do we.
-        unknownTags.push(tag[1])
-        terms.push(token)
-      }
+      terms.push(token)
     }
     const rows = clips.filter((clip) => {
       if (clip.tabId !== tabId) return false
-      if (tags.some((tag) => !clip.tags.includes(tag))) return false
+      if (tags.some((tag) => tag === 'code'
+        ? !clip.tags.some((t) => LANGUAGES.includes(t))
+        : !clip.tags.includes(tag))) return false
       return terms.every(
         (term) =>
           clip.title.toLowerCase().includes(term) ||
@@ -276,6 +279,14 @@ export function createMockHost(): Host {
       tabs = tabs.filter((entry) => entry.id !== id)
       return wait({ deleted: true, deletedClips: purged, movedToHistory: 0 })
     },
+    reorderTabs: async ({ order }: { order: number[] }) => {
+      const customs = tabs.filter((tab) => tab.kind === 'custom')
+      const byId = new Map(customs.map((tab) => [tab.id, tab]))
+      const next = order.filter((id) => byId.has(id)).map((id) => byId.get(id)!)
+      for (const tab of customs) if (!next.includes(tab)) next.push(tab)
+      tabs = [...tabs.filter((tab) => tab.kind !== 'custom'), ...next]
+      return wait(undefined)
+    },
     hide: async () => {
       counter.__mockHideCalls = (counter.__mockHideCalls ?? 0) + 1
       await wait(undefined)
@@ -351,6 +362,8 @@ export function createMockHost(): Host {
       emit({ event: 'cleared', data: {} })
       return wait(undefined)
     },
+    // The mock has no files: a fixed plausible readout for the Settings preview.
+    storageUsage: async () => wait({ bytes: 12582912, limit: 1073741824 }),
     onEvent: (listener) => {
       listeners.add(listener)
       return () => {

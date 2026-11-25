@@ -67,7 +67,7 @@ namespace Clip.Core
         static readonly (string Tag, Func<string, bool> Test)[] ShapeRules =
         {
             ("link", IsSingleUrl),
-            ("email", EmailRe.IsMatch),
+            ("email", IsEmail),
             ("path", PathRe.IsMatch),
             ("color", ColorRe.IsMatch),
             ("number", IsNumber),
@@ -96,7 +96,7 @@ namespace Clip.Core
             RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
         static readonly Regex PythonRe = new Regex(
-            @"(?m)^[ \t]*def\s+[A-Za-z_]\w*[ \t]*\([^)\r\n]*\)[ \t]*(?:->[^:\r\n]+)?:[ \t]*\r?\n[ \t]+\S|^[ \t]*if\s+__name__\s*==\s*['""]__main__['""]|\bself\.|^[ \t]*(?:import|from)[ \t]+(?:sys|os|re|json|datetime|typing|collections|pathlib|math|subprocess)\b",
+            @"(?m)^[ \t]*def\s+[A-Za-z_]\w*[ \t]*\([^)\r\n]*\)[ \t]*(?:->[^:\r\n]+)?:[ \t]*\r?\n[ \t]+\S|^[ \t]*if\s+__name__\s*==\s*['""]__main__['""]|\bself\.|^[ \t]*import\s+[a-z_][\w.]*(?:\s*,\s*[a-z_][\w.]*)*\s*(?:#.*)?$|^[ \t]*from\s+[a-z_][\w.]*\s+import\s+[A-Za-z_*][\w.*]*(?:\s*,\s*[A-Za-z_*][\w.*]*)*\s*(?:#.*)?$",
             RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.Multiline);
 
         static readonly Regex RustRe = new Regex(
@@ -142,7 +142,7 @@ namespace Clip.Core
         /// </summary>
         static readonly Regex AnyLanguageRe = new Regex(
             string.Join("|", Array.ConvertAll(LanguageRules, r => "(?:" + r.Rule + ")")),
-            RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.NonBacktracking);
+            RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.NonBacktracking | RegexOptions.Multiline | RegexOptions.IgnoreCase);
 
         // ---- classify -------------------------------------------------------------------------
 
@@ -231,6 +231,17 @@ namespace Clip.Core
             return uri.Host.Length > 0 &&
                 (uri.Scheme.Equals(Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) ||
                  uri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase));
+        }
+
+        static bool IsEmail(string text)
+        {
+            if (!EmailRe.IsMatch(text)) return false;
+            // Reasonable-people guards: no consecutive dots, no leading/trailing dot in local part.
+            if (text.Contains("..")) return false;
+            int at = text.IndexOf('@');
+            if (at <= 0 || text[0] == '.' || text[at - 1] == '.') return false;
+            if (text.IndexOf("@-", StringComparison.Ordinal) >= 0) return false;
+            return true;
         }
 
         static bool IsNumber(string text) =>

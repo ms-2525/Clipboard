@@ -254,16 +254,17 @@ verdict.
 
 1. **Tray item hover pill** — the pointer pill is now read (`246,246,246` on `#FFFFFF`, pass 3); what is still
    missing is a **keyboard-driven** pill: `Down` with the menu open left the pointer's row lit and never moved
-   a highlight. Confirm whether a keyboard highlight is intended.
+   a highlight. Owner decided 25 Nov: the tray menu is **mouse-only**; no keyboard pill is intended. Keyboard users drive the app through `Alt+V` and shortcuts instead.
 2. **125 % zoom (W-02)** — the shell at 125 %, page, dialog and editor, zero overflow; only 100 and 150
    were measured.
 3. **430 toast and export menu (W-05)** — `release-visual\37-430-toast.png` / `38-430-export.png` exist but
    were never read or signed.
 4. **Real IME (K-07)** — a composition open while the popup is up; Esc cancels the composition, Enter
    commits it.
-5. **Memory ceiling** — accept ~528 MB idle / ~643 MB with an image, or set a new ceiling.
+5. **Memory ceiling** — accept ~528 MB idle / ~643 MB with an image, or set a new ceiling. Owner decided
+    25 Nov: **remeasure on the rebuilt exe first**, then set the ceiling from fresh numbers.
 6. **430 tab counts** — pass 3 read the live shell at 430 DIP and the strip showed `All / Pinned / Images`
    without their numbers (`96-shell-430-wide.png`), while the same strip shows `All 13 / Pinned 0 / Images 2`
-   at 900. Decide if dropping the counts is intended at that width.
+   at 900. Owner decided 25 Nov: **keep** — names only at 430, counts at normal width.
 6. **Re-scan the artifact** — `UI\web\dist\index.html` is 2,862,374 B (08:05) and `dist\Clip.exe` was rebuilt
    at 08:08 from it (`RELEASE-v2.md`); the checklist signs the bundle, so the exe needs one last page scan.

@@ -12,6 +12,14 @@ export const IconSearch = () => (
     <path d="M10.2 10.2 13.5 13.5" />
   </Svg>
 )
+
+export const IconInfo = () => (
+  <Svg>
+    <circle cx="8" cy="8" r="5.75" />
+    <path d="M8 7.25v4" />
+    <path d="M8 4.9v.05" />
+  </Svg>
+)
 export const IconClipboard = ({ size = 16 }: { size?: number }) => (
   <Svg size={size}>
     <rect x="3.25" y="2.75" width="9.5" height="11" rx="2" />
@@ -52,7 +60,8 @@ export const IconEdit = () => (
 )
 export const IconPin = () => (
   <Svg size={12}>
-    <path d="M6 9.5 2.8 12.8M9 2.2l4.8 4.8-1.6.7-1 2.3-3.5-3.5L10 5l-1-2.8Z" />
+    <path d="M8 14.5S3.5 9.6 3.5 6.5a4.5 4.5 0 0 1 9 0c0 3.1-4.5 8-4.5 8Z" />
+    <circle cx="8" cy="6.5" r="1.8" />
   </Svg>
 )
 export const IconFile = () => (
@@ -97,9 +106,10 @@ export const IconUnderline = () => (
   </svg>
 )
 export const IconStrike = () => (
-  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-    <path d="M5 12.2c.9.6 1.9.9 3 .9 2 0 3.2-1 3.2-2.4 0-1.2-.8-1.8-2.5-2.2M10.9 4.3C10.2 3.7 9.3 3.4 8.3 3.4c-1.8 0-3 .9-3 2.2 0 .6.2 1 .7 1.4M2.5 8h11" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-  </svg>
+  <Svg>
+    <path d="M10.9 4.3c-.8-.7-1.8-1.1-2.9-1.1-1.8 0-3 .9-3 2.2 0 2.9 6 1.5 6 4.2 0 1.3-1.2 2.2-3 2.2-1.1 0-2.1-.4-2.9-1.1" />
+    <path d="M2.3 8h11.4" />
+  </Svg>
 )
 export const IconMinus = () => (
   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -113,8 +123,8 @@ export const IconPlus = () => (
 )
 export const IconHighlight = () => (
   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-    <path d="m9.4 2.6 3.9 3.9-5.7 5.7-4.4.6.5-4.5Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
-    <path d="M2.5 13.6h11" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+    <path d="m9.4 2.6 3.9 3.9-5 5-4.1.5.4-4.2Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+    <path d="M2.5 13.9h11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
   </svg>
 )
 export const IconPalette = () => (
@@ -139,9 +149,8 @@ export const IconWarning = () => (
 )
 export const IconLink = () => (
   <Svg>
-    <path d="M6.5 9.5 9.5 6.5" />
-    <path d="M7 5.5 8.5 4a2.5 2.5 0 0 1 3.5 3.5L10.5 9" />
-    <path d="M9 10.5 7.5 12A2.5 2.5 0 0 1 4 8.5L5.5 7" />
+    <path d="M6.7 8.7a3.3 3.3 0 0 0 5-.4l2-2a3.3 3.3 0 0 1-4.7-4.7l-1.1 1.1" />
+    <path d="M9.3 7.3a3.3 3.3 0 0 0-5 .4l-2 2a3.3 3.3 0 0 0 4.7 4.7l1.1-1.1" />
   </Svg>
 )
 export const IconUndo = () => (
@@ -158,17 +167,22 @@ export const IconRedo = () => (
 )
 export const IconBulletList = () => (
   <Svg>
-    <circle cx="3.4" cy="4.5" r="1" fill="currentColor" stroke="none" />
-    <circle cx="3.4" cy="8" r="1" fill="currentColor" stroke="none" />
-    <circle cx="3.4" cy="11.5" r="1" fill="currentColor" stroke="none" />
-    <path d="M6.4 4.5h7M6.4 8h7M6.4 11.5h7" />
+    <circle cx="3.2" cy="3.2" r="1.3" fill="currentColor" stroke="none" />
+    <circle cx="3.2" cy="8" r="1.3" fill="currentColor" stroke="none" />
+    <circle cx="3.2" cy="12.5" r="1.3" fill="currentColor" stroke="none" />
+    <path d="M6.5 3.2h7M6.5 8h7M6.5 12.5h7" />
   </Svg>
 )
 export const IconOrderedList = () => (
   <Svg>
-    <path d="M6.8 4.5h6.8M6.8 8h6.8M6.8 11.5h6.8" />
-    <path d="M4.3 6.2V3.1L3.3 4" />
-    <path d="M2.9 9.4a1.4 1.4 0 1 1 2.8 0c0 .5-.5.9-.9 1.2l-1.9 1.6h2.8" />
+    <path d="M7.2 3.2h6.3M7.2 8h6.3M7.2 12.5h6.3" />
+    <g strokeWidth="1.15">
+      <path d="M4.4 2.4v2.2M4.4 2.4l-.7.7" />
+      <path d="M3.5 7.9c.1-.6.6-.9 1.1-.9" />
+      <path d="M4.6 7c.4.1.6.3.6.7 0 .4-.6.5-1.2.8l-.6.6h1.9" />
+      <path d="M3.6 11.5c.2-.3.5-.4.9-.4.5 0 .9.3.9.7" />
+      <path d="M5.4 11.7c-.1.3-.3.5-.7.6.4.1.6.4.6.7 0 .5-.5.9-1.1.9-.4 0-.8-.1-1-.4" />
+    </g>
   </Svg>
 )
 export const IconInlineCode = () => (
@@ -178,21 +192,21 @@ export const IconInlineCode = () => (
 )
 export const IconCodeBlock = () => (
   <Svg>
-    <path d="M7.2 3.4c-1.5 0-2 .6-2 1.9v1.1c0 .8-.4 1.3-1.2 1.6.8.3 1.2.8 1.2 1.6v1.1c0 1.3.5 1.9 2 1.9" />
-    <path d="M8.8 3.4c1.5 0 2 .6 2 1.9v1.1c0 .8.4 1.3 1.2 1.6-.8.3-1.2.8-1.2 1.6v1.1c0 1.3-.5 1.9-2 1.9" />
+    <path d="M6.9 3.2c-1.4 0-1.9.6-1.9 1.8v1c0 .9-.4 1.4-1.2 1.7v.6c.8.3 1.2.8 1.2 1.7v1c0 1.2.5 1.8 1.9 1.8" />
+    <path d="M9.1 3.2c1.4 0 1.9.6 1.9 1.8v1c0 .9.4 1.4 1.2 1.7v.6c-.8.3-1.2.8-1.2 1.7v1c0 1.2-.5 1.8-1.9 1.8" />
   </Svg>
 )
 export const IconTaskList = () => (
   <Svg>
     <rect x="2.3" y="2.9" width="3.7" height="3.7" rx="1" />
-    <path d="m3.2 4.7.9.9 1.5-1.7" />
+    <path d="M3.5 4.9l.7.7 1.2-1.4" />
     <path d="M7.7 4.8h6M7.7 9.2h6M2.7 12.4h11" />
   </Svg>
 )
 export const IconQuote = () => (
   <Svg>
-    <path d="M3.5 3v10" />
-    <path d="M6.6 4.4h6M6.6 8h6M6.6 11.6h3.8" />
+    <rect x="2.6" y="3" width="2.6" height="10" rx="1" fill="currentColor" stroke="none" />
+    <path d="M7.4 5h6M7.4 8h6M7.4 11h3.6" />
   </Svg>
 )
 export const IconTable = () => (
@@ -203,9 +217,9 @@ export const IconTable = () => (
 )
 export const IconAddRow = () => (
   <Svg>
-    <rect x="2.2" y="2.4" width="7.6" height="3.3" rx="1" />
-    <rect x="2.2" y="7.2" width="7.6" height="3.3" rx="1" />
-    <path d="M12.8 7.2v5.2M10.2 9.8h5.2" />
+    <rect x="2.2" y="2.2" width="6" height="2.6" rx="1" />
+    <rect x="2.2" y="6.4" width="6" height="2.6" rx="1" />
+    <path d="M12.5 7.8v4.8M10.1 10.2h4.8" />
   </Svg>
 )
 export const IconTrash = () => (
@@ -232,5 +246,18 @@ export const IconFolder = () => (
 export const IconChevronRight = () => (
   <Svg size={12}>
     <path d="m6.5 4.5 3.5 3.5-3.5 3.5" />
+  </Svg>
+)
+export const IconBell = () => (
+  <Svg>
+    <path d="M8 2.2a4.3 4.3 0 0 1 4.3 4.3c0 3 .9 3.9 1.5 4.6H2.2c.6-.7 1.5-1.6 1.5-4.6A4.3 4.3 0 0 1 8 2.2Z" />
+    <path d="M6.6 13.4a1.5 1.5 0 0 0 2.8 0" />
+  </Svg>
+)
+export const IconDatabase = () => (
+  <Svg>
+    <ellipse cx="8" cy="3.8" rx="5" ry="2" />
+    <path d="M3 3.8v8.4c0 1.1 2.2 2 5 2s5-.9 5-2V3.8" />
+    <path d="M3 8c0 1.1 2.2 2 5 2s5-.9 5-2" />
   </Svg>
 )

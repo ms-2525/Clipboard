@@ -19,6 +19,8 @@ interface Props {
   onRename: (id: number, name: string) => Promise<void>
   /** Resolves the host's deletedClips; the page reports that number, never the pre-delete count. */
   onDelete: (tab: StripTab) => Promise<number>
+  /** Persists the custom-tab strip order after a drag; Pinned and the virtual tabs never move. */
+  onReorder: (order: number[]) => Promise<void>
   /** True while the field, tab menu or delete confirm owns the keyboard; the window key matrix stands down. */
   onOverlayChange: (open: boolean) => void
 }
@@ -29,11 +31,13 @@ type EditState = { mode: 'create' } | { mode: 'rename'; id: number }
  * The tab strip: one horizontal scroller holding the tabs, the inline name field and `+`.
  * Radix Tabs is in manual activation mode, so arrows move the roving focus and Enter/Space activates.
  */
-export function TabStrip({ tabs, activeId, onSelect, onCreate, onRename, onDelete, onOverlayChange }: Props) {
+export function TabStrip({ tabs, activeId, onSelect, onCreate, onRename, onDelete, onReorder, onOverlayChange }: Props) {
   const [edit, setEdit] = useState<EditState | null>(null)
   const [value, setValue] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [dragId, setDragId] = useState<number | null>(null)
+  const [dropId, setDropId] = useState<number | null>(null)
   const [menu, setMenu] = useState<{ tab: StripTab; x: number; y: number } | null>(null)
   const [confirm, setConfirm] = useState<StripTab | null>(null)
   const [confirmError, setConfirmError] = useState('')
@@ -132,6 +136,21 @@ export function TabStrip({ tabs, activeId, onSelect, onCreate, onRename, onDelet
     }
   }
 
+  /**
+   * Drops the dragged custom tab before the target one and persists that order. Pinned and the
+   * virtual Inbox/Images tabs are never draggable, so they never reach this path.
+   */
+  const commitReorder = async (from: number, to: number) => {
+    const customs = tabs.filter((tab) => tab.kind === 'custom' && tab.id != null).map((tab) => tab.id as number)
+    if (!customs.includes(from) || !customs.includes(to) || from === to) return
+    const without = customs.filter((id) => id !== from)
+    without.splice(without.indexOf(to), 0, from)
+    setDragId(null)
+    setDropId(null)
+    // The page toasts a failure; the strip only needs its indicator cleared, which is done above.
+    await onReorder(without)
+  }
+
   // The tab menu is a tiny fixed popover: Esc closes, arrows walk its two items, a click outside closes.
   useEffect(() => {
     if (!menu) return
@@ -141,6 +160,8 @@ export function TabStrip({ tabs, activeId, onSelect, onCreate, onRename, onDelet
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault()
+        // The window key matrix re-subscribes on close; without this the same keystroke hides the app.
+        event.stopPropagation()
         setMenu(null)
         return
       }
@@ -199,7 +220,35 @@ export function TabStrip({ tabs, activeId, onSelect, onCreate, onRename, onDelet
                   <Tabs.Trigger
                     key={tab.id ?? 'all'}
                     value={tab.id === null ? 'all' : String(tab.id)}
-                    className="tab"
+                    className={
+                      'tab' +
+                      (dragId === tab.id ? ' dragging' : '') +
+                      (dropId === tab.id && dragId !== tab.id ? ' drop-before' : '')
+                    }
+                    draggable={tab.kind === 'custom'}
+                    onDragStart={(event) => {
+                      if (tab.kind !== 'custom' || tab.id == null) return
+                      event.dataTransfer.effectAllowed = 'move'
+                      event.dataTransfer.setData('text/plain', String(tab.id))
+                      setDragId(tab.id)
+                    }}
+                    onDragOver={(event) => {
+                      if (dragId == null || tab.kind !== 'custom' || tab.id == null || tab.id === dragId) return
+                      event.preventDefault()
+                      event.dataTransfer.dropEffect = 'move'
+                      if (dropId !== tab.id) setDropId(tab.id)
+                    }}
+                    onDragLeave={() => {
+                      if (dropId === tab.id) setDropId(null)
+                    }}
+                    onDrop={(event) => {
+                      event.preventDefault()
+                      if (dragId != null && tab.id != null) void commitReorder(dragId, tab.id)
+                    }}
+                    onDragEnd={() => {
+                      setDragId(null)
+                      setDropId(null)
+                    }}
                     // Radix leaves the tab stop on the list until something is focused; these keep one tab tabbable.
                     tabIndex={(focusId === undefined ? tab.id === activeId : focusId === tab.id) ? 0 : -1}
                     onFocus={() => setFocusId(tab.id)}
@@ -280,6 +329,10 @@ export function TabStrip({ tabs, activeId, onSelect, onCreate, onRename, onDelet
               className="dialog confirm"
               aria-describedby="tab-delete-desc"
               aria-modal="true"
+              onEscapeKeyDown={(event) => {
+                // Radix still closes; this only keeps the same keystroke from the window key matrix.
+                event.stopPropagation()
+              }}
               onCloseAutoFocus={(event) => {
                 // The context menu is gone; put focus back on the tab that opened it.
                 event.preventDefault()

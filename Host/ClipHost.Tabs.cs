@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 using Clip.Core;
@@ -63,6 +64,26 @@ namespace Clip.Host
             int purged = store.DeleteTab(id); // -1 would mean a non-custom row slipped past the two checks above
             if (purged < 0) throw new ArgumentException("no deletable tab with id " + id);
             return new { deleted = true, deletedClips = purged, movedToHistory = 0 };
+        }
+        /// <summary>
+        /// Bridge method "reorderTabs": persists the custom-tab strip order after a page drag. Pinned stays
+        /// first no matter where the page puts it; unknown ids are ignored by <see cref="ClipboardStore"/>.
+        /// </summary>
+        object ReorderTabs(JsonElement p) => ReorderTabs(_store, p);
+
+        internal static object ReorderTabs(ClipboardStore store, JsonElement p)
+        {
+            if (!p.TryGetProperty("order", out var arr) || arr.ValueKind != JsonValueKind.Array)
+                throw new ArgumentException("order required");
+            var ids = new List<long>();
+            foreach (var el in arr.EnumerateArray())
+            {
+                if (el.ValueKind == JsonValueKind.Number) ids.Add(el.GetInt64());
+                else if (el.ValueKind == JsonValueKind.String && long.TryParse(el.GetString(), out long n)) ids.Add(n);
+                else throw new ArgumentException("order must be tab ids");
+            }
+            store.SetTabOrder(ids.ToArray());
+            return new { reordered = true };
         }
     }
 }

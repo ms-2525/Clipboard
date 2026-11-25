@@ -9,7 +9,6 @@
         <ResourceDictionary Source="pack://application:,,,/UI/Themes/Icons.xaml"/>
         <ResourceDictionary Source="pack://application:,,,/UI/Themes/Buttons.xaml"/>
         <ResourceDictionary Source="pack://application:,,,/UI/Themes/Popups.xaml"/>
-        <ResourceDictionary Source="pack://application:,,,/UI/RowTemplate.xaml"/>
         <ResourceDictionary Source="pack://application:,,,/UI/Themes/Typography.xaml"/>
       </ResourceDictionary.MergedDictionaries>
     </ResourceDictionary>

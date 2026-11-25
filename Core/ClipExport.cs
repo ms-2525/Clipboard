@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Text;
+using Clip.Interop;
 
 namespace Clip.Core
 {
@@ -137,8 +138,16 @@ namespace Clip.Core
                     if (requested == "csv" || requested == "png")
                         return Fail(kind, "This clip is text; save it as .txt or .md.");
                     string ext = requested == "md" ? ".md" : ".txt";
-                    // .txt and .md are the same bytes on purpose: no content detection runs.
-                    return Ok(kind, ext, Utf8.GetBytes(item?.Text ?? string.Empty));
+                    if (requested == "md")
+                    {
+                        // A rich clip keeps its structure in .md; a plain clip falls through unchanged.
+                        string markdown = RichMarkdown(item);
+                        if (markdown != null) return Ok(kind, ext, Utf8.GetBytes(markdown));
+                    }
+                    if (string.IsNullOrEmpty(item?.Text))
+                        return Fail(kind, "This clip has no text to save.");
+                    // .txt is always the stored text, exactly as copied.
+                    return Ok(kind, ext, Utf8.GetBytes(item.Text));
             }
         }
 
@@ -147,6 +156,20 @@ namespace Clip.Core
 
         static ClipExportResult Fail(ClipExportKind kind, string error) =>
             new ClipExportResult { Kind = kind, Error = error };
+
+        /// <summary>Rich HTML as Markdown for ".md" exports; null when there is no HTML or it converts to nothing.</summary>
+        static string RichMarkdown(ClipboardItem item)
+        {
+            if (string.IsNullOrEmpty(item?.Html)) return null;
+            string fragment;
+            try { fragment = HtmlFragment.Extract(item.Html); }
+            catch { return null; } // sloppy producer offsets: the plain text below still saves
+            if (string.IsNullOrEmpty(fragment)) return null;
+            string markdown;
+            try { markdown = HtmlToMarkdown.Convert(fragment); }
+            catch { return null; } // a hostile fragment must not break the save
+            return string.IsNullOrWhiteSpace(markdown) ? null : markdown;
+        }
 
         static bool IsPng(byte[] bytes)
         {

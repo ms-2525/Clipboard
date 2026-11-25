@@ -209,8 +209,8 @@ DELETE FROM item_formats WHERE item_id = $id";
         public List<ClipboardItem> GetRecent(int max) => GetRecent(max, null);
 
         /// <summary>
-        /// How many characters of a body a list row carries. A row can only show PreviewLines × 92 chars
-        /// (ClipRow.CharsPerLine), so anything past this is never drawn. Keep the literal in sync with
+        /// How many characters of a body a list row carries. The page's row preview draws far fewer,
+        /// so anything past this is never shown. Keep the literal in sync with
         /// ix_list in <see cref="Migrate"/>: SQLite only uses an expression index for an identical expression.
         /// </summary>
         public const int PreviewChars = 1200;
@@ -243,7 +243,7 @@ DELETE FROM item_formats WHERE item_id = $id";
             var list = new List<ClipboardItem>();
             using var cmd = conn.CreateCommand();
             cmd.CommandText = @"
-SELECT id, kind, substr(text,1,1200), length(text), uris, app_name, window_title, captured_at, tab_id
+SELECT id, kind, substr(text,1,1200), length(text), uris, app_name, window_title, captured_at, tab_id, size_bytes
 FROM items WHERE " + (tabId.HasValue ? "tab_id = $tab" : "tab_id IS NULL")
                 + (kind == null ? "" : " AND kind = $kind") + @"
 ORDER BY sort_seq DESC, id DESC LIMIT $m";
@@ -263,7 +263,8 @@ ORDER BY sort_seq DESC, id DESC LIMIT $m";
                     AppName = r.IsDBNull(5) ? null : r.GetString(5),
                     WindowTitle = r.IsDBNull(6) ? null : r.GetString(6),
                     CapturedAt = r.IsDBNull(7) ? null : r.GetString(7),
-                    TabId = r.IsDBNull(8) ? (long?)null : r.GetInt64(8)
+                    TabId = r.IsDBNull(8) ? (long?)null : r.GetInt64(8),
+                    SizeBytes = r.IsDBNull(9) ? 0 : r.GetInt64(9)
                 });
             }
             return list;
@@ -461,6 +462,22 @@ ORDER BY sort_seq DESC, id DESC LIMIT $m";
             cmd.CommandText = "DELETE FROM item_formats WHERE item_id = $id; DELETE FROM items WHERE id = $id";
             cmd.Parameters.AddWithValue("$id", id);
             cmd.ExecuteNonQuery();
+        }
+
+        /// <summary>
+        /// Reusing a clip (copy/paste from history) makes it the newest: next sort_seq + fresh stamp,
+        /// so it returns to the top of every list like a re-copied clip. Returns the new stamp, or null
+        /// when the row is gone.
+        /// </summary>
+        public string Touch(long id)
+        {
+            var now = ClipboardItem.Stamp();
+            using var cmd = _conn.CreateCommand();
+            cmd.CommandText = @"
+UPDATE items SET sort_seq = (SELECT COALESCE(MAX(sort_seq),0)+1 FROM items), captured_at = $at WHERE id = $id";
+            cmd.Parameters.AddWithValue("$at", now);
+            cmd.Parameters.AddWithValue("$id", id);
+            return cmd.ExecuteNonQuery() == 1 ? now : null;
         }
 
         /// <summary>"Clear History" means main history: Clipboard and Images. Pinned and tab items are kept.</summary>

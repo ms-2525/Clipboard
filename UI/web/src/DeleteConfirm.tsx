@@ -4,7 +4,7 @@ import type { ClipItem } from './host'
 import { IconWarning } from './icons'
 
 interface Props {
-  clip: ClipItem | null
+  clips: ClipItem[] | null
   onCancel: () => void
   onConfirm: () => void
   /** The row that opened the dialog; focus returns there on close. */
@@ -15,15 +15,21 @@ interface Props {
  * Delete is destructive, so it always asks first and focuses Cancel - Enter after `Delete`
  * cancels, it never removes a clip that was still being read.
  */
-export function DeleteConfirm({ clip, onCancel, onConfirm, returnFocus }: Props) {
+export function DeleteConfirm({ clips, onCancel, onConfirm, returnFocus }: Props) {
+  const clip = clips?.[0] ?? null
+  const count = clips?.length ?? 0
   return (
-    <Dialog.Root open={clip != null} onOpenChange={(open) => { if (!open) onCancel() }}>
+    <Dialog.Root open={count > 0} onOpenChange={(open) => { if (!open) onCancel() }}>
       <Dialog.Portal>
         <Dialog.Overlay className="overlay" />
         <Dialog.Content
           className="dialog confirm"
           aria-describedby="delete-desc"
           aria-modal="true"
+          onEscapeKeyDown={(event) => {
+            // Radix still closes; this only keeps the same keystroke from the window key matrix.
+            event.stopPropagation()
+          }}
           onCloseAutoFocus={(event) => {
             event.preventDefault()
             // A deleted row is gone; the selected row is the next home for focus.
@@ -39,10 +45,10 @@ export function DeleteConfirm({ clip, onCancel, onConfirm, returnFocus }: Props)
             </span>
             <div className="grow">
               <Dialog.Title className="t-title" style={{ margin: 0 }}>
-                Delete this clip?
+                {count > 1 ? `Delete ${count} clips?` : 'Delete this clip?'}
               </Dialog.Title>
               <Dialog.Description id="delete-desc" className="t-sec" style={{ marginTop: 4 }}>
-                {clip ? `${clip.app} · ${clip.title || 'Untitled clip'}` : ''}
+                {count > 1 ? `${count} clips will be deleted. Press Ctrl+Z to bring them back.` : clip ? `${clip.app} · ${clip.title || 'Untitled clip'}` : ''}
               </Dialog.Description>
             </div>
           </div>

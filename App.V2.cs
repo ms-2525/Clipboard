@@ -16,31 +16,25 @@ using MenuItem = System.Windows.Controls.MenuItem;
 namespace Clip
 {
     /// <summary>
-    /// The v2 tray app. A plain launch (or --v2, kept as an alias) runs the WebView2 shell as the product:
-    /// one warm surface, the configured hotkey, live capture and the single-instance rules. --legacy opens
-    /// the old WPF UI for this release only; --db &lt;path&gt; redirects the database.
+    /// The tray app: the WebView2 shell is the product — one warm surface, the configured hotkey,
+    /// live capture and the single-instance rules. --db &lt;path&gt; redirects the database.
     /// </summary>
     public partial class App
     {
         ShellWindow _shell;
         EventWaitHandle _showSignal;
-        Mutex _legacyMutex;
         string _themeSetting;
 
-        bool StartV2Shell(string[] args)
+        void StartV2Shell(string[] args)
         {
-            // --v2 is still accepted and ignored: it is the default now.
-            bool legacy = false;
             string dbPath = null;
             for (int i = 0; i < args.Length; i++)
             {
-                if (string.Equals(args[i], "--legacy", StringComparison.OrdinalIgnoreCase)) legacy = true;
-                else if (string.Equals(args[i], "--db", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+                if (string.Equals(args[i], "--db", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
                     dbPath = args[++i];
             }
-            if (legacy) return false;
 
-            // One v2 per machine: a second launch surfaces the running window instead of a second listener.
+            // One instance per machine: a second launch surfaces the running window instead of a second listener.
             _mutex = new Mutex(false, $"{Product}.V2");
             if (!Own(_mutex))
             {
@@ -48,24 +42,11 @@ namespace Clip
                 _mutex = null;
                 SignalRunningShell();
                 Shutdown();
-                return true;
-            }
-
-            // The old app owns the same clipboard: two listeners on one machine would capture everything twice.
-            _legacyMutex = new Mutex(false, $"{Product}.SingleInstance");
-            if (!Own(_legacyMutex))
-            {
-                _legacyMutex.Dispose();
-                _legacyMutex = null;
-                MessageBox.Show(
-                    $"{Product} is already running from its tray icon. Exit it there, then start {Product} again.",
-                    Product, MessageBoxButton.OK, MessageBoxImage.Information);
-                Release(_mutex);
-                Shutdown();
-                return true;
+                return;
             }
 
             _cfg = Config.Load();
+            ClipboardItem.ClockFormat = _cfg.TimeFormat == "12h" ? "h:mm tt" : "HH:mm";
             _themeSetting = _cfg.Theme;
             _cfg.Theme = ApplyTheme(_themeSetting); // memory only: the page needs light|dark, never "system"
 
@@ -89,7 +70,6 @@ namespace Clip
                 _store?.Dispose();
                 _store = null;
                 Release(_mutex);
-                Release(_legacyMutex);
                 Shutdown();
             };
 
@@ -118,7 +98,7 @@ namespace Clip
                 _shell?.NotifyCorruption();
             }));
 
-            // The toast pays its first-show cost off the critical path, exactly like the old app.
+            // The toast pays its first-show cost off the critical path.
             Dispatcher.BeginInvoke(new Action(() => _notif?.WarmHidden()), DispatcherPriority.ApplicationIdle);
 
             // The constructor already moved a corrupt file aside: the tray must say where the history went.
@@ -134,7 +114,6 @@ namespace Clip
             RegisterV2Hotkeys();
             ListenForShow();
             WatchTheme();
-            return true;
         }
 
         /// <summary>Owns a named mutex; an abandoned one belonged to a crash, so this process takes it over.</summary>
@@ -225,7 +204,6 @@ namespace Clip
             var menu = Themed(new ContextMenu());
             AddTrayItem(menu, $"{Product}: show/hide", () => _shell?.Toggle());
             AddTrayItem(menu, "Settings\u2026", () => _shell?.ShowForSettings());
-            AddTrayItem(menu, "Clear history\u2026", () => _shell?.ConfirmClearHistory());
             menu.Items.Add(Themed(new System.Windows.Controls.Separator()));
             AddTrayItem(menu, "Exit", ExitV2);
             OpenTrayMenuAtCursor(menu);
@@ -240,6 +218,9 @@ namespace Clip
             menu.Placement = System.Windows.Controls.Primitives.PlacementMode.AbsolutePoint;
             menu.HorizontalOffset = cursor.X / scale;
             menu.VerticalOffset = cursor.Y / scale;
+            // Light-dismiss: a programmatically opened menu keeps StaysOpen=true, so a click
+            // elsewhere or Esc would leave it hanging. False hands dismissal back to WPF.
+            menu.StaysOpen = false;
             menu.IsOpen = true;
         }
 
@@ -262,7 +243,6 @@ namespace Clip
 
         void ExitV2()
         {
-            _exiting = true;
             if (_themeSetting == "system") SystemEvents.UserPreferenceChanged -= OnThemePreferenceChanged;
             _hotkey?.Dispose();
             _hotkey = null;

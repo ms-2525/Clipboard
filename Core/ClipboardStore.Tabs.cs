@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Microsoft.Data.Sqlite;
 
 namespace Clip.Core
@@ -112,6 +113,47 @@ DELETE FROM item_formats WHERE item_id NOT IN (SELECT id FROM items)";
             cmd.Parameters.AddWithValue("$pinned", PinnedTabId);
             cmd.Parameters.AddWithValue("$id", itemId);
             cmd.ExecuteNonQuery();
+        }
+
+        /// <summary>
+        /// Persists the strip order for custom tabs; Pinned always stays first. Unknown ids are ignored and
+        /// tabs missing from the list keep their relative order at the end, so a stale page cannot lose a tab.
+        /// </summary>
+        public void SetTabOrder(long[] orderedIds)
+        {
+            var wanted = new List<long>();
+            if (orderedIds != null)
+                foreach (var id in orderedIds)
+                    if (id != PinnedTabId && !wanted.Contains(id)) wanted.Add(id);
+
+            var existing = new List<long>();
+            using (var cmd = _conn.CreateCommand())
+            {
+                cmd.CommandText = "SELECT id FROM tabs WHERE kind = 'custom' ORDER BY sort_order, id";
+                using var r = cmd.ExecuteReader();
+                while (r.Read()) existing.Add(r.GetInt64(0));
+            }
+
+            var final = wanted.Where(existing.Contains).Concat(existing.Where(id => !wanted.Contains(id))).ToList();
+            using var tx = _conn.BeginTransaction();
+            using (var pin = _conn.CreateCommand())
+            {
+                pin.Transaction = tx;
+                pin.CommandText = "UPDATE tabs SET sort_order = 0 WHERE id = $id";
+                pin.Parameters.AddWithValue("$id", PinnedTabId);
+                pin.ExecuteNonQuery();
+            }
+            int order = 1;
+            foreach (var id in final)
+            {
+                using var cmd = _conn.CreateCommand();
+                cmd.Transaction = tx;
+                cmd.CommandText = "UPDATE tabs SET sort_order = $o WHERE id = $id";
+                cmd.Parameters.AddWithValue("$o", order++);
+                cmd.Parameters.AddWithValue("$id", id);
+                cmd.ExecuteNonQuery();
+            }
+            tx.Commit();
         }
 
         static string CleanTabName(string name)

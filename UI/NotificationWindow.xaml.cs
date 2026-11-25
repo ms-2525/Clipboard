@@ -111,17 +111,20 @@ namespace Clip.UI
             ThumbImg.Source = null;
             ThumbImg.Visibility = Visibility.Collapsed;
             Body.Visibility = Visibility.Visible;
-            Body.Foreground = (Brush)FindResource("Fg");
+            Body.Foreground = (Brush)FindResource("Fg75");
 
             bool image = item.Kind == "image";
-            bool hasThumb = image && item.Thumb != null && item.Thumb.Length > 0;
+            // The toast shows the full image, not the 96px list thumbnail, so a screenshot
+            // renders sharp at the toast's ~230 DIP height instead of a tiny 96px stamp.
+            byte[] preview = item.Image ?? item.Thumb;
+            bool hasThumb = image && preview != null && preview.Length > 0;
 
             if (hasThumb)
             {
                 try
                 {
                     var thumb = new BitmapImage();
-                    using (var ms = new MemoryStream(item.Thumb))
+                    using (var ms = new MemoryStream(preview))
                     {
                         thumb.BeginInit();
                         thumb.CacheOption = BitmapCacheOption.OnLoad;
@@ -198,7 +201,7 @@ namespace Clip.UI
             for (int i = 0; i < count; i++)
             {
                 if (i > 0) body.Append('\n');
-                body.Append(trimLines && lines[i].Length > 120 ? lines[i].Substring(0, 120) + "â€¦" : lines[i]);
+                body.Append(trimLines && lines[i].Length > 120 ? lines[i].Substring(0, 120) + "…" : lines[i]);
             }
             return body.ToString().TrimEnd();
         }

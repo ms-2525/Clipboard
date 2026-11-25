@@ -15,14 +15,9 @@
     <RootNamespace>Clip</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\clip.ico</ApplicationIcon>
-    <!-- The editor page's npm install is a build-time-only dependency, never app content. -->
-    <DefaultItemExcludes>$(DefaultItemExcludes);scripts\editor\node_modules\**</DefaultItemExcludes>
   </PropertyGroup>
 
-  <!-- _fonttest is a scratch experiment, not part of the app -->
   <ItemGroup>
-    <Compile Remove="_fonttest\**" />
-    <Page Remove="_fonttest\**" />
     <!-- "Ortu Reference" is the owner-requested local clone of the Ortu repo (design reference only — never compiled) -->
     <Compile Remove="Ortu Reference\**" />
     <Page Remove="Ortu Reference\**" />
@@ -31,27 +26,14 @@
   </ItemGroup>
 
   <!-- Static faces: WPF cannot drive a variable font's wght axis, so 400/500/600 ship as three files.
-       Sora (SIL OFL) is the owner-picked face with Inter kept as fallback; IBM Plex Mono renders mono. -->
+       Sora (SIL OFL) is the owner-picked face; the toast is the only WPF text left that uses it. -->
   <ItemGroup>
     <Resource Include="Assets\Fonts\Sora-Regular.ttf" />
     <Resource Include="Assets\Fonts\Sora-Medium.ttf" />
     <Resource Include="Assets\Fonts\Sora-SemiBold.ttf" />
-    <Resource Include="Assets\Fonts\Inter-Regular.ttf" />
-    <Resource Include="Assets\Fonts\Inter-Medium.ttf" />
-    <Resource Include="Assets\Fonts\Inter-SemiBold.ttf" />
-    <Resource Include="Assets\Fonts\IBMPlexMono-Regular.ttf" />
-    <Resource Include="Assets\Fonts\IBMPlexMono-Medium.ttf" />
-    <Resource Include="Assets\Fonts\IBMPlexMono-SemiBold.ttf" />
   </ItemGroup>
 
-  <!-- The editor page ships inside the exe: the host serves these three over https://clip/. -->
-  <ItemGroup>
-    <EmbeddedResource Include="Assets\editor\editor.html" LogicalName="clip.assets.editor.html" />
-    <EmbeddedResource Include="Assets\editor\editor.css" LogicalName="clip.assets.editor.css" />
-    <EmbeddedResource Include="Assets\editor\editor.bundle.js" LogicalName="clip.assets.editor.bundle.js" />
-  </ItemGroup>
-
-  <!-- The final web UI ships inside the exe too: ShellWindow serves clip.assets.web/<path> from memory
+  <!-- The final web UI ships inside the exe: ShellWindow serves clip.assets.web/<path> from memory
        over https://clip.local/, so a published Clip.exe needs no folder beside it. The glob is empty when
        UI\web\dist has not been built yet, and the shell then shows its explicit fallback page. -->
   <ItemGroup>

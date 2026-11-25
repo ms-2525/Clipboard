@@ -9,6 +9,7 @@ import {
   IconDownload,
   IconEdit,
   IconFolder,
+  IconInfo,
   IconOpen,
   IconTrash,
 } from './icons'
@@ -26,12 +27,13 @@ interface Props {
   onSaveAs: () => void
   onDelete: () => void
   onOpenDefault: () => void
+  onInfo: () => void
   onMove: (tabId: number | null) => void
   onClose: () => void
 }
 
 /**
- * One flat menu: Edit, Copy, Save as, Delete, Open in default app, then an
+ * One flat menu: Edit, Copy, Export, Delete, Open in default app, Clip info, then an
  * inline Move-to-tab section with a tick on the current tab. Everything lives
  * in the same box, so there is no flyout to clip, flip or portal.
  */
@@ -47,6 +49,7 @@ export function RowMenu({
   onSaveAs,
   onDelete,
   onOpenDefault,
+  onInfo,
   onMove,
   onClose,
 }: Props) {
@@ -127,6 +130,8 @@ export function RowMenu({
     }
     if (event.key === 'Escape') {
       event.preventDefault()
+      // The window key matrix re-subscribes on close; without this the same keystroke hides the app.
+      event.stopPropagation()
       onClose()
     }
   }
@@ -153,7 +158,7 @@ export function RowMenu({
       aria-label="Clip actions"
       style={{
         left: Math.max(8, Math.min(x, window.innerWidth - 256)),
-        top: Math.max(8, Math.min(y, window.innerHeight - 320)),
+        top: Math.max(8, Math.min(y, window.innerHeight - 360)),
       }}
       onKeyDown={onKey}
     >
@@ -162,10 +167,11 @@ export function RowMenu({
       </div>
       {item('edit', 'Edit', <IconEdit />, onEdit, 'F2')}
       {item('copy', 'Copy', <IconCopy />, onCopy)}
-      {canSave && item('save', 'Save as', <IconDownload />, onSaveAs, 'Ctrl E')}
+      {canSave && item('save', 'Export', <IconDownload />, onSaveAs, 'Ctrl E')}
       {item('delete', 'Delete', <IconTrash />, onDelete, 'Del', true)}
       {canOpen && <div className="ctx-sep" role="separator" />}
       {canOpen && item('open', 'Open in default app', <IconOpen />, onOpenDefault)}
+      {item('info', 'Clip info', <IconInfo />, onInfo)}
       <div className="ctx-sep" role="separator" />
       <button
         ref={moveRef}

@@ -80,9 +80,14 @@ namespace Clip.Core
                         // Code samples may contain markup (<code>, <span>): only the text survives.
                         int close = IndexOfIgnoreCase(html, "</pre", i);
                         if (close < 0) close = html.Length;
-                        _root.Append(PreText(html.Substring(i, close - i)));
-                        i = close;
-                        continue;
+                        if (close > i)
+                        {
+                            _root.Append(PreText(html.Substring(i, close - i)));
+                            i = close;
+                            continue;
+                        }
+                        // At the closing tag: fall through so Tag() consumes it and
+                        // End("pre") closes the fence (_pre stays set for that check).
                     }
                     if (html[i] != '<')
                     {

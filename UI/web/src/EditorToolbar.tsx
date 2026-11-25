@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Editor } from '@tiptap/core'
+import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import {
   IconAddRow,
   IconBold,
@@ -23,7 +24,7 @@ import {
   IconUndo,
 } from './icons'
 
-export type EditorPop = 'colour' | 'font' | 'link' | null
+export type EditorPop = 'colour' | 'font' | 'link' | 'case' | null
 
 interface Props {
   editor: Editor
@@ -33,6 +34,64 @@ interface Props {
   onSize: (next: number) => void
   onSingleLine: () => void
   highlight: string
+}
+
+/**
+ * The Change-case menu. Word characters match the legacy editor's rule
+ * (Core\TextCase): letters, digits, apostrophes.
+ */
+const MINOR_WORDS = new Set([
+  'a', 'an', 'and', 'as', 'at', 'but', 'by', 'for', 'if', 'in', 'is', 'of', 'on', 'or',
+  'so', 'the', 'to', 'via', 'per', 'with', 'yet', 'nor',
+])
+
+type CaseVariant = 'upper' | 'lower' | 'title' | 'sentence'
+
+const isLetter = (value: string) => /\p{L}/u.test(value)
+
+const isWordChar = (value: string) => /[\p{L}\p{Nd}'\u2019]/u.test(value)
+
+// Title Case: every word except the short connectors; the block's first word always counts.
+function titleRun(text: string, flag: boolean): { text: string; flag: boolean } {
+  const chars = Array.from(text)
+  let out = ''
+  let firstWord = flag
+  let index = 0
+  while (index < chars.length) {
+    if (!isLetter(chars[index])) {
+      out += chars[index]
+      index += 1
+      continue
+    }
+    let end = index
+    while (end < chars.length && isWordChar(chars[end])) end += 1
+    const word = chars.slice(index, end).join('')
+    const cap = firstWord || !MINOR_WORDS.has(word.toLowerCase())
+    out += cap ? word[0].toUpperCase() + word.slice(1).toLowerCase() : word.toLowerCase()
+    firstWord = false
+    index = end
+  }
+  return { text: out, flag: firstWord }
+}
+
+// Sentence case: the first letter after ".", "!" or "?" (block starts count too).
+// A digit also ends the wait, so "2.0 release" stays lower, but only a letter is uppercased.
+function sentenceRun(text: string, flag: boolean): { text: string; flag: boolean } {
+  let out = ''
+  let sentenceStart = flag
+  for (const char of text) {
+    if (char === '.' || char === '!' || char === '?') {
+      sentenceStart = true
+      out += char
+    } else if (isLetter(char)) {
+      out += sentenceStart ? char.toUpperCase() : char.toLowerCase()
+      sentenceStart = false
+    } else {
+      if (/\p{Nd}/u.test(char)) sentenceStart = false
+      out += char
+    }
+  }
+  return { text: out, flag: sentenceStart }
 }
 
 /**
@@ -61,6 +120,55 @@ export function EditorToolbar({ editor, pop, setPop, size, onSize, onSingleLine,
     const href = linkDraft.trim()
     if (href) editor.chain().focus().extendMarkRange('link').setLink({ href }).run()
     else editor.chain().focus().extendMarkRange('link').unsetLink().run()
+    setPop(null)
+  }
+
+  const applyCase = (variant: CaseVariant) => {
+    const { state } = editor
+    // No selection means the whole clip, like Clear formatting.
+    const from = state.selection.empty ? 0 : state.selection.from
+    const to = state.selection.empty ? state.doc.content.size : state.selection.to
+    const changes: { from: number; to: number; text: string; node: ProseMirrorNode }[] = []
+    if (variant === 'upper' || variant === 'lower') {
+      state.doc.nodesBetween(from, to, (node, pos) => {
+        if (!node.isText || !node.text) return true
+        const start = Math.max(pos, from)
+        const end = Math.min(pos + node.nodeSize, to)
+        if (start >= end) return true
+        const slice = node.text.slice(start - pos, end - pos)
+        const next = variant === 'upper' ? slice.toUpperCase() : slice.toLowerCase()
+        if (next !== slice) changes.push({ from: start, to: end, text: next, node })
+        return true
+      })
+    } else {
+      // Title and sentence threading restarts at every block, like the legacy Aa cycle.
+      let flag = true
+      state.doc.nodesBetween(from, to, (node, pos) => {
+        if (node.isTextblock) {
+          flag = true
+          return true
+        }
+        if (!node.isText || !node.text) return true
+        const start = Math.max(pos, from)
+        const end = Math.min(pos + node.nodeSize, to)
+        if (start >= end) return true
+        const slice = node.text.slice(start - pos, end - pos)
+        const result = variant === 'title' ? titleRun(slice, flag) : sentenceRun(slice, flag)
+        flag = result.flag
+        if (result.text !== slice) changes.push({ from: start, to: end, text: result.text, node })
+        return true
+      })
+    }
+    if (changes.length) {
+      // Back to front so an earlier replacement never shifts a later offset.
+      const tr = state.tr
+      for (let index = changes.length - 1; index >= 0; index -= 1) {
+        const change = changes[index]
+        tr.replaceWith(change.from, change.to, state.schema.text(change.text, change.node.marks))
+      }
+      editor.view.dispatch(tr)
+    }
+    editor.commands.focus()
     setPop(null)
   }
 
@@ -263,6 +371,37 @@ export function EditorToolbar({ editor, pop, setPop, size, onSize, onSingleLine,
       <button className="tool text" onClick={onSingleLine} title="Collapse to one paragraph">
         Single line
       </button>
+      <div className="tool-wrap">
+        <button
+          className="tool text"
+          data-on={pop === 'case'}
+          onClick={() => setPop((current) => (current === 'case' ? null : 'case'))}
+          title="Change case: UPPERCASE / lowercase / Title Case / Sentence case"
+          aria-label="Change case"
+        >
+          Case
+          <IconChevron />
+        </button>
+        {pop === 'case' && (
+          <div className="popover" style={{ top: 32, right: 0 }} ref={popRef}>
+            <div className="t-micro" style={{ padding: '2px 4px 6px' }}>
+              Change case
+            </div>
+            {(
+              [
+                { label: 'UPPERCASE', variant: 'upper' },
+                { label: 'lowercase', variant: 'lower' },
+                { label: 'Title Case', variant: 'title' },
+                { label: 'Sentence case', variant: 'sentence' },
+              ] as { label: string; variant: CaseVariant }[]
+            ).map((item) => (
+              <button key={item.variant} className="pop-item" onClick={() => applyCase(item.variant)}>
+                {item.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

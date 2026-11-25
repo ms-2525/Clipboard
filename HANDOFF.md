@@ -111,7 +111,7 @@ only with cited evidence; a `[U]` row only from a fresh agent's screenshot.
    .\build-release.cmd
    ```
    Then confirm: the exe starts, `Alt+V` shows the new UI (not the fallback page), a paste into
-   Notepad works, tray Exit leaves zero `msedgewebview2` children. `--legacy` still opens the old UI.
+   Notepad works, tray Exit leaves zero `msedgewebview2` children.
 4. Delete the watchdog automation `aut_20f28ef3d001ZRc1IxBGtA5FS4` (it fires every 40 minutes and
    points at the old chat session).
 5. Give the owner a one-screen close-out: what shipped, the numbers, what remains unproven, the named
@@ -152,7 +152,7 @@ only with cited evidence; a `[U]` row only from a fresh agent's screenshot.
    blank space in the lower right at 900; the 3 px selection rail is what separates selected from hover.
 6. Eleven files exceed the 400-line budget (`App.tsx` 876, `styles.css` 1825, `ClipboardStore.Items.cs`
    497 among them). Split after release.
-7. The old WPF UI remains reachable with `--legacy` for one release.
+7. The old WPF UI has been removed (25 Nov 2026); the WebView2 shell is the only UI.
 8. Deleting a tab permanently deletes its clips after a confirm; there is no tab-level undo.
 
 ---

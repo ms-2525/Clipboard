@@ -5,8 +5,9 @@ import { DeleteConfirm } from './DeleteConfirm'
 import { EditorOverlay } from './EditorOverlay'
 import { MovePicker, moveTargets } from './MoveToTab'
 import { RowMenu } from './RowMenu'
+import { ClipInfo, StorageNotice } from './ClipInfo'
 import { SettingsDialog } from './SettingsDialog'
-import { TagPicker, clearTagTokens } from './TagPicker'
+import { TagPicker, clearTagTokens, tagToken, TAG_VOCAB } from './TagPicker'
 import { TabStrip, type StripTab } from './TabStrip'
 import { createHost, messageOf, toSettings, type ClipItem, type HostConfig, type HostSettings, type HostTab, type InitResult, type SaveConfigResult, type SearchResult, type SettingsPatch } from './host'
 import { useClipboardKeys } from './useClipboardKeys'
@@ -50,7 +51,7 @@ interface SearchView extends SearchResult {
   query: string
 }
 
-/** How many clips the All tab can show; the host's richer `all` wins over the raw clips/images pair. */
+/** How many clips the Inbox tab can show; the host's richer `all` wins over the raw clips/images pair. */
 function allCountOf(init: InitResult): number {
   const counts = init.counts
   if (typeof counts.all === 'number') return counts.all
@@ -105,31 +106,40 @@ export default function App() {
   const [query, setQuery] = useState('')
   const [searchOpen, setSearchOpen] = useState(true)
   const [selectedId, setSelectedId] = useState<number | null>(null)
+  /** Shift+Up/Down range: the anchor row plus every id between anchor and cursor. Empty = single cursor. */
+  const [anchorId, setAnchorId] = useState<number | null>(null)
+  const [selectedIds, setSelectedIds] = useState<number[]>([])
   const [settingsOpen, setSettingsOpen] = useState(previewUi && params.get('surface') === 'settings')
   const [editorOpen, setEditorOpen] = useState(previewUi && params.get('surface') === 'editor')
-  const [confirm, setConfirm] = useState<ClipItem | null>(null)
+  const [confirm, setConfirm] = useState<ClipItem[] | null>(null)
   const [toasts, setToasts] = useState<Toast[]>([])
   const [init, setInit] = useState<InitResult | null>(null)
   const [tabRows, setTabRows] = useState<HostTab[]>([])
   const [allCount, setAllCount] = useState(0)
-  /** The virtual Images tab: it shows `image:` over All history and is never stored as a DB tab. */
+  /** The virtual Images tab: it shows `tag:image` over Inbox and is never stored as a DB tab. */
   const [images, setImages] = useState(false)
   const [imageCount, setImageCount] = useState(0)
   const [tabOverlay, setTabOverlay] = useState(false)
   const [rowMenu, setRowMenu] = useState<{ clip: ClipItem; x: number; y: number } | null>(null)
   const [moveClip, setMoveClip] = useState<ClipItem | null>(null)
   const [tagClip, setTagClip] = useState<ClipItem | null>(null)
+  const [infoClip, setInfoClip] = useState<ClipItem | null>(null)
+  /** Host "storage" event payload; shown once per run, then muted until the page reloads. */
+  const [storageNotice, setStorageNotice] = useState<{ bytes: number; limit: number } | null>(null)
   const [items, setItems] = useState<ClipItem[]>([])
   const [found, setFound] = useState<SearchView | null>(null)
   const [searching, setSearching] = useState(false)
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
   const [loadError, setLoadError] = useState('')
+  /** `tag:` dropdown: highlighted row plus whole-library counts, snapshotted when it opens. */
+  const [suggestIndex, setSuggestIndex] = useState(0)
+  const [tagCounts, setTagCounts] = useState<Record<string, number> | null>(null)
 
   const toastId = useRef(0)
   const tabSeq = useRef(0)
   const searchSeq = useRef(0)
   const lastQuery = useRef('')
-  const lastDeleted = useRef<{ clip: ClipItem; index: number } | null>(null)
+  const lastDeleted = useRef<{ clip: ClipItem; index: number }[] | null>(null)
   const searchRef = useRef<HTMLInputElement>(null)
   const searchTyped = useRef(false)
   const listRef = useRef<ClipListHandle>(null)
@@ -137,6 +147,8 @@ export default function App() {
   const confirmReturn = useRef<HTMLElement | null>(null)
   const moveReturn = useRef<HTMLElement | null>(null)
   const tagReturn = useRef<HTMLElement | null>(null)
+  const infoReturn = useRef<HTMLElement | null>(null)
+  const storageShown = useRef(false)
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
@@ -167,7 +179,7 @@ export default function App() {
     try {
       const [all, images] = await Promise.all([
         host.search({ query: '', tabId: null, offset: 0, limit: 1 }),
-        host.search({ query: 'image:', tabId: null, offset: 0, limit: 1 }),
+        host.search({ query: 'tag:image', tabId: null, offset: 0, limit: 1 }),
       ])
       setAllCount(all.total)
       setImageCount(images.total)
@@ -317,8 +329,12 @@ export default function App() {
     [host, query, refreshTabs, search, showToast, tab],
   )
 
+  const showImagesInAll = settings.showImagesInAll !== false
+
   const tabs = useMemo(() => {
-    const rows: StripTab[] = [{ id: null, label: 'All', count: allCount, kind: 'all' }]
+    // Hidden images still belong to the Images tab; the Inbox count drops them so the strip says what it shows.
+    const all = showImagesInAll ? allCount : Math.max(0, allCount - imageCount)
+    const rows: StripTab[] = [{ id: null, label: 'Inbox', count: all, kind: 'all' }]
     const imagesTab: StripTab = { id: IMAGES_TAB, label: 'Images', count: imageCount, kind: 'images' }
     let placed = false
     for (const hostTab of tabRows) {
@@ -330,16 +346,16 @@ export default function App() {
     }
     if (!placed) rows.push(imagesTab)
     return rows
-  }, [tabRows, allCount, imageCount])
+  }, [tabRows, allCount, imageCount, showImagesInAll])
 
-  /** The Images tab is the saved `image:` view over All; it never becomes a DB tab. */
+  /** The Images tab is the saved `tag:image` view over All; it never becomes a DB tab. */
   const selectImages = useCallback(() => {
     setImages(true)
     setTab(null)
     setFound(null)
     searchSeq.current++
     lastQuery.current = ''
-    setSearchProgrammatic('image:')
+    setSearchProgrammatic('tag:image')
   }, [setSearchProgrammatic])
 
   const chooseTab = useCallback(
@@ -350,7 +366,7 @@ export default function App() {
     [selectImages, selectTab],
   )
 
-  /** Left/Right: All, Pinned, Images, then the custom tabs; wraps so the strip is one cycle. */
+  /** Left/Right: Inbox, Pinned, Images, then the custom tabs; wraps so the strip is one cycle. */
   const cycleTab = useCallback(
     (direction: 1 | -1) => {
       if (tabs.length < 2) return
@@ -363,7 +379,12 @@ export default function App() {
   )
   const moveDestinations = useMemo(() => moveTargets(tabRows), [tabRows])
 
-  const visible = found?.items ?? items
+  // The Inbox list hides image clips when the setting is off (the Images tab keeps them);
+  // shortcut: hidden images still occupy the loaded page, so a full page can show fewer rows.
+  const searched = found?.items ?? items
+  const visible = !showImagesInAll && tab === null && !images
+    ? searched.filter((clip) => clip.kind !== 'image' && !clip.hasImage)
+    : searched
   const visibleRef = useRef(visible)
   visibleRef.current = visible
   const itemsRef = useRef(items)
@@ -371,13 +392,25 @@ export default function App() {
 
   useEffect(() => {
     if (selectedId != null && visible.some((clip) => clip.id === selectedId)) return
+    setAnchorId(null)
+    setSelectedIds([])
     setSelectedId(visible[0]?.id ?? null)
   }, [visible, selectedId])
 
+  // A filter or tab switch drops rows the range named; keep only what is still on screen.
+  useEffect(() => {
+    if (selectedIds.length === 0 && anchorId == null) return
+    const keep = new Set(visible.map((clip) => clip.id))
+    if (selectedIds.length > 0 && !selectedIds.every((id) => keep.has(id))) {
+      setSelectedIds((current) => current.filter((id) => keep.has(id)))
+    }
+    if (anchorId != null && !keep.has(anchorId)) setAnchorId(null)
+  }, [visible, selectedIds, anchorId])
+
   const selected = visible.find((clip) => clip.id === selectedId) ?? null
   const activeTab = tabs.find((entry) => entry.id === tab)
-  const tabLabel = images ? 'Images' : (activeTab?.label ?? 'All')
-  const tabCount = images ? (found?.query === 'image:' ? found.total : imageCount) : (activeTab?.count ?? visible.length)
+  const tabLabel = images ? 'Images' : (activeTab?.label ?? 'Inbox')
+  const tabCount = images ? (found?.query === 'tag:image' ? found.total : imageCount) : (activeTab?.count ?? visible.length)
   // Every row in the Pinned tab is pinned; repeating the glyph there is noise.
   const pinnedTab = tab != null && tabs.some((entry) => entry.id === tab && entry.kind === 'pinned')
   const today = init?.counts?.today
@@ -405,6 +438,84 @@ export default function App() {
         : activeTab?.kind === 'pinned'
           ? 'Press Ctrl+P on a clip to keep it here.'
           : 'Right-click a clip and move it here.'
+
+  /** The `tag:` fragment being typed, or null when no dropdown may show (Q9 one-tag lock). */
+  const tagFrag = useMemo(() => {
+    const at = search.search(/tag:/i)
+    if (at < 0) return null
+    const after = search.slice(at)
+    if (/tag:/i.test(after.slice(4))) return null // a second `tag:` never opens (Q9)
+    const match = /^tag:([A-Za-z0-9_-]*)(.*)$/i.exec(after)
+    if (!match) return null
+    const frag = match[1]
+    const rest = match[2]
+    // A complete `tag:image` followed by space/text is done typing: the list stays closed.
+    if (rest.length > 0 && TAG_VOCAB.includes(frag.toLowerCase())) return null
+    return frag
+  }, [search])
+  const suggestOpen = tagFrag != null
+  /** Snapshot whole-library counts once per open; names filter live as the fragment grows. */
+  useEffect(() => {
+    if (!suggestOpen) {
+      setTagCounts(null)
+      setSuggestIndex(0)
+      return
+    }
+    let alive = true
+    setTagCounts(null)
+    setSuggestIndex(0)
+    void Promise.all(
+      TAG_VOCAB.map((name) =>
+        host
+          .search({ query: `tag:${name}`, tabId: null, offset: 0, limit: 1 })
+          .then((result) => ({ name, total: result.total }))
+          .catch(() => ({ name, total: 0 })),
+      ),
+    ).then((rows) => {
+      if (!alive) return
+      const counts: Record<string, number> = {}
+      for (const row of rows) counts[row.name] = row.total
+      setTagCounts(counts)
+    })
+    return () => {
+      alive = false
+    }
+  }, [suggestOpen, host])
+  const suggestItems = useMemo(() => {
+    if (!suggestOpen || tagFrag == null) return []
+    const needle = tagFrag.toLowerCase()
+    return TAG_VOCAB.filter((name) => name.startsWith(needle)).filter(
+      (name) => (tagCounts ? (tagCounts[name] ?? 0) > 0 : true),
+    )
+  }, [suggestOpen, tagFrag, tagCounts])
+  useEffect(() => {
+    setSuggestIndex((current) => Math.min(current, Math.max(0, suggestItems.length - 1)))
+  }, [suggestItems.length])
+  /** Plain words of the query (no `tag:` filter): what the rows highlight. */
+  const highlight = useMemo(
+    () =>
+      search
+        .split(/\s+/)
+        .filter((word) => word && !/^tag:[A-Za-z0-9_-]*$/i.test(word) && word.toLowerCase() !== 'tag:')
+        .map((word) => word.replace(/^-/, ''))
+        .filter((word) => word.length > 0),
+    [search],
+  )
+  const chooseTag = useCallback(
+    (name: string) => {
+      const at = search.search(/tag:/i)
+      if (at < 0) return
+      const after = search.slice(at)
+      const end = after.search(/\s/)
+      const before = search.slice(0, at)
+      const tail = end < 0 ? '' : after.slice(end)
+      const spacer = before.length > 0 && !/\s$/.test(before) ? ' ' : ''
+      // One tag only: replace the fragment, keep every other word, end with a space (Q3).
+      setSearchText(`${before}${spacer}tag:${name} ${tail.replace(/^\s+/, '')}`.replace(/\s+/g, ' '))
+      window.setTimeout(() => searchRef.current?.focus(), 0)
+    },
+    [search, setSearchText],
+  )
 
   const copyItem = useCallback(
     async (clip: ClipItem) => {
@@ -484,6 +595,19 @@ export default function App() {
     [host, refreshTabs, selectTab, showToast, tab],
   )
 
+  /** Persists the strip order after a tab drag, then re-reads the strip; the selection stays put. */
+  const reorderTabs = useCallback(
+    async (order: number[]) => {
+      try {
+        await host.reorderTabs({ order })
+        await refreshTabs()
+      } catch (error) {
+        showToast('Could not reorder tabs', messageOf(error), true)
+      }
+    },
+    [host, refreshTabs, showToast],
+  )
+
   /** Move, then re-read both the strip and the current page; the row leaves the list it came from. */
   const moveClipToTab = useCallback(
     async (clip: ClipItem, tabId: number | null) => {
@@ -509,7 +633,7 @@ export default function App() {
           ? current
           : rows[Math.min(Math.max(index, 0), rows.length - 1)]?.id ?? null,
       )
-      const label = moveDestinations.find((target) => target.id === tabId)?.label ?? 'All history'
+      const label = moveDestinations.find((target) => target.id === tabId)?.label ?? 'Inbox'
       showToast('Moved', `${clip.title || 'Clip'} → ${label}`)
     },
     [host, moveDestinations, refreshTabs, reload, showToast],
@@ -538,7 +662,35 @@ export default function App() {
     [selectedId],
   )
 
-  /** Ctrl+Shift+Left/Right: one step along All history -> custom tabs -> Pinned, wrapping at the ends. */
+  /** Plain navigation collapses the range: one cursor row, no anchor. */
+  const selectSingle = useCallback((id: number) => {
+    setAnchorId(null)
+    setSelectedIds([])
+    setSelectedId(id)
+  }, [])
+
+  /** Shift+Up/Down: grow or shrink the contiguous range between anchor and cursor. */
+  const extendSelection = useCallback(
+    (direction: 1 | -1) => {
+      const rows = visibleRef.current
+      if (rows.length === 0) return
+      const at = rows.findIndex((row) => row.id === selectedId)
+      const from = at < 0 ? 0 : at
+      const next = Math.max(0, Math.min(rows.length - 1, from + direction))
+      if (next === from) return
+      const anchor = anchorId ?? selectedId ?? rows[from].id
+      const anchorAt = rows.findIndex((row) => row.id === anchor)
+      const base = anchorAt < 0 ? from : anchorAt
+      if (anchorAt < 0) setAnchorId(rows[from].id)
+      else setAnchorId(anchor)
+      const range = rows.slice(Math.min(base, next), Math.max(base, next) + 1).map((row) => row.id)
+      setSelectedIds(range)
+      setSelectedId(rows[next].id)
+    },
+    [anchorId, selectedId],
+  )
+
+  /** Ctrl+Shift+Left/Right: one step along the Inbox -> custom tabs -> Pinned, wrapping at the ends. */
   const moveToAdjacentTab = useCallback(
     (direction: 1 | -1) => {
       if (!selected || moveDestinations.length < 2) return
@@ -551,17 +703,22 @@ export default function App() {
   )
 
   const undoDelete = useCallback(async () => {
-    const entry = lastDeleted.current
-    if (!entry) {
+    const entries = lastDeleted.current
+    if (!entries || entries.length === 0) {
       showToast('Nothing to undo', 'Delete a clip first.')
       return
     }
     try {
-      await host.restore({ id: entry.clip.id })
+      // Restore lowest index first so the rows land back in their old order.
+      for (const entry of [...entries].sort((a, b) => a.index - b.index)) {
+        await host.restore({ id: entry.clip.id })
+      }
       lastDeleted.current = null
       await reload()
-      setSelectedId(entry.clip.id)
-      showToast('Restored', `${entry.clip.app} · ${entry.clip.title}`)
+      setAnchorId(null)
+      setSelectedIds([])
+      setSelectedId(entries[0].clip.id)
+      showToast(entries.length === 1 ? 'Restored' : `Restored ${entries.length} clips`, `${entries[0].clip.app} · ${entries[0].clip.title}`)
     } catch (error) {
       showToast(isNotReady(error) ? 'Undo not ready yet' : 'Restore failed', messageOf(error), true)
     }
@@ -688,22 +845,29 @@ export default function App() {
   }, [host, showToast])
 
   const confirmDelete = useCallback(async () => {
-    const clip = confirm
-    if (!clip) return
+    const clips = confirm
+    if (!clips || clips.length === 0) return
     setConfirm(null)
-    const index = visibleRef.current.findIndex((row) => row.id === clip.id)
-    lastDeleted.current = { clip, index }
+    const rows = visibleRef.current
+    const ids = new Set(clips.map((clip) => clip.id))
+    const at = rows.findIndex((row) => ids.has(row.id))
+    lastDeleted.current = clips.map((clip) => ({ clip, index: Math.max(0, rows.findIndex((row) => row.id === clip.id)) }))
     try {
-      await host.delete({ id: clip.id })
-      // The host also emits `deleted`; removing here keeps the row gone even when it does not.
-      // The count is owned by that event (it also covers a delete the page did not start).
-      setItems((rows) => rows.filter((row) => row.id !== clip.id))
-      setFound((current) => (current ? { ...current, items: current.items.filter((row) => row.id !== clip.id) } : current))
-      if (index >= 0) {
-        const rows = visibleRef.current.filter((row) => row.id !== clip.id)
-        setSelectedId((current) => (current === clip.id ? rows[Math.min(index, rows.length - 1)]?.id ?? null : current))
+      for (const clip of clips) {
+        await host.delete({ id: clip.id })
       }
-      showToast('Deleted', 'Press Ctrl+Z to bring it back')
+      // The host also emits `deleted`; removing here keeps the rows gone even when it does not.
+      // The count is owned by that event (it also covers a delete the page did not start).
+      setItems((current) => current.filter((row) => !ids.has(row.id)))
+      setFound((current) => (current ? { ...current, items: current.items.filter((row) => !ids.has(row.id)) } : current))
+      setAnchorId(null)
+      setSelectedIds([])
+      if (at >= 0) {
+        const kept = rows.filter((row) => !ids.has(row.id))
+        const next = kept[Math.min(at, kept.length - 1)]?.id ?? null
+        setSelectedId((current) => (current != null && ids.has(current) ? next : current))
+      }
+      showToast(clips.length === 1 ? 'Deleted' : `Deleted ${clips.length} clips`, 'Press Ctrl+Z to bring it back')
     } catch (error) {
       lastDeleted.current = null
       showToast(isNotReady(error) ? 'Delete not ready yet' : 'Delete failed', messageOf(error), true)
@@ -725,13 +889,13 @@ export default function App() {
    * keeps its caret.
    */
   const focusRowsOnShow = useCallback(() => {
-    if (editorOpen || settingsOpen || confirm != null || tabOverlay || rowMenu != null || moveClip != null || tagClip != null) return
+    if (editorOpen || settingsOpen || confirm != null || tabOverlay || rowMenu != null || moveClip != null || tagClip != null || infoClip != null) return
     if (selectedId == null) return
     const active = document.activeElement
     const emptySearch = active === searchRef.current && search.trim() === ''
     if (active && active !== document.body && !emptySearch) return
     listRef.current?.focusSelected()
-  }, [confirm, editorOpen, moveClip, rowMenu, search, selectedId, settingsOpen, tabOverlay, tagClip])
+  }, [confirm, editorOpen, infoClip, moveClip, rowMenu, search, selectedId, settingsOpen, tabOverlay, tagClip])
 
   useEffect(() => {
     const onShow = () => {
@@ -751,12 +915,13 @@ export default function App() {
   }, [status])
 
   useClipboardKeys({
-    enabled: !editorOpen && !settingsOpen && confirm == null && !tabOverlay && rowMenu == null && moveClip == null && tagClip == null,
+    enabled: !editorOpen && !settingsOpen && confirm == null && !tabOverlay && rowMenu == null && moveClip == null && tagClip == null && infoClip == null,
     rows: visible,
     selectedId,
     search,
     searchRef,
-    onSelect: setSelectedId,
+    onSelect: selectSingle,
+    onRangeExtend: extendSelection,
     onSearch: setSearchText,
     onSearchFocus: focusSearch,
     onPage: (direction) => listRef.current?.pageBy(direction),
@@ -768,8 +933,12 @@ export default function App() {
     onExport: quickSave,
     onDelete: () => {
       if (!selected) return
+      // Delete acts on the whole Shift+Up/Down range; every other action uses the cursor row.
+      const ids = selectedIds.length > 1 ? new Set(selectedIds) : null
+      const clips = ids ? visible.filter((row) => ids.has(row.id)) : [selected]
+      if (clips.length === 0) return
       confirmReturn.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
-      setConfirm(selected)
+      setConfirm(clips)
     },
     onMove: () => {
       if (!selected) return
@@ -817,6 +986,16 @@ export default function App() {
           showToast('Skipped', reason || 'The image was too large to capture.')
           return
         }
+        if (event === 'storage') {
+          // The host re-checks on every popup open; the dialog asks once per run (owner decision:
+          // copies keep saving, the notice advises, it never blocks).
+          const s = data as { bytes?: number; limit?: number } | undefined
+          if (typeof s?.bytes !== 'number' || typeof s?.limit !== 'number') return
+          if (storageShown.current) return
+          storageShown.current = true
+          setStorageNotice({ bytes: s.bytes, limit: s.limit })
+          return
+        }
         if (event === 'hotkeyFailed') {
           const combo = (data as { combo?: string } | undefined)?.combo
           showToast(
@@ -853,6 +1032,8 @@ export default function App() {
           if (at >= 0) {
             const rows = visibleRef.current.filter((row) => row.id !== id)
             setSelectedId((current) => (current === id ? rows[Math.min(at, rows.length - 1)]?.id ?? null : current))
+            setSelectedIds((current) => current.filter((entry) => entry !== id))
+            setAnchorId((current) => (current === id ? null : current))
           }
           setItems((rows) => rows.filter((row) => row.id !== id))
           setFound((current) =>
@@ -884,10 +1065,83 @@ export default function App() {
               ref={searchRef}
               value={search}
               onChange={(event) => setSearchText(event.target.value)}
+              onKeyDown={(event) => {
+                if (!suggestOpen) return
+                if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                  event.preventDefault()
+                  event.stopPropagation()
+                  if (suggestItems.length === 0) return
+                  const direction = event.key === 'ArrowDown' ? 1 : -1
+                  setSuggestIndex(
+                    (current) => (current + direction + suggestItems.length) % suggestItems.length,
+                  )
+                } else if (event.key === 'Enter' || event.key === 'Tab') {
+                  const pick = suggestItems[suggestIndex]
+                  if (!pick) return
+                  event.preventDefault()
+                  event.stopPropagation()
+                  chooseTag(pick)
+                } else if (event.key === 'Escape') {
+                  // Close the list first; the window matrix clears the text on the next Esc.
+                  event.preventDefault()
+                  event.stopPropagation()
+                  const at = search.search(/tag:/i)
+                  if (at >= 0) {
+                    const after = search.slice(at)
+                    const end = after.search(/\s/)
+                    setSearchText(
+                      `${search.slice(0, at)}${end < 0 ? '' : after.slice(end)}`.replace(/\s+/g, ' '),
+                    )
+                  }
+                }
+              }}
               placeholder="Search clips, apps, file names…"
               aria-label="Search clips"
+              aria-expanded={suggestOpen}
+              aria-autocomplete="list"
+              role="combobox"
+              aria-controls="tag-suggest"
+              aria-activedescendant={suggestOpen && suggestItems[suggestIndex] ? `tag-${suggestItems[suggestIndex]}` : undefined}
               spellCheck={false}
             />
+            {suggestOpen && (
+              <div className="suggest" role="listbox" id="tag-suggest" aria-label="Tags">
+                {suggestItems.length === 0 ? (
+                  <div className="suggest-empty">No matching tag</div>
+                ) : (
+                  suggestItems.map((name, index) => {
+                    const count = tagCounts?.[name]
+                    const frag = tagFrag ?? ''
+                    const at = name.toLowerCase().indexOf(frag.toLowerCase())
+                    return (
+                      <div
+                        key={name}
+                        id={`tag-${name}`}
+                        role="option"
+                        aria-selected={index === suggestIndex}
+                        className={'suggest-row' + (index === suggestIndex ? ' active' : '')}
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => chooseTag(name)}
+                        onMouseEnter={() => setSuggestIndex(index)}
+                      >
+                        <span className="suggest-name">
+                          {at >= 0 && frag.length > 0 ? (
+                            <>
+                              {name.slice(0, at)}
+                              <mark className="hit">{name.slice(at, at + frag.length)}</mark>
+                              {name.slice(at + frag.length)}
+                            </>
+                          ) : (
+                            name
+                          )}
+                        </span>
+                        <span className="suggest-count">{typeof count === 'number' ? `(${count})` : '(…)'}</span>
+                      </div>
+                    )
+                  })
+                )}
+              </div>
+            )}
             {search ? (
               <button
                 className="icon-btn ghost"
@@ -977,6 +1231,7 @@ export default function App() {
               onCreate={createTab}
               onRename={renameTab}
               onDelete={deleteTab}
+              onReorder={reorderTabs}
               onOverlayChange={setTabOverlay}
             />
             <span className="spacer" />
@@ -1018,13 +1273,15 @@ export default function App() {
               ref={listRef}
               clips={visible}
               selectedId={selectedId}
+              selectedIds={selectedIds}
               timeFormat={timeFormat}
               hidePins={pinnedTab}
-              onSelect={setSelectedId}
+              showGroups={tab === null}
+              onSelect={selectSingle}
               onCopy={copyItem}
               onContextMenu={(clip, x, y) => setRowMenu({ clip, x, y })}
               onTag={(id) => {
-                setSearchProgrammatic(`${id}:`)
+                setSearchProgrammatic(tagToken(id))
                 focusSearch()
               }}
               getThumb={host.getThumb}
@@ -1032,12 +1289,13 @@ export default function App() {
               getItem={host.getItem}
               emptyTitle={emptyTitle}
               emptySub={emptySub}
+              highlight={highlight}
             />
           )}
 
           <div className="footer">
             <div className="footer-left">
-              <span className="t-meta">{images ? 'Image results' : searchActive ? `Results for "${query}"` : `${tabLabel} history`}</span>
+              <span className="t-meta">{images ? 'Image results' : searchActive ? `Results for "${query}"` : tab === null ? 'Clipboard history' : `${tabLabel} history`}</span>
               {activeSearch && activeSearch.unknownTags.length > 0 && (
                 <span
                   className="tag-hint"
@@ -1076,12 +1334,13 @@ export default function App() {
         onZoom={applyZoom}
         onSave={saveSettings}
         onClearHistory={() => void clearHistory()}
+        onStorageUsage={host.storageUsage}
         onPreviewToast={() => void host.previewNotification()}
         returnFocus={settingsReturn}
       />
 
       <DeleteConfirm
-        clip={confirm}
+        clips={confirm}
         onCancel={() => setConfirm(null)}
         onConfirm={() => void confirmDelete()}
         returnFocus={confirmReturn}
@@ -1113,12 +1372,18 @@ export default function App() {
             const clip = rowMenu.clip
             setRowMenu(null)
             confirmReturn.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
-            setConfirm(clip)
+            setConfirm([clip])
           }}
           onOpenDefault={() => {
             const clip = rowMenu.clip
             setRowMenu(null)
             void openInApp(clip)
+          }}
+          onInfo={() => {
+            const clip = rowMenu.clip
+            setRowMenu(null)
+            infoReturn.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+            setInfoClip(clip)
           }}
           onMove={(tabId) => {
             const clip = rowMenu.clip
@@ -1145,6 +1410,18 @@ export default function App() {
         onChoose={filterByTag}
         onClose={() => setTagClip(null)}
         returnFocus={tagReturn}
+      />
+
+      <ClipInfo
+        clip={infoClip}
+        timeFormat={timeFormat}
+        onClose={() => setInfoClip(null)}
+        returnFocus={infoReturn}
+      />
+
+      <StorageNotice
+        notice={storageNotice}
+        onClose={() => setStorageNotice(null)}
       />
 
       {editorOpen && selected && (

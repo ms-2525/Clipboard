@@ -25,10 +25,10 @@
         </Grid.ColumnDefinitions>
 
         <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,4,0">
-          <TextBlock x:Name="AppName" Foreground="{DynamicResource AccentText}" FontSize="{DynamicResource FontCaptionSize}"
-                     LineHeight="{DynamicResource FontCaptionLine}"
-                     FontWeight="SemiBold" VerticalAlignment="Center"/>
-          <TextBlock x:Name="Time" Foreground="{DynamicResource Muted}" FontSize="{DynamicResource FontMicroSize}"
+          <TextBlock x:Name="AppName" Foreground="{DynamicResource Fg48}" FontSize="{DynamicResource FontMicroSize}"
+                     LineHeight="{DynamicResource FontMicroLine}"
+                     FontWeight="Normal" VerticalAlignment="Center"/>
+          <TextBlock x:Name="Time" Foreground="{DynamicResource Fg48}" FontSize="{DynamicResource FontMicroSize}"
                      LineHeight="{DynamicResource FontMicroLine}"
                      VerticalAlignment="Center" Margin="8,0,0,0"/>
         </StackPanel>
@@ -37,10 +37,10 @@
              close in the app, kept small so a short toast stays short. -->
         <Button x:Name="CloseHit" Grid.Column="1" Style="{StaticResource IconButton}"
                 Width="24" Height="24" Margin="0,-4,-4,0"
-                VerticalAlignment="Top" Foreground="{DynamicResource Fg55}"
+                VerticalAlignment="Top" Foreground="{DynamicResource Fg40}"
                 AutomationProperties.Name="Dismiss notification" ToolTip="Dismiss">
           <Viewbox Width="10" Height="10">
-            <Path Data="{StaticResource IconClose}" Stroke="{DynamicResource Fg55}" StrokeThickness="2"
+            <Path Data="{StaticResource IconClose}" Stroke="{DynamicResource Fg40}" StrokeThickness="2"
                   StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
           </Viewbox>
         </Button>
@@ -49,8 +49,8 @@
       <Image x:Name="ThumbImg" Grid.Row="1" Stretch="Uniform" StretchDirection="DownOnly"
              Margin="0,6,0,0" Visibility="Collapsed"/>
 
-      <TextBlock Grid.Row="1" x:Name="Body" Foreground="{DynamicResource Fg}" FontSize="{DynamicResource FontBodySize}"
-                 LineHeight="{DynamicResource FontBodyLine}"
+      <TextBlock Grid.Row="1" x:Name="Body" Foreground="{DynamicResource Fg75}" FontSize="{DynamicResource FontToastBodySize}"
+                 LineHeight="{DynamicResource FontToastBodyLine}"
                  Margin="0,2,0,0" TextWrapping="Wrap" TextTrimming="CharacterEllipsis"/>
     </Grid>
   </Border>

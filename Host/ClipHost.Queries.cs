@@ -241,7 +241,8 @@ namespace Clip.Host
                 Formats = info?.Formats ?? new List<string>(),
                 Tags = tags,
                 Truncated = row.IsTruncated,
-                RemainingChars = (int)Math.Min(int.MaxValue, row.RemainingChars)
+                RemainingChars = (int)Math.Min(int.MaxValue, row.RemainingChars),
+                SizeBytes = row.SizeBytes
             };
         }
 
@@ -417,6 +418,8 @@ FROM items i WHERE i.id IN ({string.Join(",", names)})";
             public bool Truncated { get; set; }
             /// <summary>Stored characters (SQLite code points) past the preview; 0 unless <see cref="Truncated"/>.</summary>
             public int RemainingChars { get; set; }
+            /// <summary>Bytes the whole clip occupies (body + formats + image); the Info dialog shows it.</summary>
+            public long SizeBytes { get; set; }
         }
     }
 }

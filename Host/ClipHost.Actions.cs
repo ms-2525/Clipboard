@@ -157,6 +157,7 @@ namespace Clip.Host
             {
                 uint seq = plain ? PasteInjector.CopyAndPastePlain(item) : PasteInjector.CopyAndPaste(item);
                 SuppressCapture?.Invoke(seq);
+                TouchAndNotify(item.Id);
                 Reply(Ok(id, new { pasted = true }));
             }
             catch (Exception)
@@ -165,6 +166,18 @@ namespace Clip.Host
                 // The write runs before the chord, so a throw means nothing was injected: never claim a paste.
                 Reply(Ok(id, new { pasted = false, error = PasteInjector.ClipboardWriteError }));
             }
+        }
+
+        /// <summary>Reusing a clip makes it the newest; the page moves the emitted row to the top.</summary>
+        void TouchAndNotify(long id)
+        {
+            try { _store.Touch(id); }
+            catch (Exception) { return; } // reorder is cosmetic; the clipboard write already succeeded
+            OnUi(() =>
+            {
+                var dto = ReadDto(_dbPath, id, _pinnedTabId);
+                if (dto != null) Emit("captured", dto);
+            });
         }
 
         // ---- elevation guard --------------------------------------------------
@@ -299,7 +312,7 @@ FROM items WHERE id = $id";
             using (var cmd = conn.CreateCommand())
             {
                 cmd.CommandText = @"
-SELECT id, kind, substr(text,1,1200), length(text), uris, app_name, window_title, captured_at, tab_id
+SELECT id, kind, substr(text,1,1200), length(text), uris, app_name, window_title, captured_at, tab_id, size_bytes
 FROM items WHERE id = $id";
                 cmd.Parameters.AddWithValue("$id", id);
                 using var r = cmd.ExecuteReader();
@@ -315,7 +328,8 @@ FROM items WHERE id = $id";
                         AppName = r.IsDBNull(5) ? null : r.GetString(5),
                         WindowTitle = r.IsDBNull(6) ? null : r.GetString(6),
                         CapturedAt = r.IsDBNull(7) ? null : r.GetString(7),
-                        TabId = r.IsDBNull(8) ? (long?)null : r.GetInt64(8)
+                        TabId = r.IsDBNull(8) ? (long?)null : r.GetInt64(8),
+                        SizeBytes = r.IsDBNull(9) ? 0 : r.GetInt64(9)
                     };
                 }
             }

@@ -15,6 +15,8 @@ export interface HostSettings {
   timeFormat: '12h' | '24h'
   maxItems: number
   previewLines: number
+  /** False = image clips live only in the Images tab; the All/history list hides them. */
+  showImagesInAll: boolean
   uiZoom: number
   hotkey: string
   hotkeyPlain: string
@@ -27,6 +29,7 @@ export interface SettingsPatch {
   theme?: 'light' | 'dark' | 'system'
   timeFormat?: '12h' | '24h'
   maxItems?: number
+  showImagesInAll?: boolean
   uiZoom?: number
   hotkey?: string
   startOnLogin?: boolean
@@ -50,6 +53,7 @@ export function toSettings(config: HostConfig | null | undefined): HostSettings 
     timeFormat: config?.timeFormat === '12h' ? '12h' : '24h',
     maxItems: typeof config?.maxItems === 'number' ? config.maxItems : 200,
     previewLines: typeof config?.previewLines === 'number' ? config.previewLines : 10,
+    showImagesInAll: config?.showImagesInAll !== false,
     uiZoom: typeof config?.uiZoom === 'number' ? config.uiZoom : 100,
     hotkey: typeof config?.hotkey === 'string' ? config.hotkey : 'Alt+V',
     hotkeyPlain: typeof config?.hotkeyPlain === 'string' ? config.hotkeyPlain : 'Ctrl+Shift+V',

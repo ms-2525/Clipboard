@@ -4,13 +4,13 @@ Owner: non-coder product owner. AI agents do all implementation; the owner judge
 
 ## Project layout (map to the builder contract)
 
-- `Clip.csproj` — WPF net10.0-windows app (UseWPF + UseWindowsForms). Packages: Microsoft.Data.Sqlite, HtmlRenderer.WPF, H.NotifyIcon.Wpf, RtfPipe, System.Text.Encoding.CodePages.
+- `Clip.csproj` — WPF net10.0-windows app (UseWPF + UseWindowsForms). Packages: Microsoft.Data.Sqlite, H.NotifyIcon.Wpf, Microsoft.Web.WebView2, System.Text.Encoding.CodePages.
 - `Core\` — business rules + persistence (domain + store): `Config` (camelCase JSON in `%APPDATA%\<AssemblyName>\config.json`), `ClipboardItem`, `ClipboardStore` (SQLite: items / tabs / item_formats), `CaptureService` (debounced capture: text / rich / files / image; dedupe; Skipped), `SearchService`, `ImageCache`, `Autostart`.
 - `Interop\` — Win32 / shared infrastructure: `ClipboardListener`, `HotKeyWindow`, `ClipboardFormats` (Snapshot/Restore), `PasteInjector`, `ForegroundApp`, `ScreenDpi`, `HtmlFragment`.
-- `UI\` — WPF windows + code-behind (features; NO MVVM framework): `MainWindow`, `NotificationWindow`, `SettingsWindow`, `EditorWindow` (S3), `Themes\Dark|Light.xaml` — the ONLY color homes.
+- `UI\` — the shell + WPF toast and theme dictionaries (NO MVVM framework): `ShellWindow` (WebView2 host), `NotificationWindow` (toast), `Motion`, `Themes\Dark|Light.xaml` — the ONLY color homes. The React page lives in `UI\web`.
+- `UI\web\` — the product UI: React + TS, built by vite, embedded into the exe; Playwright e2e in `e2e\`.
 - `App.xaml(.cs)` — composition root: single-instance mutex, tray, theme apply, wiring.
 - `docs\` — frozen contracts + research. **`docs\CHECKLIST-features.md` and `docs\CHECKLIST-uiux.md` are the acceptance source of truth**; evidence required, no self-reported green.
-- `_fonttest\` — excluded scratch experiment; never build it, never edit it.
 
 Layering that HOLDS: `UI → Core|Interop` only; nothing imports `UI`; `App` imports everything. Known accepted deviation: `Core ↔ Interop` import each other (CaptureService uses Interop listeners; PasteInjector consumes Core models) — documented here rather than restructured (existing-project rule).
 
@@ -30,7 +30,7 @@ Layering that HOLDS: `UI → Core|Interop` only; nothing imports `UI`; `App` imp
 
 - One slice ≤ 5 production files; sprint agents own disjoint file sets; two strikes → the slice is reset and split.
 - No TODO / FIXME / stubs / `[DEBUG]` / `Console.WriteLine` in production code; no empty `catch` without a one-line comment saying why.
-- No hardcoded colors outside `UI\Themes\*.xaml`. (Accepted exception, owner-pending token: SettingsWindow error red `#FF6B6B`.)
+- No hardcoded colors outside `UI\Themes\*.xaml`.
 - 400-line file budget; split by feature, never by layer.
 - Product rename happens in ONE place: `<AssemblyName>` in `Clip.csproj`.
 - WPF binds properties, not fields. `ShutdownMode="OnExplicitShutdown"` stays (a tray app must never die with its last window).

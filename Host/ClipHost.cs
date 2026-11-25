@@ -141,6 +141,7 @@ namespace Clip.Host
 
                 case "copy":
                     CopyToClipboard(_store, Long(p, "id"), Bool(p, "plain"));
+                    TouchAndNotify(Long(p, "id"));
                     return new { copied = true };
 
                 case "export":
@@ -154,6 +155,9 @@ namespace Clip.Host
 
                 case "clearHistory":
                     return ClearHistory(p);
+
+                case "storageUsage":
+                    return StorageUsage(p);
 
                 case "delete":
                     return Delete(p);
@@ -178,6 +182,9 @@ namespace Clip.Host
 
                 case "deleteTab":
                     return DeleteTab(p);
+
+                case "reorderTabs":
+                    return ReorderTabs(p);
 
                 case "hide":
                     _hide();

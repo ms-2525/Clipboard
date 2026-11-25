@@ -9,6 +9,8 @@ export interface KeyActions {
   search: string
   searchRef: { current: HTMLInputElement | null }
   onSelect: (id: number) => void
+  /** Shift+Up/Down: extend the contiguous range instead of moving the cursor. */
+  onRangeExtend: (direction: 1 | -1) => void
   onSearch: (value: string) => void
   onSearchFocus: () => void
   /** Move a measured page (the list owns the row heights). */
@@ -140,6 +142,12 @@ export function useClipboardKeys(actions: KeyActions) {
       // ArrowDown is measured by the list, so it works in the search box too.
       if (rows.length > 0 && !onControl) {
         const at = index < 0 ? 0 : index
+        // Shift+Up/Down grows the range for a multi-delete; the caret keeps its search-box meaning.
+        if (!typing && event.shiftKey && (key === 'ArrowDown' || key === 'ArrowUp')) {
+          take()
+          actions.onRangeExtend(key === 'ArrowDown' ? 1 : -1)
+          return
+        }
         if (key === 'ArrowDown') {
           take()
           actions.onSelect(rows[Math.min(at + 1, rows.length - 1)].id)

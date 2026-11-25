@@ -38,6 +38,8 @@ namespace Clip.Core
         public int MaxItems { get; set; } = 200;
         // Lines of text shown per card in the popup list.
         public int PreviewLines { get; set; } = 10;
+        // When false, image clips live only in the Images tab; the All/history list hides them.
+        public bool ShowImagesInAll { get; set; } = true;
         public string Theme { get; set; } = "light";
         // Web shell zoom percent; WebView2 ZoomFactor = UiZoom / 100 (80–150, clamped by the host).
         public int UiZoom { get; set; } = 100;
@@ -54,6 +56,9 @@ namespace Clip.Core
         public long MaxImageBytes { get; set; } = 5242880;
         // Per-item budget for the stored all-formats blobs (see ClipboardFormats.Snapshot).
         public long MaxItemBytes { get; set; } = 10485760;
+        // Advisory ceiling for clip.db + its WAL: over it the list asks once per run to clear space.
+        // Copies are never refused (owner decision 25 Nov): the limit advises, it does not block.
+        public long MaxStorageBytes { get; set; } = 1073741824;
 
         /// <summary>True when Load() had to create defaults (file missing or corrupt). Never persisted.</summary>
         [JsonIgnore]

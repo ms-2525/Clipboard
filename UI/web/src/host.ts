@@ -31,6 +31,8 @@ export interface ClipItem {
   truncated: boolean
   /** Characters the preview omits; 0 when the clip is complete. Drives the +N chip. */
   remainingChars: number
+  /** Bytes the whole clip occupies (body + formats + image); 0 when the host could not read it. */
+  sizeBytes: number
 }
 
 export interface HostTab {
@@ -142,6 +144,8 @@ export interface Host {
   createTab(params: { name: string }): Promise<HostTab>
   renameTab(params: { id: number; name: string }): Promise<void>
   deleteTab(params: { id: number }): Promise<DeleteTabResult>
+  /** Persists the custom-tab strip order after a drag; Pinned stays first on the host. */
+  reorderTabs(params: { order: number[] }): Promise<void>
   hide(): Promise<void>
   /** Shows the real native toast at its real coordinates: the Settings preview. */
   previewNotification(): Promise<{ shown: boolean }>
@@ -150,6 +154,8 @@ export interface Host {
   saveConfig(patch: SettingsPatch): Promise<SaveConfigResult>
   saveEditor(params: { id: number; html: string; text: string }): Promise<EditorSaveResult>
   clearHistory(): Promise<void>
+  /** Current clip.db (+ WAL) bytes and the advisory limit, for the Settings readout. */
+  storageUsage(): Promise<{ bytes: number; limit: number }>
   onEvent(listener: (event: HostEvent) => void): () => void
 }
 
@@ -205,6 +211,7 @@ function normalizeItem(item: ClipItem): ClipItem {
     tags: Array.isArray(item.tags) ? item.tags : [],
     truncated: Boolean(item.truncated),
     remainingChars: Math.max(0, item.remainingChars ?? 0),
+    sizeBytes: Math.max(0, item.sizeBytes ?? 0),
     pinned: Boolean(item.pinned),
     hasImage: Boolean(item.hasImage),
     hasHtml: Boolean(item.hasHtml),
@@ -385,6 +392,10 @@ class WebViewHost implements Host {
     }
   }
 
+  reorderTabs = async (params: { order: number[] }) => {
+    await this.send('reorderTabs', { order: params.order })
+  }
+
   hide = async () => {
     await this.send('hide')
   }
@@ -422,6 +433,11 @@ class WebViewHost implements Host {
 
   clearHistory = async () => {
     await this.send('clearHistory')
+  }
+
+  storageUsage = async (): Promise<{ bytes: number; limit: number }> => {
+    const result = await this.send<{ bytes?: number; limit?: number }>('storageUsage')
+    return { bytes: Math.max(0, result?.bytes ?? 0), limit: Math.max(1, result?.limit ?? 0) }
   }
 
   onEvent = (listener: (event: HostEvent) => void) => {

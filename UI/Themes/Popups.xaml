@@ -15,7 +15,7 @@
     <Setter Property="FontFamily" Value="{DynamicResource UiFont}"/>
     <Setter Property="FontSize" Value="{DynamicResource FontBodySize}"/>
     <Setter Property="Foreground" Value="{DynamicResource Fg75}"/>
-    <Setter Property="HasDropShadow" Value="False"/>
+    <Setter Property="HasDropShadow" Value="True"/>
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="ContextMenu">
@@ -40,7 +40,6 @@
       <Setter.Value>
         <ControlTemplate TargetType="MenuItem">
           <Grid>
-            <Border x:Name="ItemPill" Background="Transparent" CornerRadius="8"/>
             <Border x:Name="State" Background="{DynamicResource StateHover}" CornerRadius="8" Opacity="0"/>
             <ContentPresenter ContentSource="Header" RecognizesAccessKey="True" VerticalAlignment="Center"
                               Margin="{TemplateBinding Padding}"/>

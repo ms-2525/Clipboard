@@ -5,7 +5,6 @@ dist/
 .vs/
 .cla/
 Ortu Reference/
-scripts/editor/node_modules/
 
 # Playwright artifacts
 UI/web/test-results/

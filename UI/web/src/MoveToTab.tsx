@@ -9,7 +9,7 @@ export interface MoveTarget {
 
 /** The picker's order: main history first, custom tabs in strip order, Pinned last. */
 export function moveTargets(tabs: HostTab[]): MoveTarget[] {
-  const targets: MoveTarget[] = [{ id: null, label: 'All history' }]
+  const targets: MoveTarget[] = [{ id: null, label: 'Inbox' }]
   for (const tab of tabs) if (tab.kind === 'custom') targets.push({ id: tab.id, label: tab.name })
   const pinned = tabs.find((tab) => tab.kind === 'pinned')
   if (pinned) targets.push({ id: pinned.id, label: 'Pinned' })
@@ -94,6 +94,10 @@ export function MovePicker({
           className="dialog move-picker"
           aria-describedby="move-desc"
           aria-modal="true"
+          onEscapeKeyDown={(event) => {
+            // Radix still closes; this only keeps the same keystroke from the window key matrix.
+            event.stopPropagation()
+          }}
           onCloseAutoFocus={(event) => {
             event.preventDefault()
             const target = returnFocus?.current?.isConnected

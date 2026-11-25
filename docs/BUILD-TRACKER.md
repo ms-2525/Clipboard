@@ -87,7 +87,8 @@ overlay blocked UI automation.
   old app).
 - `Core\ClipboardStore.Items.cs` and `Host\ClipHost.Actions.cs` are past 400 lines; `App.tsx` 876 and
   `styles.css` 1825. Split after release.
-- Old WPF UI stays reachable via `--legacy` for this release; delete it in the next one.
+- Old WPF UI deleted (25 Nov 2026): `--legacy` and its windows/editor assets are gone; the WebView2
+  shell is the only UI.
 - `mock.ts` still carries a dev-only second search/tag rule; it never ships to WebView2.
 - UX gaps vs the old app: no time-section jump (Ctrl+Up/Down), no tab UI until S13, no first-run tip.
 

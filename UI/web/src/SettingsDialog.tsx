@@ -3,7 +3,9 @@ import * as Dialog from '@radix-ui/react-dialog'
 import * as Switch from '@radix-ui/react-switch'
 import * as Slider from '@radix-ui/react-slider'
 import type { HostSettings, SaveConfigResult, SettingsPatch } from './host'
-import { IconChevron, IconClose, IconMonitor, IconMoon, IconSun } from './icons'
+import { formatBytes } from './ClipInfo'
+import { ShortcutsDialog } from './ShortcutsDialog'
+import { IconBell, IconChevron, IconClipboard, IconClose, IconDatabase, IconInfo, IconMonitor, IconMoon, IconSettings, IconSun } from './icons'
 
 interface Props {
   open: boolean
@@ -15,6 +17,8 @@ interface Props {
   onZoom: (zoom: number) => void
   onSave: (patch: SettingsPatch) => Promise<SaveConfigResult>
   onClearHistory: () => void
+  /** Fresh clip.db usage for the Clear row; advisory, so a failure simply shows no readout. */
+  onStorageUsage: () => Promise<{ bytes: number; limit: number }>
   /** Shows the real native toast at its real coordinates with the current settings. */
   onPreviewToast: () => void
   /** The Settings button; Radix has no Trigger here, so close restores focus to it explicitly. */
@@ -34,7 +38,7 @@ function comboOf(event: KeyboardEvent): string | null {
   if (key === 'Control' || key === 'Alt' || key === 'Shift' || key === 'Meta') return null
   let name = key
   if (/^[a-z]$/i.test(key)) name = key.toUpperCase()
-  else if (/^[0-9]$/.test(key)) name = key
+  else if (/^[0-9]$/.test(key) === true) name = key
   else if (key === ' ') name = 'Space'
   else if (key === '+') name = '='
   else if (key === 'Escape' || key === 'Tab' || key === 'Enter' || key === 'Backspace') return null
@@ -59,9 +63,21 @@ function Keycaps({ combo }: { combo: string }) {
   )
 }
 
-export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, onZoom, onSave, onClearHistory, onPreviewToast, returnFocus }: Props) {
+type Section = 'general' | 'capture' | 'appearance' | 'notifications' | 'storage' | 'about'
+
+const SECTIONS: { id: Section; label: string; icon: React.ComponentType }[] = [
+  { id: 'general', label: 'General', icon: IconSettings },
+  { id: 'capture', label: 'Capture', icon: IconClipboard },
+  { id: 'appearance', label: 'Appearance', icon: IconSun },
+  { id: 'notifications', label: 'Notifications', icon: IconBell },
+  { id: 'storage', label: 'Storage', icon: IconDatabase },
+  { id: 'about', label: 'About', icon: IconInfo },
+]
+
+export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, onZoom, onSave, onClearHistory, onPreviewToast, onStorageUsage, returnFocus }: Props) {
   const [autostart, setAutostart] = useState(settings.startOnLogin)
   const [cap, setCap] = useState(settings.maxItems)
+  const [showImagesInAll, setShowImagesInAll] = useState(settings.showImagesInAll)
   const [lines, setLines] = useState(settings.notification.maxLines)
   const [themeChoice, setThemeChoice] = useState(settings.themeChoice)
   const [timeFormat, setTimeFormat] = useState(settings.timeFormat)
@@ -70,12 +86,17 @@ export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, o
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [confirmClear, setConfirmClear] = useState(false)
+  const [storage, setStorage] = useState<{ bytes: number; limit: number } | null>(null)
+  const [showShortcuts, setShowShortcuts] = useState(false)
+  const [section, setSection] = useState<Section>('general')
+  const shortcutsReturn = useRef<HTMLElement | null>(null)
   const captureRef = useRef<HTMLButtonElement>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
+  const navRef = useRef<HTMLDivElement>(null)
   const wasOpen = useRef(false)
   // The fade is the scroll affordance: it is present exactly while content remains below.
   const [more, setMore] = useState(false)
-  // The scroll gutter exists only while the body really scrolls (a 10px reserve skews the two columns).
+  // The scroll gutter exists only while the body really scrolls (a 10px reserve would skew the pane).
   const [scrolls, setScrolls] = useState(false)
   const measure = useCallback(() => {
     const body = bodyRef.current
@@ -90,6 +111,7 @@ export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, o
     if (open && !wasOpen.current) {
       setAutostart(settings.startOnLogin)
       setCap(settings.maxItems)
+      setShowImagesInAll(settings.showImagesInAll)
       setLines(settings.notification.maxLines)
       setThemeChoice(settings.themeChoice)
       setTimeFormat(settings.timeFormat)
@@ -98,11 +120,15 @@ export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, o
       setSaving(false)
       setError('')
       setConfirmClear(false)
+      setStorage(null)
+      setSection('general')
+      // Advisory readout: a failure leaves the Clear row without a usage figure, never an error.
+      void onStorageUsage().then(setStorage).catch(() => {})
     }
     wasOpen.current = open
-  }, [open, settings])
+  }, [open, settings, onStorageUsage])
 
-  // Re-measure when the dialog opens, a group expands or the window resizes.
+  // Re-measure when the dialog opens, a section changes, a group expands or the window resizes.
   useEffect(() => {
     if (!open) return
     const frame = requestAnimationFrame(measure)
@@ -111,7 +137,7 @@ export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, o
       cancelAnimationFrame(frame)
       window.removeEventListener('resize', measure)
     }
-  }, [open, confirmClear, error, capturing, measure])
+  }, [open, section, confirmClear, error, capturing, measure])
 
   // Hotkey capture: the field takes the next chord, Esc cancels the capture only (not the dialog).
   useEffect(() => {
@@ -145,6 +171,13 @@ export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, o
     onZoom(zoom)
   }
 
+  const pickSection = (next: Section) => {
+    setSection(next)
+    setCapturing(false)
+    // Keep the pane's scroll position at the top when switching sections.
+    bodyRef.current?.scrollTo({ top: 0 })
+  }
+
   const save = async () => {
     if (saving) return
     setSaving(true)
@@ -154,6 +187,7 @@ export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, o
         theme: themeChoice,
         timeFormat,
         maxItems: cap,
+        showImagesInAll,
         uiZoom: settings.uiZoom,
         hotkey,
         startOnLogin: autostart,
@@ -163,18 +197,21 @@ export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, o
         // The host kept the binding that still works; say which one is live and leave the dialog open.
         setHotkey(result.config.hotkey)
         setError(result.hotkeyError)
+        setSection('general')
         return
       }
       onOpenChange(false)
     } catch (failure) {
       setError(messageOf(failure))
+      setSection('general')
     } finally {
       setSaving(false)
     }
   }
 
   return (
-    <Dialog.Root open={open} onOpenChange={(next) => { setCapturing(false); onOpenChange(next) }}>
+    <>
+    <Dialog.Root open={open} onOpenChange={(next) => { setCapturing(false); if (!next) setShowShortcuts(false); onOpenChange(next) }}>
       <Dialog.Portal>
         <Dialog.Overlay className="overlay" />
         <Dialog.Content
@@ -210,181 +247,254 @@ export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, o
 
           <div className="dialog-body-wrap">
             <div className={'dialog-body' + (scrolls ? ' scrolling' : '')} ref={bodyRef} onScroll={measure}>
-            <div className="set-cols">
-            <div className="set-col">
-            <div className="set-group">
-              <div className="t-micro">General</div>
-              <div className="set-row">
-                <div className="grow">
-                  <div className="label">Launch at login</div>
-                  <div className="t-sec">Capture clips as soon as Windows starts.</div>
-                </div>
-                <Switch.Root className="switch" checked={autostart} onCheckedChange={setAutostart} aria-label="Launch at login">
-                  <span className="thumbdot" />
-                </Switch.Root>
-              </div>
-              <div className="set-row" data-disabled="true" title="The v2 shell always starts in the tray">
-                <div className="grow">
-                  <div className="label">Start hidden in the tray</div>
-                  <div className="t-sec">The v2 build always starts in the tray; open it with the hotkey.</div>
-                </div>
-                <Switch.Root className="switch" checked disabled aria-label="Start hidden">
-                  <span className="thumbdot" />
-                </Switch.Root>
-              </div>
-              <div className="set-row">
-                <div className="grow">
-                  <div className="label">Open Clip hotkey</div>
-                  <div className="t-sec">
-                    {capturing ? 'Press the new combination. Esc keeps the current one.' : 'Click the keys, then type the new combination.'}
-                  </div>
-                  {error && (
-                    <div className="t-sec set-error" role="alert">
-                      {error}
-                    </div>
+              <div className="settings-shell">
+                <nav className="settings-nav" aria-label="Settings sections" ref={navRef}>
+                  {SECTIONS.map(({ id, label, icon: Icon }) => (
+                    <button
+                      key={id}
+                      type="button"
+                      className="settings-nav-item"
+                      data-on={section === id}
+                      aria-current={section === id ? 'page' : undefined}
+                      onClick={() => pickSection(id)}
+                    >
+                      <Icon />
+                      {label}
+                    </button>
+                  ))}
+                </nav>
+
+                <div className="settings-pane" role="tabpanel" aria-label={SECTIONS.find((s) => s.id === section)?.label}>
+                  {section === 'general' && (
+                    <>
+                      <div className="settings-pane-head">
+                        <div className="t-title">General</div>
+                        <div className="t-sec">Startup, the hotkey that opens Clip, and how times read.</div>
+                      </div>
+                      <div className="set-group">
+                        <div className="set-row">
+                          <div className="grow">
+                            <div className="label">Launch at login</div>
+                            <div className="t-sec">Capture clips as soon as Windows starts.</div>
+                          </div>
+                          <Switch.Root className="switch" checked={autostart} onCheckedChange={setAutostart} aria-label="Launch at login">
+                            <span className="thumbdot" />
+                          </Switch.Root>
+                        </div>
+                        <div className="set-row" data-disabled="true" title="The v2 shell always starts in the tray">
+                          <div className="grow">
+                            <div className="label">Start hidden in the tray</div>
+                            <div className="t-sec">The v2 build always starts in the tray; open it with the hotkey.</div>
+                          </div>
+                          <Switch.Root className="switch" checked disabled aria-label="Start hidden">
+                            <span className="thumbdot" />
+                          </Switch.Root>
+                        </div>
+                        <div className="set-row">
+                          <div className="grow">
+                            <div className="label">Open Clip hotkey</div>
+                            <div className="t-sec">
+                              {capturing ? 'Press the new combination. Esc keeps the current one.' : 'Click the keys, then type the new combination.'}
+                            </div>
+                            {error && (
+                              <div className="t-sec set-error" role="alert">
+                                {error}
+                              </div>
+                            )}
+                          </div>
+                          <button
+                            ref={captureRef}
+                            className={'btn ghost hotkey-field' + (capturing ? ' capturing' : '')}
+                            onClick={() => {
+                              setError('')
+                              setCapturing((on) => !on)
+                            }}
+                            onBlur={() => setCapturing(false)}
+                            aria-label="Change the open Clip hotkey"
+                          >
+                            <Keycaps combo={capturing ? 'Press keys' : hotkey} />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="set-group">
+                        <div className="radio-row" role="radiogroup" aria-label="Time format">
+                          <button className="radio-card" data-on={timeFormat === '24h'} role="radio" aria-checked={timeFormat === '24h'} onClick={() => setTimeFormat('24h')} type="button">
+                            24-hour
+                          </button>
+                          <button className="radio-card" data-on={timeFormat === '12h'} role="radio" aria-checked={timeFormat === '12h'} onClick={() => setTimeFormat('12h')} type="button">
+                            12-hour
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {section === 'capture' && (
+                    <>
+                      <div className="settings-pane-head">
+                        <div className="t-title">Capture</div>
+                        <div className="t-sec">What Clip keeps, and what it skips.</div>
+                      </div>
+                      <div className="set-group">
+                        <div className="set-row">
+                          <div className="grow">
+                            <div className="label">History limit</div>
+                            <div className="t-sec">Oldest unpinned clips are removed first.</div>
+                          </div>
+                          <Slider.Root className="slider" min={100} max={5000} step={100} value={[cap]} onValueChange={([value]) => setCap(value)} aria-label="History limit">
+                            <Slider.Track className="slider-track">
+                              <Slider.Range className="slider-range" />
+                            </Slider.Track>
+                            <Slider.Thumb className="slider-thumb" />
+                          </Slider.Root>
+                          <span className="set-value">{cap.toLocaleString()}</span>
+                        </div>
+                        <div className="set-row" data-disabled="true" title="Rich capture is on in the v2 build">
+                          <div className="grow">
+                            <div className="label">Plain text only</div>
+                            <div className="t-sec">Rich capture is always on; Ctrl+Shift+V pastes plain when you want it.</div>
+                          </div>
+                          <Switch.Root className="switch" checked={false} disabled aria-label="Plain text only">
+                            <span className="thumbdot" />
+                          </Switch.Root>
+                        </div>
+                        <div className="set-row">
+                          <div className="grow">
+                            <div className="label">Show images in Inbox</div>
+                            <div className="t-sec">When off, image clips appear only in the Images tab.</div>
+                          </div>
+                          <Switch.Root className="switch" checked={showImagesInAll} onCheckedChange={setShowImagesInAll} aria-label="Show images in Inbox">
+                            <span className="thumbdot" />
+                          </Switch.Root>
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {section === 'appearance' && (
+                    <>
+                      <div className="settings-pane-head">
+                        <div className="t-title">Appearance</div>
+                        <div className="t-sec">Theme and zoom preview live; zoom saves the moment it changes.</div>
+                      </div>
+                      <div className="set-group">
+                        <div className="radio-row" role="radiogroup" aria-label="Theme">
+                          <button className="radio-card" data-on={themeChoice === 'light'} role="radio" aria-checked={themeChoice === 'light'} onClick={() => pickTheme('light')} type="button">
+                            <IconSun />
+                            Light
+                          </button>
+                          <button className="radio-card" data-on={themeChoice === 'dark'} role="radio" aria-checked={themeChoice === 'dark'} onClick={() => pickTheme('dark')} type="button">
+                            <IconMoon />
+                            Dark
+                          </button>
+                          <button className="radio-card" data-on={themeChoice === 'system'} role="radio" aria-checked={themeChoice === 'system'} onClick={() => pickTheme('system')} type="button">
+                            <IconMonitor />
+                            System
+                          </button>
+                        </div>
+                        <div className="radio-row" role="radiogroup" aria-label="Zoom">
+                          {ZOOMS.map((zoom) => (
+                            <button key={zoom} className="radio-card" data-on={settings.uiZoom === zoom} role="radio" aria-checked={settings.uiZoom === zoom} onClick={() => pickZoom(zoom)} type="button">
+                              {zoom}%
+                            </button>
+                          ))}
+                        </div>
+                        <div className="t-sec">Zoom is saved as soon as it changes; Ctrl + / Ctrl − step it.</div>
+                      </div>
+                    </>
+                  )}
+
+                  {section === 'notifications' && (
+                    <>
+                      <div className="settings-pane-head">
+                        <div className="t-title">Notifications</div>
+                        <div className="t-sec">The toast that confirms each capture. Preview shows the real one.</div>
+                      </div>
+                      <div className="set-group">
+                        <div className="set-row">
+                          <div className="grow">
+                            <div className="label">Toast lines</div>
+                            <div className="t-sec">Longest toast body; the toast itself still auto-fits.</div>
+                          </div>
+                          <Slider.Root className="slider" min={1} max={MAX_LINES} step={1} value={[lines]} onValueChange={([value]) => setLines(value)} aria-label="Toast lines">
+                            <Slider.Track className="slider-track">
+                              <Slider.Range className="slider-range" />
+                            </Slider.Track>
+                            <Slider.Thumb className="slider-thumb" />
+                          </Slider.Root>
+                          <span className="set-value">{lines}</span>
+                          <button className="btn ghost sm" onClick={onPreviewToast} type="button">
+                            Preview
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {section === 'storage' && (
+                    <>
+                      <div className="settings-pane-head">
+                        <div className="t-title">Storage</div>
+                        <div className="t-sec">Everything stays in a local database on this machine.</div>
+                      </div>
+                      <div className="set-group">
+                        {confirmClear ? (
+                          <div className="set-row">
+                            <div className="grow">
+                              <div className="label">Delete all clips in Clipboard and Images?</div>
+                              <div className="t-sec">Pinned clips and tabs stay. This cannot be undone.</div>
+                            </div>
+                            <button className="btn ghost sm" onClick={() => setConfirmClear(false)}>
+                              Keep clips
+                            </button>
+                            <button
+                              className="btn danger sm"
+                              onClick={() => {
+                                setConfirmClear(false)
+                                onOpenChange(false)
+                                onClearHistory()
+                              }}
+                            >
+                              Delete clips
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="set-row">
+                            <div className="grow">
+                              <div className="label">Clear history</div>
+                              <div className="t-sec">Delete all clips in Clipboard and Images; pinned clips and tabs stay.</div>
+                            </div>
+                            {storage && (
+                              <span className="set-value" style={{ whiteSpace: 'nowrap' }} title="Storage used by your clips out of the guide limit">
+                                {formatBytes(storage.bytes)} of {formatBytes(storage.limit)}
+                              </span>
+                            )}
+                            <button className="btn sm" onClick={() => setConfirmClear(true)}>
+                              Clear…
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
+
+                  {section === 'about' && (
+                    <>
+                      <div className="settings-pane-head">
+                        <div className="t-title">About</div>
+                        <div className="t-sec">Known limits of this build, where they bite.</div>
+                      </div>
+                      <div className="set-group">
+                        <div className="t-sec">Colour emoji can show as boxes in the preview; the copy itself is untouched.</div>
+                        <div className="t-sec">HTML from Google Docs, Notion or a web page is simplified on the way back into those apps; the words stay.</div>
+                        <div className="t-sec">OCR text is there to find a picture. Never read an amount from it.</div>
+                        <div className="t-sec">Excel turns a leading zero, 007, into 7 when it opens a CSV; Clip writes the file correctly.</div>
+                      </div>
+                    </>
                   )}
                 </div>
-                <button
-                  ref={captureRef}
-                  className={'btn ghost hotkey-field' + (capturing ? ' capturing' : '')}
-                  onClick={() => {
-                    setError('')
-                    setCapturing((on) => !on)
-                  }}
-                  onBlur={() => setCapturing(false)}
-                  aria-label="Change the open Clip hotkey"
-                >
-                  <Keycaps combo={capturing ? 'Press keys' : hotkey} />
-                </button>
               </div>
-            </div>
-
-            <div className="set-group">
-              <div className="t-micro">Capture</div>
-              <div className="set-row">
-                <div className="grow">
-                  <div className="label">History limit</div>
-                  <div className="t-sec">Oldest unpinned clips are removed first.</div>
-                </div>
-                <Slider.Root className="slider" min={100} max={5000} step={100} value={[cap]} onValueChange={([value]) => setCap(value)} aria-label="History limit">
-                  <Slider.Track className="slider-track">
-                    <Slider.Range className="slider-range" />
-                  </Slider.Track>
-                  <Slider.Thumb className="slider-thumb" />
-                </Slider.Root>
-                <span className="set-value">{cap.toLocaleString()}</span>
-              </div>
-              <div className="set-row">
-                <div className="grow">
-                  <div className="label">Toast lines</div>
-                  <div className="t-sec">Longest toast body; the toast itself still auto-fits.</div>
-                </div>
-                <Slider.Root className="slider" min={1} max={MAX_LINES} step={1} value={[lines]} onValueChange={([value]) => setLines(value)} aria-label="Toast lines">
-                  <Slider.Track className="slider-track">
-                    <Slider.Range className="slider-range" />
-                  </Slider.Track>
-                  <Slider.Thumb className="slider-thumb" />
-                </Slider.Root>
-                <span className="set-value">{lines}</span>
-                <button className="btn ghost sm" onClick={onPreviewToast} type="button">
-                  Preview
-                </button>
-              </div>
-              <div className="set-row" data-disabled="true" title="Rich capture is on in the v2 build">
-                <div className="grow">
-                  <div className="label">Plain text only</div>
-                  <div className="t-sec">Rich capture is always on; Ctrl+Shift+V pastes plain when you want it.</div>
-                </div>
-                <Switch.Root className="switch" checked={false} disabled aria-label="Plain text only">
-                  <span className="thumbdot" />
-                </Switch.Root>
-              </div>
-            </div>
-            </div>
-
-            <div className="set-col">
-            <div className="set-group">
-              <div className="t-micro">Appearance</div>
-              <div className="radio-row">
-                <button className="radio-card" data-on={themeChoice === 'light'} onClick={() => pickTheme('light')} type="button">
-                  <IconSun />
-                  Light
-                </button>
-                <button className="radio-card" data-on={themeChoice === 'dark'} onClick={() => pickTheme('dark')} type="button">
-                  <IconMoon />
-                  Dark
-                </button>
-                <button className="radio-card" data-on={themeChoice === 'system'} onClick={() => pickTheme('system')} type="button">
-                  <IconMonitor />
-                  System
-                </button>
-              </div>
-              <div className="radio-row" aria-label="Zoom">
-                {ZOOMS.map((zoom) => (
-                  <button key={zoom} className="radio-card" data-on={settings.uiZoom === zoom} onClick={() => pickZoom(zoom)} type="button">
-                    {zoom}%
-                  </button>
-                ))}
-              </div>
-              <div className="t-sec">Zoom is saved as soon as it changes; Ctrl + / Ctrl − step it.</div>
-            </div>
-
-            <div className="set-group">
-              <div className="t-micro">Time</div>
-              <div className="radio-row">
-                <button className="radio-card" data-on={timeFormat === '24h'} onClick={() => setTimeFormat('24h')} type="button">
-                  24-hour
-                </button>
-                <button className="radio-card" data-on={timeFormat === '12h'} onClick={() => setTimeFormat('12h')} type="button">
-                  12-hour
-                </button>
-              </div>
-            </div>
-
-            <div className="set-group">
-              <div className="t-micro">Data</div>
-              {confirmClear ? (
-                <div className="set-row">
-                  <div className="grow">
-                    <div className="label">Delete all clips in Clipboard and Images?</div>
-                    <div className="t-sec">Pinned clips and tabs stay. This cannot be undone.</div>
-                  </div>
-                  <button className="btn ghost sm" onClick={() => setConfirmClear(false)}>
-                    Keep clips
-                  </button>
-                  <button
-                    className="btn danger sm"
-                    onClick={() => {
-                      setConfirmClear(false)
-                      onOpenChange(false)
-                      onClearHistory()
-                    }}
-                  >
-                    Delete clips
-                  </button>
-                </div>
-              ) : (
-                <div className="set-row">
-                  <div className="grow">
-                    <div className="label">Clear history</div>
-                    <div className="t-sec">Delete all clips in Clipboard and Images; pinned clips and tabs stay.</div>
-                  </div>
-                  <button className="btn sm" onClick={() => setConfirmClear(true)}>
-                    Clear…
-                  </button>
-                </div>
-              )}
-            </div>
-
-            <div className="set-group">
-              <div className="t-micro">Known limits</div>
-              <div className="t-sec">Colour emoji can show as boxes in the preview; the copy itself is untouched.</div>
-              <div className="t-sec">HTML from Google Docs, Notion or a web page is simplified on the way back into those apps; the words stay.</div>
-              <div className="t-sec">OCR text is there to find a picture. Never read an amount from it.</div>
-              <div className="t-sec">Excel turns a leading zero, 007, into 7 when it opens a CSV; Clip writes the file correctly.</div>
-            </div>
-            </div>
-            </div>
             </div>
             {more && (
               <div className="scroll-fade" aria-hidden="true">
@@ -394,15 +504,34 @@ export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, o
           </div>
 
           <div className="dialog-foot">
+            <button
+              className="btn ghost"
+              style={{ marginRight: 'auto' }}
+              type="button"
+              ref={(el) => {
+                shortcutsReturn.current = el
+              }}
+              onClick={() => setShowShortcuts(true)}
+            >
+              Shortcuts
+            </button>
             <Dialog.Close asChild>
               <button className="btn ghost">Cancel</button>
             </Dialog.Close>
-            <button className="btn" onClick={() => void save()} disabled={saving}>
+            <button className="btn primary" onClick={() => void save()} disabled={saving}>
               {saving ? 'Saving…' : 'Save changes'}
             </button>
           </div>
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
+    <ShortcutsDialog
+      open={showShortcuts && open}
+      onOpenChange={setShowShortcuts}
+      openHotkey={hotkey}
+      plainHotkey={settings.hotkeyPlain}
+      returnFocus={shortcutsReturn}
+    />
+    </>
   )
 }

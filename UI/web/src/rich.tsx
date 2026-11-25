@@ -7,7 +7,7 @@
  * replaced with a drawn placeholder BEFORE the markup reaches the DOM, so the row can never
  * issue a network request. The body is fetched lazily per mounted row (see ClipList).
  */
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import DOMPurify from 'dompurify'
 import type { ClipBody, ClipItem } from './host'
 
@@ -250,8 +250,34 @@ export function isRich(clip: ClipItem): boolean {
   return clip.hasHtml || clip.hasRtf
 }
 
+/** Case-insensitive highlight of every query word; the `tag:` prefix itself never highlights. */
+export function highlightParts(text: string, terms: string[] | undefined): ReactNode {
+  const words = (terms ?? []).map((word) => word.trim()).filter((word) => word.length > 0)
+  if (!text || words.length === 0) return text
+  const escaped = words
+    .slice()
+    .sort((a, b) => b.length - a.length)
+    .map((word) => word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+  const pattern = new RegExp(`(${escaped.join('|')})`, 'gi')
+  const out: ReactNode[] = []
+  let last = 0
+  let key = 0
+  text.replace(pattern, (match, _group, offset: number) => {
+    if (offset > last) out.push(text.slice(last, offset))
+    out.push(
+      <mark key={key++} className="hit">
+        {match}
+      </mark>,
+    )
+    last = offset + match.length
+    return match
+  })
+  if (last < text.length) out.push(text.slice(last))
+  return out.length > 0 ? out : text
+}
+
 /** The row body: rich HTML when the clip has a safe body, plain preview until it arrives. */
-export function RowBody({ clip, getItem }: { clip: ClipItem; getItem: GetItem }) {
+export function RowBody({ clip, getItem, highlight }: { clip: ClipItem; getItem: GetItem; highlight?: string[] }) {
   const rich = isRich(clip)
   const [body, setBody] = useState<ClipBody | null | undefined>(() => (rich ? bodyCache.get(clip.id) : undefined))
   const [recall, setRecall] = useState(0)
@@ -319,7 +345,7 @@ export function RowBody({ clip, getItem }: { clip: ClipItem; getItem: GetItem })
       <div className="row-ocr">
         {words && <div className="ocr-mark">Text read from image</div>}
         <div className={'row-text' + (words ? '' : ' ocr-none')} title={title}>
-          {words || 'No text found in this image'}
+          {words ? highlightParts(words, highlight) : 'No text found in this image'}
         </div>
       </div>
     )
@@ -328,5 +354,5 @@ export function RowBody({ clip, getItem }: { clip: ClipItem; getItem: GetItem })
   if (rich && safe) {
     return <div className="row-text clip-rich" title={title} dangerouslySetInnerHTML={{ __html: safe }} />
   }
-  return <div className="row-text" title={title}>{plain}</div>
+  return <div className="row-text" title={title}>{highlightParts(plain, highlight)}</div>
 }

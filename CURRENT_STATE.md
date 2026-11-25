@@ -2,29 +2,27 @@
 
 LANE: bug
 
-## Esc fix (25 Nov 2026, uncommitted, needs owner rebuild)
+## Working tree (25 Nov 2026, uncommitted, needs owner rebuild)
 
-Done: F2 then Esc no longer hides the whole window. Root cause: Radix handles Esc at
-`document`; the close commits a re-render before the same keystroke reaches `window`, so the
-re-subscribed key matrix hid the app on that press (proven: mock `hide` called once).
-Fix is `stopPropagation` on the overlay Esc path: `EditorOverlay.onEscape`,
-`SettingsDialog onEscapeKeyDown` (Radix still closes it). v2 list already kept the same
-selected row and scroll offset (e2e asserts both). Legacy (`--legacy`) editor close now also
-`ScrollIntoView`s the edited row instead of leaving the list at the top.
-Proof: `cd UI\web; npx.cmd playwright test e2e/keyboard.spec.ts` - 18 passed;
-`dotnet build -c Release` - 0 warnings, 0 errors. New regression tests assert `hide` is
-never called on editor/Settings Esc. Next: double-click `build-release.cmd` to publish.
+Done since the last pin: Esc overlay guards on all four Radix dialogs + both menus
+(`stopPropagation`-only, Radix still closes); empty-text export refused
+(`This clip has no text to save.`); real `.md` export (rich HTML converts, `.txt`
+byte-identical); `<pre>` hang fixed (fall through to `Tag`/`End`). Proven: `dotnet`
+0/0, scratch fixtures 7/7 + 10/10 + 5/5 on the real files, page e2e 20/20 + 3/3 + 23/23
+via agents. Owner decisions in `CHECKLIST-uiux.md` §14: tray mouse-only, keep 430
+counts, remeasure memory on the new exe.
 
-Not done: the same one-line `stopPropagation` is still missing on Delete confirm, Move picker,
-Tag picker, tab-delete confirm, row/tab menus and the export menu - same mechanism, same risk.
-`UI/ShellWindow.xaml.cs`, `UI/web/src/ClipList.tsx`, `UI/web/src/styles.css` have unrelated
-uncommitted changes from another session; not touched here.
+Not done: commit the tree — another session's edits are interleaved in it (`App.V2`,
+`ClipSearch`/`ClipTags`, `EditorToolbar`, `mock.ts`, ClearHistory, Popups theme), so
+stage named files and coordinate; rebuild `dist\Clip.exe`; live pass on the new exe
+(cold `Alt+V`, Esc overlays, Office matrix, IME, reboot); fresh visual read (G-02,
+Export label, W-05); memory remeasure.
 
 ## What shipped
 
-`dist\Clip.exe` is the v2 app: one self-contained win-x64 file, no .NET runtime needed, with the
-React page embedded and served from memory. A plain double-click starts the tray app; `--v2` is an
-alias of the default; `--legacy` still opens the old WPF window for this release only.
+`dist\Clip.exe` is the app: one self-contained win-x64 file, no .NET runtime needed, with the
+React page embedded and served from memory. A plain double-click starts the tray app; the old WPF
+window and its `--legacy` flag were deleted on 25 Nov 2026.
 
 Live in the shipped UI: tray and hotkey, capture of text / rich text / links / files / images,
 automatic tags, full-body search with tag filters, tabs (create, rename, delete, move), export to
@@ -57,7 +55,6 @@ Memory is the WebView2 price: six Chromium processes plus the page. It is stated
   as the old app).
 - **Excel reinterprets values on open**: `007` becomes `7` and `=1+1` becomes `2`. The exported CSV
   itself is correct; open it through Data → From Text/CSV with Text columns when it matters.
-- **The old WPF UI is still reachable** with `--legacy`; it goes away in the next release.
 - **No time-section jump yet** (`Ctrl+Up/Down`); the list scrolls and searches, but has no date
   sections.
 - **WebView2 runtime is required.** It ships with Windows 10/11; without it the window shows a

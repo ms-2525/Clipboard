@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Reflection;
 using System.Text.Json;
 using Clip.Core;
@@ -17,7 +18,7 @@ namespace Clip.Host
     {
         const int ZoomMin = 80;
         const int ZoomMax = 150;
-        // Same ceiling EditorWindow refuses to load; a page that sends more is not describing a clip.
+        // Same ceiling the F2 editor refuses to load; a page that sends more is not describing a clip.
         const int MaxEditorHtml = 2_000_000;
 
         /// <summary>The user's choice ("light"/"dark"/"system"); <see cref="_cfg"/>.Theme holds the resolved one.</summary>
@@ -54,6 +55,7 @@ namespace Clip.Host
                 timeFormat = _cfg.TimeFormat,
                 maxItems = _cfg.MaxItems,
                 previewLines = _cfg.PreviewLines,
+                showImagesInAll = _cfg.ShowImagesInAll,
                 uiZoom = _zoom,
                 hotkey = _cfg.Hotkey,
                 hotkeyPlain = _cfg.HotkeyPlain,
@@ -85,6 +87,7 @@ namespace Clip.Host
             int? zoom = IntOrNull(patch, "uiZoom");
             string hotkey = String(patch, "hotkey");
             bool? startOnLogin = BoolOrNull(patch, "startOnLogin");
+            bool? showImagesInAll = BoolOrNull(patch, "showImagesInAll");
             if (maxItems.HasValue) maxItems = Math.Clamp(maxItems.Value, 20, 10_000);
             if (zoom.HasValue) zoom = Math.Clamp(zoom.Value, ZoomMin, ZoomMax);
             if (hotkey != null && !IsHotkey(hotkey))
@@ -107,6 +110,7 @@ namespace Clip.Host
                 (System.Windows.Application.Current as Clip.App)?.ApplyThemeFromSettings(theme);
             }
             if (maxItems.HasValue) _cfg.MaxItems = maxItems.Value;
+            if (showImagesInAll.HasValue) _cfg.ShowImagesInAll = showImagesInAll.Value;
             if (timeFormat != null)
             {
                 _cfg.TimeFormat = timeFormat;
@@ -275,6 +279,29 @@ namespace Clip.Host
                 if (dto != null) Emit("edited", dto);
             });
             return new { saved = true, htmlLength = length };
+        }
+
+        // ---- storage usage ---------------------------------------------------------------
+
+        /// <summary>
+        /// Bridge method "storageUsage": current clip.db (+ WAL) bytes and the advisory limit, for the
+        /// Settings readout beside Clear history. Advisory like the shell's own check: 0 when unreadable.
+        /// </summary>
+        object StorageUsage(JsonElement p) => new { bytes = DbBytes(_dbPath), limit = _cfg.MaxStorageBytes };
+
+        /// <summary>clip.db plus its WAL; 0 when the files cannot be read. The shell's check shares this home.</summary>
+        internal static long DbBytes(string dbPath)
+        {
+            try
+            {
+                long total = 0;
+                if (File.Exists(dbPath)) total += new FileInfo(dbPath).Length;
+                string wal = dbPath + "-wal";
+                if (File.Exists(wal)) total += new FileInfo(wal).Length;
+                return total;
+            }
+            catch (IOException) { return 0; } // mid-copy or locked: never block on an advisory number
+            catch (UnauthorizedAccessException) { return 0; }
         }
 
         // ---- patch readers --------------------------------------------------------------------

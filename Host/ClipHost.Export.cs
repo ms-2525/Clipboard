@@ -46,6 +46,7 @@ namespace Clip.Host
                 Id = id,
                 Kind = stored.Kind,
                 Text = store.GetText(id),
+                Html = store.GetRich(id)?.Html,
                 Image = stored.Image,
                 CapturedAt = CapturedAtOf(dbPath, id)
             };

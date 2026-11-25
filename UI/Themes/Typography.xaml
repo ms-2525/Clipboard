@@ -6,8 +6,8 @@
     THE type scale (docs\DESIGN-typography.md §3). Every FontSize / LineHeight in app
     chrome references these keys, never a literal — this file is the single place that
     sizes type. To shrink or grow the whole app, edit the numbers below; the row
-    geometry (ClipRow, RowContent, RichRow) reads the Body/Micro values from these
-    same keys, so rows stay in sync with no second edit.
+    geometry in the page reads the Body/Micro values from these same keys, so rows
+    stay in sync with no second edit.
     Reduced one step 2026-11-25: body 14→13, caption 12→11, meta 11→10; micro stays
     at the 10 px floor (§8: no text below 10 px).
   -->
@@ -23,6 +23,10 @@
 
   <sys:Double x:Key="FontMicroSize">10</sys:Double>
   <sys:Double x:Key="FontMicroLine">14</sys:Double>
+
+  <!-- Toast-only step between body and caption: the notification runs 1 px under the list. -->
+  <sys:Double x:Key="FontToastBodySize">12</sys:Double>
+  <sys:Double x:Key="FontToastBodyLine">17</sys:Double>
 
   <sys:Double x:Key="FontKeycapSize">10</sys:Double>
   <sys:Double x:Key="FontKeycapLine">12</sys:Double>

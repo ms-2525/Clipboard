@@ -65,13 +65,11 @@ namespace Clip.Core
                 }
                 else
                 {
-                    // "foo:" is not a filter, but it is still what the user typed: search it as text
-                    // and let the page warn that the tag is unknown. `tag:foo` says so explicitly.
-                    // The bare prefix "tag:" is text, and is not a tag named "tag".
+                    // Bare "foo:" is plain text with no hint; only `tag:foo` names a tag, so only it
+                    // can warn. The bare prefix "tag:" is text, and is not a tag named "tag".
                     if (!token.Equals("tag:", StringComparison.OrdinalIgnoreCase))
                     {
-                        if (IsTagShaped(token, out string name)) AddUnknown(unknown, name);
-                        else if (token.StartsWith("tag:", StringComparison.OrdinalIgnoreCase) && token.Length > 4)
+                        if (token.StartsWith("tag:", StringComparison.OrdinalIgnoreCase) && token.Length > 4)
                             AddUnknown(unknown, token.Substring(4));
                     }
                     terms.Add(negate ? "-" + token : token);
@@ -108,33 +106,18 @@ namespace Clip.Core
         // ---- grammar ----------------------------------------------------------------------------
 
         /// <summary>
-        /// A tag token is exactly a known tag name followed by ':' and nothing else ("image:", "excel:").
-        /// "https://x" and "C:\path" never end in ':' and a one-letter drive ("C:") is refused by the
-        /// shape test, so a URL or path cannot silently become a filter.
+        /// A tag token is exactly the explicit prefix plus a known name ("tag:image").
+        /// Bare "image:" is plain text, never a filter: one syntax only, so a URL, a path or
+        /// a drive ("C:") can never silently become a filter either.
         /// </summary>
         static bool TryTagToken(string token, out string tag)
         {
             tag = null;
-            // `tag:image` is the explicit prefix the owner asked for; the bare `image:` form stays
-            // because the row chips and Ctrl+T write it. `tag:` alone is text, never a filter.
-            string body = token.StartsWith("tag:", StringComparison.OrdinalIgnoreCase) ? token.Substring(4) : token;
+            // One syntax only: `tag:name`. Bare `image:` is text (Q10 full switch).
+            if (!token.StartsWith("tag:", StringComparison.OrdinalIgnoreCase)) return false;
+            string body = token.Substring(4);
             if (body.Length == 0) return false;
-            if (body.Length != token.Length) return TryCanonical(body, out tag);
-            return IsTagShaped(token, out string name) && TryCanonical(name, out tag);
-        }
-
-        static bool IsTagShaped(string token, out string name)
-        {
-            name = null;
-            if (token.Length < 3 || token[token.Length - 1] != ':') return false; // "C:" is a path, not a tag
-            if (!IsAsciiLetter(token[0])) return false;
-            for (int i = 1; i < token.Length - 1; i++)
-            {
-                char c = token[i];
-                if (!IsAsciiLetter(c) && !char.IsDigit(c) && c != '-' && c != '_') return false;
-            }
-            name = token.Substring(0, token.Length - 1);
-            return true;
+            return TryCanonical(body, out tag);
         }
 
         /// <summary>The known ids <see cref="ClipTags"/> emits, plus the aliases the step plan promises.</summary>
@@ -178,6 +161,10 @@ namespace Clip.Core
                 case "email":
                 case "path":
                 case "color":
+                case "colour":
+                    tag = "color";
+                    return true;
+
                 case "number":
                 case "json":
                 case "html":
@@ -192,7 +179,10 @@ namespace Clip.Core
                 case "go":
                 case "java":
                 case "shell":
-                    tag = lower;
+                case "powershell":
+                case "bash":
+                case "sh":
+                    tag = lower == "powershell" || lower == "bash" || lower == "sh" ? "shell" : lower;
                     return true;
 
                 default:

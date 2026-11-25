@@ -54,18 +54,18 @@ test('Left/Right change tab in strip order and wrap', async ({ page }) => {
   await page.keyboard.press('ArrowLeft')
   await expect(activeTab(page)).toHaveText('Pinned')
   await page.keyboard.press('ArrowLeft')
-  await expect(activeTab(page)).toHaveText('All')
+  await expect(activeTab(page)).toHaveText('Inbox')
   await page.keyboard.press('ArrowLeft')
   await expect(activeTab(page)).toHaveText('Snippets')
   await page.keyboard.press('ArrowRight')
-  await expect(activeTab(page)).toHaveText('All')
+  await expect(activeTab(page)).toHaveText('Inbox')
   // A tab switch puts the new first row under the keyboard.
   await expect(selectedRow(page)).toBeFocused()
 })
 
-test('the Images tab is a saved image: view and matches the tag search', async ({ page }) => {
-  await page.keyboard.type('image:', { delay: 20 })
-  await expect(search(page)).toHaveValue('image:')
+test('the Images tab is a saved tag:image view and matches the tag search', async ({ page }) => {
+  await page.keyboard.type('tag:image', { delay: 20 })
+  await expect(search(page)).toHaveValue('tag:image')
   await expect(shown(page)).not.toHaveText('1,000 shown')
   const expected = (await shown(page).textContent())?.trim() || ''
   await page.keyboard.press('Escape')
@@ -76,14 +76,36 @@ test('the Images tab is a saved image: view and matches the tag search', async (
   await expect(footerScope(page)).toHaveText('Image results')
   await expect(shown(page)).toHaveText(expected)
 
-  // `tag:` is the explicit prefix for the same filter.
-  await page.getByLabel('Search clips').fill('')
-  await page.keyboard.type('tag:image', { delay: 20 })
-  await expect(shown(page)).toHaveText(expected)
+  // A bare `image:` is plain text now, never a filter.
+  await page.getByLabel('Search clips').fill('image:')
+  await expect(page.locator('.tag-hint')).toHaveCount(0)
 
   // An unknown tag under the prefix warns and searches as text.
   await page.getByLabel('Search clips').fill('tag:zzz')
   await expect(page.locator('.tag-hint')).toContainText('no tag named')
+})
+
+test('a storage notice asks once per run and never blocks saving', async ({ page }) => {
+  const dispatch = () =>
+    page.evaluate(() =>
+      window.dispatchEvent(
+        new CustomEvent('clip:mock-event', {
+          detail: { event: 'storage', data: { bytes: 1_200_000_000, limit: 1_073_741_824 } },
+        }),
+      ),
+    )
+  await dispatch()
+  const dialog = page.getByRole('dialog')
+  await expect(dialog).toBeVisible()
+  await expect(dialog).toContainText('Clip storage is full')
+  await expect(dialog).toContainText('use 1.1 GB of the 1 GB storage limit')
+  await expect(dialog).toContainText('still saved')
+  await page.getByRole('button', { name: 'OK' }).click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  // The host re-emits on every open while over the limit; the page mutes it for the rest of the run.
+  await dispatch()
+  await page.waitForTimeout(150)
+  await expect(page.getByRole('dialog')).toHaveCount(0)
 })
 
 test('typing from the list searches; Escape clears the query', async ({ page }) => {
@@ -157,9 +179,9 @@ test('Discard and close never writes the edit', async ({ page }) => {
   await expect(page.locator('.row.selected .row-body')).toHaveText(before)
 })
 
-test('the All count matches the list instead of a seeded zero', async ({ page }) => {
+test('the Inbox count matches the list instead of a seeded zero', async ({ page }) => {
   const all = page.locator('[role="tab"][aria-selected="true"]')
-  await expect(all.locator('.tab-label')).toHaveText('All')
+  await expect(all.locator('.tab-label')).toHaveText('Inbox')
   await expect(all.locator('.tab-count')).toHaveText('1,000')
   await expect(shown(page)).toHaveText('1,000 shown')
 })
@@ -167,13 +189,19 @@ test('the All count matches the list instead of a seeded zero', async ({ page })
 test('the Settings preview and the known-limits note are on screen', async ({ page }) => {
   await page.locator('button[aria-label="Settings"]').click()
   await expect(page.locator('.dialog')).toHaveCount(1)
+  // Sidebar lands on General; the limits note lives under About.
+  await page.getByRole('button', { name: 'About' }).click()
   await expect(page.getByText('Known limits')).toBeVisible()
-  // G-03: at 900x700 the sheet must fit without a scroll; the limits note once pushed it over.
-  const overflow = await page.evaluate(() => {
-    const body = document.querySelector('.dialog-body') as HTMLElement
-    return body.scrollHeight - body.clientHeight
-  })
-  expect(overflow).toBeLessThanOrEqual(0)
+  // G-03: at 900x700 each section must fit without a scroll; the limits note once pushed the sheet over.
+  for (const section of ['General', 'Capture', 'Appearance', 'Notifications', 'Storage', 'About']) {
+    await page.getByRole('button', { name: section }).click()
+    const overflow = await page.evaluate(() => {
+      const body = document.querySelector('.dialog-body') as HTMLElement
+      return body.scrollHeight - body.clientHeight
+    })
+    expect(overflow).toBeLessThanOrEqual(0)
+  }
+  await page.getByRole('button', { name: 'Notifications' }).click()
   await page.getByRole('button', { name: 'Preview' }).click()
   // The mock answers `shown`; a failure would surface as an error toast.
   await expect(page.locator('.toast.error')).toHaveCount(0)
@@ -222,6 +250,8 @@ test('Esc in the editor returns to the list: same row, same scroll, window stays
   await page.keyboard.press('End')
   await expect(page.locator('.row.selected .row-index')).toHaveText('1000')
   for (let i = 0; i < 10; i++) await page.keyboard.press('ArrowUp')
+  // The swapped webfonts re-wrap text rows and shift heights mid-test; measure only once they land.
+  await page.evaluate(() => document.fonts.ready)
   const beforeId = await page.locator('.row.selected').getAttribute('data-id')
   const beforeScroll = await page.locator('.list').evaluate((el) => el.scrollTop)
 
@@ -293,7 +323,7 @@ test('Left/Right from the tab strip itself change one tab, not two', async ({ pa
   await expect(activeTab(page)).toHaveText('Pinned')
   await expect(page.locator('[role="tab"][aria-selected="true"]')).toBeFocused()
   await page.keyboard.press('ArrowLeft')
-  await expect(activeTab(page)).toHaveText('All')
+  await expect(activeTab(page)).toHaveText('Inbox')
 })
 
 test('Left/Right in the search field move the caret, never the tab', async ({ page }) => {
@@ -315,8 +345,39 @@ test('the page makes no network request and logs no console error', async ({ pag
   page.on('request', (request) => { if (/^https?:/.test(request.url())) http.push(request.url()) })
   await page.goto(PAGE)
   await page.waitForSelector('.row')
-  await page.keyboard.type('image:', { delay: 20 })
+  await page.keyboard.type('tag:image', { delay: 20 })
   await page.waitForTimeout(600)
   expect(http).toEqual([])
   expect(errors).toEqual([])
+})
+
+test('Change case offers upper, lower, title and sentence case', async ({ page }) => {
+  const overlay = page.locator('.editor-overlay')
+  const body = overlay.locator('.ProseMirror')
+  await page.keyboard.press('F2')
+  await expect(body).toBeFocused()
+  // The mock clip loads its stored body first; replace it so the assertions see only typed text.
+  await expect(body).not.toHaveText('')
+  await page.keyboard.press('Control+a')
+  await page.keyboard.type('the cat and the dog. it ran!')
+  // A collapsed caret acts on the whole clip, like Clear formatting.
+  await overlay.getByRole('button', { name: 'Change case' }).click()
+  await overlay.getByRole('button', { name: 'UPPERCASE', exact: true }).click()
+  await expect(body).toHaveText('THE CAT AND THE DOG. IT RAN!')
+
+  await page.keyboard.press('Control+a')
+  await overlay.getByRole('button', { name: 'Change case' }).click()
+  await overlay.getByRole('button', { name: 'Title Case', exact: true }).click()
+  await expect(body).toHaveText('The Cat and the Dog. It Ran!')
+
+  await page.keyboard.press('Control+a')
+  await overlay.getByRole('button', { name: 'Change case' }).click()
+  await overlay.getByRole('button', { name: 'Sentence case', exact: true }).click()
+  await expect(body).toHaveText('The cat and the dog. It ran!')
+
+  await page.keyboard.press('Control+a')
+  await overlay.getByRole('button', { name: 'Change case' }).click()
+  await overlay.getByRole('button', { name: 'lowercase', exact: true }).click()
+  await expect(body).toHaveText('the cat and the dog. it ran!')
+  await expect(overlay.getByText('Unsaved changes').first()).toBeVisible()
 })
