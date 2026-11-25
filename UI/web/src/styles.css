@@ -3,6 +3,8 @@
   --surface: #ffffff;
   --raised: #fbfcfd;
   --field: #f1f3f6;
+  /* Row hover: 1.17:1 against --surface, still far weaker than the selected fill + ring + rail. */
+  --row-hover: #eaedf1;
   --fg: #14171c;
   --fg75: #2e333b;
   --fg55: #545b68;
@@ -47,6 +49,7 @@
   --surface: #141821;
   --raised: #1b202b;
   --field: #1f2532;
+  --row-hover: #212837;
   --fg: #e7eaf0;
   --fg75: #c2c7d2;
   --fg55: #a7aebb;
@@ -500,7 +503,7 @@ a {
   transition: background 100ms;
 }
 .row:hover {
-  background: var(--raised);
+  background: var(--row-hover);
 }
 .row.selected {
   background: var(--row-selected);
@@ -519,7 +522,8 @@ a {
    The row height is measured by the virtualizer — never fixed here. */
 .row-index {
   flex: 0 0 auto;
-  min-width: 2ch;
+  /* Fixed 4ch covers index 1000; every right edge lines up and the body never shifts. */
+  width: 4ch;
   padding-top: 1px;
   font-size: 12px;
   line-height: 18px;
@@ -933,7 +937,7 @@ a {
   animation: pop 140ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 .dialog-head {
-  padding: 20px 20px 12px;
+  padding: 16px 20px 10px;
   display: flex;
   align-items: flex-start;
   gap: 12px;
@@ -950,17 +954,41 @@ a {
 .dialog-head .grow {
   flex: 1;
 }
-.dialog-body {
-  padding: 4px 20px 8px;
+.dialog-body-wrap {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+}
+.dialog-body {
+  padding: 2px 20px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
   overflow-y: auto;
   min-height: 0;
   flex: 1 1 auto;
+  /* Reserve the scroll gutter: content never shifts when the dialog starts scrolling. */
+  scrollbar-gutter: stable;
+}
+/* Always visible while more content exists: a fade + chevron, not an invisible overlay bar. */
+.scroll-fade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 30px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 4px;
+  color: var(--fg48);
+  background: linear-gradient(to bottom, transparent, var(--surface) 78%);
+  pointer-events: none;
 }
 .dialog-foot {
-  padding: 14px 20px 18px;
+  padding: 10px 20px 14px;
   display: flex;
   justify-content: flex-end;
   gap: 8px;
@@ -971,13 +999,13 @@ a {
 .set-group {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 2px;
 }
 .set-row {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 7px 0;
+  padding: 4px 0;
 }
 .set-row + .set-row {
   border-top: 1px solid var(--divider);
@@ -1485,8 +1513,12 @@ a {
   color: var(--danger);
   margin-top: 4px;
 }
-.set-row[data-disabled='true'] {
-  opacity: 0.55;
+.set-row[data-disabled='true'] .label {
+  /* Muted, not invisible: prose must stay readable even when its control cannot run. */
+  color: var(--fg55);
+}
+.set-row[data-disabled='true'] .switch {
+  opacity: 0.5;
 }
 .link-pop {
   width: 236px;
@@ -1677,9 +1709,6 @@ a {
   .tabs-hint {
     display: none;
   }
-  .facts-chip {
-    display: none;
-  }
   .editor-chip {
     display: none;
   }
@@ -1820,6 +1849,53 @@ a {
   }
   .footer {
     height: 36px;
+  }
+}
+
+@media (max-width: 560px) {
+  .chip-unit {
+    display: none;
+  }
+}
+
+/* ---------- settings: fits 900x700 in two columns, full-height sheet on a phone ---------- */
+@media (min-width: 840px) {
+  .dialog.settings {
+    width: 860px;
+  }
+  .dialog.settings .dialog-body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-content: start;
+    gap: 14px 28px;
+  }
+  .dialog.settings .set-group:nth-child(1) {
+    grid-area: 1 / 1;
+  }
+  .dialog.settings .set-group:nth-child(2) {
+    grid-area: 2 / 1;
+  }
+  .dialog.settings .set-group:nth-child(3) {
+    grid-area: 1 / 2;
+  }
+  .dialog.settings .set-group:nth-child(4) {
+    grid-area: 2 / 2;
+  }
+  .dialog.settings .set-group:nth-child(5) {
+    grid-area: 3 / 2;
+  }
+}
+@media (max-width: 520px) {
+  .dialog.settings {
+    top: 0;
+    left: 0;
+    transform: none;
+    width: 100%;
+    max-width: 100%;
+    height: 100%;
+    max-height: 100%;
+    border: 0;
+    border-radius: 0;
   }
 }
 

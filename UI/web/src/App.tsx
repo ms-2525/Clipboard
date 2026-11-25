@@ -99,6 +99,7 @@ export default function App() {
   const listRef = useRef<ClipListHandle>(null)
   const exportRef = useRef<HTMLDivElement>(null)
   const exportReturn = useRef<HTMLElement | null>(null)
+  const settingsReturn = useRef<HTMLElement | null>(null)
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
@@ -239,9 +240,9 @@ export default function App() {
   }, [init])
 
   const tabs = useMemo(() => {
-    const rows: { id: number | null; label: string; count: number }[] = [{ id: null, label: 'All', count: allCount }]
+    const rows: { id: number | null; label: string; count: number; kind?: string }[] = [{ id: null, label: 'All', count: allCount }]
     for (const hostTab of init?.tabs ?? []) {
-      rows.push({ id: hostTab.id, label: hostTab.kind === 'pinned' ? 'Pinned' : hostTab.name, count: hostTab.count })
+      rows.push({ id: hostTab.id, label: hostTab.kind === 'pinned' ? 'Pinned' : hostTab.name, count: hostTab.count, kind: hostTab.kind })
     }
     return rows
   }, [init, allCount])
@@ -260,6 +261,8 @@ export default function App() {
   const selected = visible.find((clip) => clip.id === selectedId) ?? null
   const tabLabel = tabs.find((entry) => entry.id === tab)?.label ?? 'All'
   const tabCount = tabs.find((entry) => entry.id === tab)?.count ?? visible.length
+  // Every row in the Pinned tab is pinned; repeating the glyph there is noise.
+  const pinnedTab = tab != null && tabs.some((entry) => entry.id === tab && entry.kind === 'pinned')
   const today = init?.counts?.today
   const timeFormat: TimeFormat = settings.timeFormat === '12h' ? '12h' : '24h'
   const searchActive = query !== ''
@@ -654,7 +657,14 @@ export default function App() {
 
           <Tooltip.Root>
             <Tooltip.Trigger asChild>
-              <button className="icon-btn" onClick={() => setSettingsOpen(true)} aria-label="Settings">
+              <button
+                className="icon-btn"
+                onClick={() => {
+                  settingsReturn.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+                  setSettingsOpen(true)
+                }}
+                aria-label="Settings"
+              >
                 <IconSettings />
               </button>
             </Tooltip.Trigger>
@@ -705,11 +715,13 @@ export default function App() {
             </div>
             <span className="spacer" />
             <span className="t-meta shown-count">{visible.length.toLocaleString()} shown</span>
-            <button className="btn sm" onClick={() => setEditorOpen(true)} disabled={!selected} title="Preview the selected clip in the editor">
-              <IconEdit />
-              Edit clip
-              <span className="keycap edit-key">F2</span>
-            </button>
+            {selected && (
+              <button className="btn sm" onClick={() => setEditorOpen(true)} title="Preview the selected clip in the editor">
+                <IconEdit />
+                Edit clip
+                <span className="keycap edit-key">F2</span>
+              </button>
+            )}
             {exportOptions(selected).length > 0 && (
               <div className="tool-wrap" ref={exportRef}>
                 <button
@@ -779,6 +791,7 @@ export default function App() {
               clips={visible}
               selectedId={selectedId}
               timeFormat={timeFormat}
+              hidePins={pinnedTab}
               onSelect={setSelectedId}
               onCopy={copyItem}
               onTag={(id) => {
@@ -834,6 +847,7 @@ export default function App() {
         onZoom={applyZoom}
         onSave={saveSettings}
         onClearHistory={() => void clearHistory()}
+        returnFocus={settingsReturn}
       />
 
       <DeleteConfirm clip={confirm} onCancel={() => setConfirm(null)} onConfirm={() => void confirmDelete()} />

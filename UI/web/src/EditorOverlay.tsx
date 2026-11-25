@@ -181,7 +181,11 @@ export function EditorOverlay({ clip, timeFormat, getItem, onSave, onClose, onSa
                 Editing clip
                 {dirty && <span className="dirty-dot" title="Unsaved changes" />}
                 <span className="chip editor-chip">{kindLabel(clip.kind)}</span>
-                {formats.length > 1 && <span className="chip editor-chip">+{formats.length - 1} formats</span>}
+                {formats.length > 1 && (
+                  <span className="chip editor-chip">
+                    +{formats.length - 1} {formats.length === 2 ? 'format' : 'formats'}
+                  </span>
+                )}
               </div>
               <div className="t-meta editor-sub">
                 {clip.app || 'Unknown'} · {clip.title} · {formatTime(clip.time, timeFormat)}
@@ -259,8 +263,12 @@ export function EditorOverlay({ clip, timeFormat, getItem, onSave, onClose, onSa
                 </div>
               )}
               <div className="editor-foot">
-                <span className="t-meta">{characterCount.toLocaleString()} characters</span>
-                <span className="chip">{formats.length} formats</span>
+                <span className="t-meta">
+                  {characterCount.toLocaleString()} {characterCount === 1 ? 'character' : 'characters'}
+                </span>
+                <span className="chip">
+                  {formats.length} {formats.length === 1 ? 'format' : 'formats'}
+                </span>
                 <span className="spacer" />
                 <span className="t-meta">{dirty ? 'Unsaved changes' : 'Saved to this clip'}</span>
                 <span className="hint editor-foot-hint">

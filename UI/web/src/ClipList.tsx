@@ -21,6 +21,8 @@ interface Props {
   clips: ClipItem[]
   selectedId: number | null
   timeFormat: TimeFormat
+  /** The Pinned tab: every row there is pinned, so the per-row glyph is noise. */
+  hidePins: boolean
   onSelect: (id: number) => void
   onCopy: (clip: ClipItem) => void
   onTag: (id: string) => void
@@ -73,7 +75,7 @@ function Thumb({ id, getThumb }: { id: number; getThumb: (id: number) => Promise
 }
 
 export const ClipList = forwardRef<ClipListHandle, Props>(function ClipList(
-  { clips, selectedId, timeFormat, onSelect, onCopy, onTag, getThumb, getItem, emptyTitle, emptySub },
+  { clips, selectedId, timeFormat, hidePins, onSelect, onCopy, onTag, getThumb, getItem, emptyTitle, emptySub },
   ref,
 ) {
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -275,7 +277,7 @@ export const ClipList = forwardRef<ClipListHandle, Props>(function ClipList(
                     </div>
                     <div className="row-prov">
                       <span className="prov-what">
-                        {clip.pinned && (
+                        {clip.pinned && !hidePins && (
                           <span className="pin" title="Pinned">
                             <IconPin />
                           </span>
@@ -305,13 +307,15 @@ export const ClipList = forwardRef<ClipListHandle, Props>(function ClipList(
                         </button>
                       ))}
                       {hiddenTags > 0 && (
-                        <span className="chip" title={tags.slice(shownTags.length).join(', ')}>
+                        <span className="chip" title={`${hiddenTags} more ${hiddenTags === 1 ? 'tag' : 'tags'}: ${tags.slice(shownTags.length).join(', ')}`}>
                           +{hiddenTags}
+                          <span className="chip-unit"> {hiddenTags === 1 ? 'tag' : 'tags'}</span>
                         </span>
                       )}
                       {extra > 0 && (
                         <span className="chip facts-chip" title={`${clip.remainingChars.toLocaleString()} more characters`}>
                           +{compact(extra)}
+                          <span className="chip-unit"> chars</span>
                         </span>
                       )}
                     </div>

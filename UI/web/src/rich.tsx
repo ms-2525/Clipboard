@@ -302,8 +302,9 @@ export function RowBody({ clip, getItem }: { clip: ClipItem; getItem: GetItem })
           )
         })}
         {paths.length > 2 && (
-          <span className="chip" title={paths.slice(2).join('\n')}>
+          <span className="chip" title={`${paths.length - 2} more ${paths.length - 2 === 1 ? 'file' : 'files'}: ${paths.slice(2).join('\n')}`}>
             +{paths.length - 2}
+            <span className="chip-unit"> {paths.length - 2 === 1 ? 'file' : 'files'}</span>
           </span>
         )}
       </div>

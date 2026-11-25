@@ -155,3 +155,37 @@ export const IconRedo = () => (
     <path d="M9.5 4 12 6.5l-2.5 2.5" />
   </Svg>
 )
+export const IconBulletList = () => (
+  <Svg>
+    <circle cx="3.4" cy="4.5" r="1" fill="currentColor" stroke="none" />
+    <circle cx="3.4" cy="8" r="1" fill="currentColor" stroke="none" />
+    <circle cx="3.4" cy="11.5" r="1" fill="currentColor" stroke="none" />
+    <path d="M6.4 4.5h7M6.4 8h7M6.4 11.5h7" />
+  </Svg>
+)
+export const IconTaskList = () => (
+  <Svg>
+    <rect x="2.3" y="2.9" width="3.7" height="3.7" rx="1" />
+    <path d="m3.2 4.7.9.9 1.5-1.7" />
+    <path d="M7.7 4.8h6M7.7 9.2h6M2.7 12.4h11" />
+  </Svg>
+)
+export const IconQuote = () => (
+  <Svg>
+    <path d="M3.5 3v10" />
+    <path d="M6.6 4.4h6M6.6 8h6M6.6 11.6h3.8" />
+  </Svg>
+)
+export const IconTable = () => (
+  <Svg>
+    <rect x="2.5" y="3" width="11" height="10" rx="1.5" />
+    <path d="M2.5 6.5h11M6.4 6.5V13M10 6.5V13" />
+  </Svg>
+)
+export const IconAddRow = () => (
+  <Svg>
+    <rect x="2.2" y="2.4" width="7.6" height="3.3" rx="1" />
+    <rect x="2.2" y="7.2" width="7.6" height="3.3" rx="1" />
+    <path d="M12.8 7.2v5.2M10.2 9.8h5.2" />
+  </Svg>
+)

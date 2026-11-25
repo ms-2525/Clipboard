@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Editor } from '@tiptap/core'
 import {
+  IconAddRow,
   IconBold,
+  IconBulletList,
   IconChevron,
   IconHighlight,
   IconItalic,
@@ -9,8 +11,11 @@ import {
   IconMinus,
   IconPalette,
   IconPlus,
+  IconQuote,
   IconRedo,
   IconStrike,
+  IconTable,
+  IconTaskList,
   IconUnderline,
   IconUndo,
 } from './icons'
@@ -88,17 +93,17 @@ export function EditorToolbar({ editor, pop, setPop, size, onSize, onSingleLine,
           H{level}
         </button>
       ))}
-      <button className="tool text" data-on={editor.isActive('bulletList')} onClick={() => editor.chain().focus().toggleBulletList().run()} title="Bullet list" aria-label="Bullet list">
-        <span className="tool-glyph">•≡</span>
+      <button className="tool" data-on={editor.isActive('bulletList')} onClick={() => editor.chain().focus().toggleBulletList().run()} title="Bullet list" aria-label="Bullet list">
+        <IconBulletList />
       </button>
       <button className="tool text" data-on={editor.isActive('orderedList')} onClick={() => editor.chain().focus().toggleOrderedList().run()} title="Numbered list" aria-label="Numbered list">
         <span className="tool-glyph">1.</span>
       </button>
-      <button className="tool text" data-on={editor.isActive('taskList')} onClick={() => editor.chain().focus().toggleTaskList().run()} title="Task list" aria-label="Task list">
-        <span className="tool-glyph">☑</span>
+      <button className="tool" data-on={editor.isActive('taskList')} onClick={() => editor.chain().focus().toggleTaskList().run()} title="Task list" aria-label="Task list">
+        <IconTaskList />
       </button>
-      <button className="tool text" data-on={editor.isActive('blockquote')} onClick={() => editor.chain().focus().toggleBlockquote().run()} title="Quote" aria-label="Quote">
-        <span className="tool-glyph">❝</span>
+      <button className="tool" data-on={editor.isActive('blockquote')} onClick={() => editor.chain().focus().toggleBlockquote().run()} title="Quote" aria-label="Quote">
+        <IconQuote />
       </button>
       <button className="tool text" data-on={editor.isActive('codeBlock')} onClick={() => editor.chain().focus().toggleCodeBlock().run()} title="Code block" aria-label="Code block">
         <span className="tool-glyph">{'{}'}</span>
@@ -137,11 +142,11 @@ export function EditorToolbar({ editor, pop, setPop, size, onSize, onSingleLine,
           </div>
         )}
       </div>
-      <button className="tool text" onClick={() => editor.chain().focus().insertTable({ rows: 2, cols: 2, withHeaderRow: true }).run()} title="Insert table" aria-label="Insert table">
-        <span className="tool-glyph">▦</span>
+      <button className="tool" onClick={() => editor.chain().focus().insertTable({ rows: 2, cols: 2, withHeaderRow: true }).run()} title="Insert table" aria-label="Insert table">
+        <IconTable />
       </button>
-      <button className="tool text" onClick={() => editor.chain().focus().addRowAfter().run()} title="Add a table row" aria-label="Add table row">
-        <span className="tool-glyph">+▤</span>
+      <button className="tool" onClick={() => editor.chain().focus().addRowAfter().run()} title="Add a table row" aria-label="Add table row">
+        <IconAddRow />
       </button>
 
       <span className="tool-sep" />

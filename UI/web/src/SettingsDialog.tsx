@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
 import * as Switch from '@radix-ui/react-switch'
 import * as Slider from '@radix-ui/react-slider'
 import type { HostSettings, SaveConfigResult, SettingsPatch } from './host'
-import { IconClose, IconMonitor, IconMoon, IconSun } from './icons'
+import { IconChevron, IconClose, IconMonitor, IconMoon, IconSun } from './icons'
 
 interface Props {
   open: boolean
@@ -15,6 +15,8 @@ interface Props {
   onZoom: (zoom: number) => void
   onSave: (patch: SettingsPatch) => Promise<SaveConfigResult>
   onClearHistory: () => void
+  /** The Settings button; Radix has no Trigger here, so close restores focus to it explicitly. */
+  returnFocus?: RefObject<HTMLElement | null>
 }
 
 const ZOOMS = [80, 100, 125, 150]
@@ -55,7 +57,7 @@ function Keycaps({ combo }: { combo: string }) {
   )
 }
 
-export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, onZoom, onSave, onClearHistory }: Props) {
+export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, onZoom, onSave, onClearHistory, returnFocus }: Props) {
   const [autostart, setAutostart] = useState(settings.startOnLogin)
   const [cap, setCap] = useState(settings.maxItems)
   const [lines, setLines] = useState(settings.notification.maxLines)
@@ -67,7 +69,14 @@ export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, o
   const [error, setError] = useState('')
   const [confirmClear, setConfirmClear] = useState(false)
   const captureRef = useRef<HTMLButtonElement>(null)
+  const bodyRef = useRef<HTMLDivElement>(null)
   const wasOpen = useRef(false)
+  // The fade is the scroll affordance: it is present exactly while content remains below.
+  const [more, setMore] = useState(false)
+  const measure = useCallback(() => {
+    const body = bodyRef.current
+    if (body) setMore(body.scrollHeight - body.scrollTop - body.clientHeight > 4)
+  }, [])
 
   // Every open starts from the saved values; a live zoom change must not reset the draft underneath.
   useEffect(() => {
@@ -85,6 +94,17 @@ export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, o
     }
     wasOpen.current = open
   }, [open, settings])
+
+  // Re-measure when the dialog opens, a group expands or the window resizes.
+  useEffect(() => {
+    if (!open) return
+    const frame = requestAnimationFrame(measure)
+    window.addEventListener('resize', measure)
+    return () => {
+      cancelAnimationFrame(frame)
+      window.removeEventListener('resize', measure)
+    }
+  }, [open, confirmClear, error, capturing, measure])
 
   // Hotkey capture: the field takes the next chord, Esc cancels the capture only (not the dialog).
   useEffect(() => {
@@ -150,7 +170,16 @@ export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, o
     <Dialog.Root open={open} onOpenChange={(next) => { setCapturing(false); onOpenChange(next) }}>
       <Dialog.Portal>
         <Dialog.Overlay className="overlay" />
-        <Dialog.Content className="dialog" aria-describedby="settings-desc" onOpenAutoFocus={(event) => event.preventDefault()}>
+        <Dialog.Content
+          className="dialog settings"
+          aria-describedby="settings-desc"
+          aria-modal="true"
+          onCloseAutoFocus={(event) => {
+            // Radix restores focus to a Dialog.Trigger; this dialog has none, so name the button.
+            event.preventDefault()
+            returnFocus?.current?.focus()
+          }}
+        >
           <div className="dialog-head">
             <div className="grow">
               <Dialog.Title className="t-title" style={{ margin: 0 }}>
@@ -167,7 +196,8 @@ export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, o
             </Dialog.Close>
           </div>
 
-          <div className="dialog-body">
+          <div className="dialog-body-wrap">
+            <div className="dialog-body" ref={bodyRef} onScroll={measure}>
             <div className="set-group">
               <div className="t-micro">General</div>
               <div className="set-row">
@@ -326,6 +356,12 @@ export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, o
                 </div>
               )}
             </div>
+            </div>
+            {more && (
+              <div className="scroll-fade" aria-hidden="true">
+                <IconChevron />
+              </div>
+            )}
           </div>
 
           <div className="dialog-foot">
