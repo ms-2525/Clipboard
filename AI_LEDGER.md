@@ -59,4 +59,8 @@
 - `EmbeddedResource` with `LogicalName="clip.assets.web/%(RecursiveDir)%(Filename)%(Extension)"` leaves Windows backslashes in nested names; normalize `\` to `/` when building the URL map. `findstr /M /C:"clip.assets.web/index.html" dist\Clip.exe` proves the page really is inside the published artifact.
 - Commit hygiene: stage named files, never `git add -A`, and run `git status --short` before committing. Probe scripts and screenshots belong under `%TEMP%\opencode`, not the repo; a staged-file sweep at the end of a slice caught stray harness files twice.
 - A WebView2 app's `MainWindowHandle` is not a stable handle for the shell: it goes to 0 when hidden, and the process owns a separate toast HWND titled with the product name. Enumerate the process's windows and match the 900x700 shell (or keep the HWND from a successful UIA query) before driving it.
+- SQLite `length()`/`substr()` count Unicode code points; .NET `string.Length` counts UTF-16 units. The same 600-emoji body is 1,600 code points and 1,800 UTF-16 units, so comparing a `substr` preview to `string.Length` cut a surrogate pair (the emoji data loss). Compare `TextLength`, never `.Length`.
+- An elevated screenshot overlay can cover and steal the desktop from a medium-integrity Clip, blocking every UI-automation screenshot; run the visual agent at the same integrity or record the row NOT RUN.
+- PowerShell rewriting a UTF-8 document adds a BOM or round-trips through CP1252 (mojibake); write docs with the editor tool or `[IO.File]::WriteAllText` with `UTF8Encoding(false)`.
+- Searching the loaded 1,200-character preview silently loses a word at character 3,001; search the stored full body (`SearchFull`) or the UI reports a clip absent when it is not.
 

@@ -4,51 +4,54 @@ LANE: release (25 Nov 2026, branch `v2-phase1`)
 
 ## What shipped
 
-The published `dist\Clip.exe` **is** the v2 app. A plain double-click starts the tray app and the
-warm WebView2 shell; `--legacy` still opens the old WPF UI for this release only; `--v2` is kept as
-an alias of the default. The React page is embedded in the exe (`clip.assets.web/index.html`) and
-served from memory over `https://clip.local/`, so the exe needs no folder beside it. A developer
-build running from `bin\` still prefers `UI\web\dist` on disk for fast iteration.
+`dist\Clip.exe` is the v2 app: one self-contained win-x64 file, no .NET runtime needed, with the
+React page embedded and served from memory. A plain double-click starts the tray app; `--v2` is an
+alias of the default; `--legacy` still opens the old WPF window for this release only.
 
-- One tray icon; Alt+V opens the list; capture, rich rows, tags, search, export, the real editor,
-  settings, pin/delete/undo/move and both paste paths are live.
-- OCR runs offline on captured images and stores the words with the clip.
-- Single instance, autostart target and the tray menu behave as before the flip. The WebView2
-  profile now lives next to the database (`%APPDATA%\Clip\webview`), not in `%TEMP%`.
+Live in the shipped UI: tray and hotkey, capture of text / rich text / links / files / images,
+automatic tags, full-body search with tag filters, tabs (create, rename, delete, move), export to
+.txt / .md / .csv / .png, the F2 editor, offline OCR, settings, pin / delete / undo, both paste
+paths, autostart and single-instance behaviour.
 
-**Artifact:** `dist\Clip.exe` — 208,159,174 bytes (~198.6 MiB), self-contained win-x64 single file,
-no .NET runtime needed. Embedded page: `clip.assets.web/index.html` (2,840,139 bytes inlined HTML).
+**Artifact:** `dist\Clip.exe` — 208,183,750 bytes (~198.5 MiB). The page is embedded; no folder is
+needed beside the exe.
 
 ## Measured numbers
 
 | Number | Value | How |
 |---|---|---|
-| Warm show (S8a, debug probe) | 17.2 ms median | `CLIP_V2_TIMING`, Show→first rAF frame |
-| Warm show (published exe) | re-check pending | the clean-profile desktop was covered by an elevated screenshot overlay at release time |
-| OCR accuracy | 93.7 % of characters | clean screenshot, Windows.Media.Ocr |
-| Idle memory, clean profile | ~528 MB (160 MB `Clip.exe` + 368 MB across 6 WebView2 processes) | fresh DB, 0 clips, shell hidden |
-| With 5 clips incl. one image | ~643 MB (224 MB + 419 MB across 6) | after capture + OCR, shell hidden |
-| Cold first window after login | a few seconds | WebView2 process + page start |
+| Warm show, window appears | 3.5 ms | measured from another process |
+| Warm show, first paint | 30 ms | same run, time to painted frame |
+| Search at 1,000 clips | 12.4 ms p50 | full stored body, not the preview |
+| OCR accuracy | 93.7 % of characters | real screenshot, Windows.Media.Ocr |
+| Idle memory | 528 MB working set | shell hidden, clean profile |
+| Image + OCR memory | ~643 MB working set | private bytes are lower than working set |
+
+Memory is the WebView2 price: six Chromium processes plus the page. It is stated here, not hidden.
 
 ## Known limits (honest list)
 
-- **OCR is never trusted for amounts.** `₹` is unreadable, Indian grouping is lost; verify money
-  against the image.
-- **CSV opens correctly but Excel reinterprets values**: `007` loses zeros, `=1+1` becomes a
-  formula. Use Data → From Text/CSV with Text columns.
-- **WebView2 memory is Chromium-heavy**: ~640 MB resident for a warm shell on this VM. Idle is not
-  the old app's ~250 MB; it is the price of the web surface.
-- **WebView2 runtime is required.** It ships with Windows 10/11; a machine without it gets the
-  shell's "runtime not available" notice instead of the page.
-- `--legacy` keeps the old WPF UI for this release only; it will be removed.
-- Pinning an old clip still puts it at the bottom of Pinned; undo after a move returns to the old
-  tab only while the tab exists.
-- The plain-text hotkey is fixed at Ctrl+Shift+V (the popup hotkey is rebindable); the tray menu
-  shows the running version.
-- Editor cold open remains ~2.9 s / +302 MB while open (TipTap + WebView2); this is unchanged.
+- **OCR is never trusted for amounts.** `₹` is unreadable, Indian grouping is lost, some amount
+  lines are dropped; verify money against the picture.
+- **Hindi OCR needs the Hindi language pack** installed in Windows. Without it those images get no
+  text at all rather than garbage.
+- **`CF_DIBV5` restores as a custom clipboard format**, not under its own name (a Win32 limit, same
+  as the old app).
+- **Excel reinterprets values on open**: `007` becomes `7` and `=1+1` becomes `2`. The exported CSV
+  itself is correct; open it through Data → From Text/CSV with Text columns when it matters.
+- **The old WPF UI is still reachable** with `--legacy`; it goes away in the next release.
+- **No time-section jump yet** (`Ctrl+Up/Down`); the list scrolls and searches, but has no date
+  sections.
+- **WebView2 runtime is required.** It ships with Windows 10/11; without it the window shows a
+  "runtime not available" notice instead of the page.
+
+## How to rebuild
+
+Double-click `build-release.cmd`: it rebuilds the page when stale, publishes one self-contained
+`dist\Clip.exe`, and starts it.
 
 ## Where the truth lives
 
 - Acceptance: `docs\CHECKLIST-features.md`, `docs\CHECKLIST-uiux.md`.
-- Defects and open debt: `docs\BUILD-TRACKER.md`, `docs\AUDIT-*.md`.
+- Audits and open debt: `docs\BUILD-TRACKER.md`, `docs\AUDIT-*.md`.
 - The user-facing contract: `USER_GUIDE.md`.
