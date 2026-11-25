@@ -66,6 +66,15 @@ export function useClipboardKeys(actions: KeyActions) {
       if (event.altKey) return
 
       if (mod) {
+        // Ctrl+1..Ctrl+9 paste the visible row; a bare digit is search text.
+        if (!event.shiftKey && /^[1-9]$/.test(key)) {
+          const clip = rows[Number(key) - 1]
+          if (clip) {
+            take()
+            actions.onPaste(clip, false)
+          }
+          return
+        }
         if (!event.shiftKey && (key === 'ArrowUp' || key === 'ArrowDown')) {
           take()
           actions.onSection(key === 'ArrowDown' ? 1 : -1)
@@ -183,16 +192,7 @@ export function useClipboardKeys(actions: KeyActions) {
         return
       }
 
-      // Digits 1-9 are the paste keys, not the first character of a search.
-      if (/^[1-9]$/.test(key) && !inSearch) {
-        const clip = rows[Number(key) - 1]
-        if (clip) {
-          take()
-          actions.onPaste(clip, false)
-        }
-        return
-      }
-
+      // Digits 1-9 are ordinary search text; `/5` (handled by the search field) is the paste key.
       if (key === 'Delete') {
         if (selected) {
           take()

@@ -66,11 +66,21 @@ test('typing from the list searches; Escape clears the query', async ({ page }) 
   await expect(shown(page)).toHaveText('1,000 shown')
 })
 
-test('digits and Enter stay paste keys, not search', async ({ page }) => {
+test('Ctrl+1..Ctrl+9 paste the visible row; a bare digit is search text', async ({ page }) => {
+  // A plain digit starts a search, so numbers like a year or an amount can be typed directly.
+  await page.keyboard.type('2', { delay: 40 })
+  await expect(search(page)).toHaveValue('2')
+  await expect(search(page)).toBeFocused()
+  await page.keyboard.press('Escape')
+  await page.waitForTimeout(300)
+
+  // Ctrl+2 pastes the second visible row and does not touch the query.
   await selectedRow(page).focus()
-  await page.keyboard.press('2')
+  await page.keyboard.press('Control+2')
   await expect(toast(page)).toContainText('Copied instead')
   await expect(search(page)).toHaveValue('')
+
+  // Enter still pastes the selected row.
   await selectedRow(page).focus()
   await page.keyboard.press('Enter')
   await expect(toast(page)).toContainText('Copied instead')
