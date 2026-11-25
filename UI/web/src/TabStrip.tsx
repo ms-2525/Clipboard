@@ -158,7 +158,7 @@ export function TabStrip({ tabs, activeId, onSelect, onCreate, onRename, onDelet
   }, [menu])
 
   const confirmText = confirm
-    ? `Its ${confirm.count.toLocaleString()} ${confirm.count === 1 ? 'clip' : 'clips'} will be deleted. Pinned clips are not affected.`
+    ? `Its ${confirm.count.toLocaleString()} ${confirm.count === 1 ? 'clip' : 'clips'} will be deleted, and this cannot be undone. Pinned clips are not affected.`
     : ''
 
   return (

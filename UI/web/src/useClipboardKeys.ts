@@ -13,6 +13,10 @@ export interface KeyActions {
   onSearchFocus: () => void
   /** Move a measured page (the list owns the row heights). */
   onPage: (direction: 1 | -1) => void
+  /** Ctrl+Up/Down: the nearest time section (calendar day) in the direction. */
+  onSection: (direction: 1 | -1) => void
+  /** Ctrl+Shift+Left/Right: move the selected clip one tab along the strip order. */
+  onMoveTab: (direction: 1 | -1) => void
   onPaste: (clip: ClipItem, plain: boolean) => void
   onEdit: () => void
   onExport: () => void
@@ -58,6 +62,16 @@ export function useClipboardKeys(actions: KeyActions) {
       if (event.altKey) return
 
       if (mod) {
+        if (!event.shiftKey && (key === 'ArrowUp' || key === 'ArrowDown')) {
+          take()
+          actions.onSection(key === 'ArrowDown' ? 1 : -1)
+          return
+        }
+        if (event.shiftKey && (key === 'ArrowLeft' || key === 'ArrowRight')) {
+          take()
+          actions.onMoveTab(key === 'ArrowRight' ? 1 : -1)
+          return
+        }
         if (lower === 'f' || lower === 'k') {
           take()
           actions.onSearchFocus()

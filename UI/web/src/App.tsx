@@ -61,6 +61,24 @@ function allCountOf(init: InitResult): number {
 /** The next-slice bridge methods answer "unknown method"; that is a gap, not a failure. */
 const isNotReady = (error: unknown) => /unknown method|not wired|not ready|phase 2/i.test(messageOf(error))
 
+/** Local calendar day of a row's time: the boundary Ctrl+Up/Down walks. */
+const dayKey = (time: string) => {
+  const date = new Date(time)
+  return Number.isNaN(date.getTime()) ? '' : `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`
+}
+
+/** Indices where a new day starts; the rows are newest first. */
+function sectionStarts(rows: ClipItem[]): number[] {
+  const starts: number[] = []
+  let previous = ''
+  rows.forEach((row, index) => {
+    const key = dayKey(row.time)
+    if (index === 0 || key !== previous) starts.push(index)
+    previous = key
+  })
+  return starts
+}
+
 /** A re-copied clip keeps its id; the store moves it to the top, so the row must move too. */
 function moveToTop(rows: ClipItem[], item: ClipItem): ClipItem[] {
   const at = rows.findIndex((row) => row.id === item.id)
@@ -431,6 +449,41 @@ export default function App() {
     [host, moveDestinations, refreshTabs, reload, showToast],
   )
 
+  /** Ctrl+Up/Down: the first row of the previous/next day group, clamped at both ends. */
+  const jumpSection = useCallback(
+    (direction: 1 | -1) => {
+      const rows = visibleRef.current
+      if (rows.length === 0) return
+      const starts = sectionStarts(rows)
+      const index = rows.findIndex((row) => row.id === selectedId)
+      const at = index < 0 ? 0 : index
+      const current = starts.filter((start) => start <= at).pop() ?? 0
+      if (direction === 1) {
+        const next = starts.find((start) => start > current)
+        if (next == null) return
+        setSelectedId(rows[next].id)
+        requestAnimationFrame(() => listRef.current?.revealTop(rows[next].id))
+        return
+      }
+      const previous = [...starts].reverse().find((start) => start < current) ?? 0
+      setSelectedId(rows[previous].id)
+      requestAnimationFrame(() => listRef.current?.revealTop(rows[previous].id))
+    },
+    [selectedId],
+  )
+
+  /** Ctrl+Shift+Left/Right: one step along All history -> custom tabs -> Pinned, wrapping at the ends. */
+  const moveToAdjacentTab = useCallback(
+    (direction: 1 | -1) => {
+      if (!selected || moveDestinations.length < 2) return
+      const current = moveDestinations.findIndex((target) => target.id === (selected.tabId ?? null))
+      const from = current < 0 ? 0 : current
+      const next = moveDestinations[(from + direction + moveDestinations.length) % moveDestinations.length]
+      void moveClipToTab(selected, next.id)
+    },
+    [moveClipToTab, moveDestinations, selected],
+  )
+
   const undoDelete = useCallback(async () => {
     const entry = lastDeleted.current
     if (!entry) {
@@ -620,6 +673,8 @@ export default function App() {
     onSearch: setSearchText,
     onSearchFocus: focusSearch,
     onPage: (direction) => listRef.current?.pageBy(direction),
+    onSection: jumpSection,
+    onMoveTab: moveToAdjacentTab,
     onPaste: (clip, plain) => void pasteItem(clip, plain),
     onEdit: () => selected && setEditorOpen(true),
     onExport: openExport,
@@ -678,6 +733,12 @@ export default function App() {
           // Counts and tabs live in init, not in a list page: reload the surface, not just the rows.
           void load()
           showToast('History cleared', 'Pinned clips and tabs stay.')
+          return
+        }
+        if (event === 'corruptionRecovered') {
+          // The host reloads the page in the same breath; this quiet note is for the moment before it does.
+          const notice = (data as { notice?: string } | undefined)?.notice
+          showToast('History recovered', notice || 'Clip history could not be read and was moved aside. A fresh history has started.')
           return
         }
         if (event === 'deleted') {

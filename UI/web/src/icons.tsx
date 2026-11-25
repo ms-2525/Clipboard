@@ -163,6 +163,24 @@ export const IconBulletList = () => (
     <path d="M6.4 4.5h7M6.4 8h7M6.4 11.5h7" />
   </Svg>
 )
+export const IconOrderedList = () => (
+  <Svg>
+    <path d="M6.8 4.5h6.8M6.8 8h6.8M6.8 11.5h6.8" />
+    <path d="M4.3 6.2V3.1L3.3 4" />
+    <path d="M2.9 9.4a1.4 1.4 0 1 1 2.8 0c0 .5-.5.9-.9 1.2l-1.9 1.6h2.8" />
+  </Svg>
+)
+export const IconInlineCode = () => (
+  <Svg>
+    <path d="M5.6 4.2 2.4 8l3.2 3.8M10.4 4.2 13.6 8l-3.2 3.8" />
+  </Svg>
+)
+export const IconCodeBlock = () => (
+  <Svg>
+    <path d="M7.2 3.4c-1.5 0-2 .6-2 1.9v1.1c0 .8-.4 1.3-1.2 1.6.8.3 1.2.8 1.2 1.6v1.1c0 1.3.5 1.9 2 1.9" />
+    <path d="M8.8 3.4c1.5 0 2 .6 2 1.9v1.1c0 .8.4 1.3 1.2 1.6-.8.3-1.2.8-1.2 1.6v1.1c0 1.3-.5 1.9-2 1.9" />
+  </Svg>
+)
 export const IconTaskList = () => (
   <Svg>
     <rect x="2.3" y="2.9" width="3.7" height="3.7" rx="1" />

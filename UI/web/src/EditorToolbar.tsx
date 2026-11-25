@@ -5,10 +5,13 @@ import {
   IconBold,
   IconBulletList,
   IconChevron,
+  IconCodeBlock,
   IconHighlight,
+  IconInlineCode,
   IconItalic,
   IconLink,
   IconMinus,
+  IconOrderedList,
   IconPalette,
   IconPlus,
   IconQuote,
@@ -76,7 +79,7 @@ export function EditorToolbar({ editor, pop, setPop, size, onSize, onSingleLine,
         <IconStrike />
       </button>
       <button className="tool" data-on={editor.isActive('code')} onClick={() => editor.chain().focus().toggleCode().run()} title="Inline code" aria-label="Inline code">
-        <span className="tool-glyph">{'<>'}</span>
+        <IconInlineCode />
       </button>
 
       <span className="tool-sep" />
@@ -96,8 +99,8 @@ export function EditorToolbar({ editor, pop, setPop, size, onSize, onSingleLine,
       <button className="tool" data-on={editor.isActive('bulletList')} onClick={() => editor.chain().focus().toggleBulletList().run()} title="Bullet list" aria-label="Bullet list">
         <IconBulletList />
       </button>
-      <button className="tool text" data-on={editor.isActive('orderedList')} onClick={() => editor.chain().focus().toggleOrderedList().run()} title="Numbered list" aria-label="Numbered list">
-        <span className="tool-glyph">1.</span>
+      <button className="tool" data-on={editor.isActive('orderedList')} onClick={() => editor.chain().focus().toggleOrderedList().run()} title="Numbered list" aria-label="Numbered list">
+        <IconOrderedList />
       </button>
       <button className="tool" data-on={editor.isActive('taskList')} onClick={() => editor.chain().focus().toggleTaskList().run()} title="Task list" aria-label="Task list">
         <IconTaskList />
@@ -105,8 +108,8 @@ export function EditorToolbar({ editor, pop, setPop, size, onSize, onSingleLine,
       <button className="tool" data-on={editor.isActive('blockquote')} onClick={() => editor.chain().focus().toggleBlockquote().run()} title="Quote" aria-label="Quote">
         <IconQuote />
       </button>
-      <button className="tool text" data-on={editor.isActive('codeBlock')} onClick={() => editor.chain().focus().toggleCodeBlock().run()} title="Code block" aria-label="Code block">
-        <span className="tool-glyph">{'{}'}</span>
+      <button className="tool" data-on={editor.isActive('codeBlock')} onClick={() => editor.chain().focus().toggleCodeBlock().run()} title="Code block" aria-label="Code block">
+        <IconCodeBlock />
       </button>
 
       <span className="tool-sep" />

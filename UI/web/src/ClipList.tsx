@@ -36,6 +36,8 @@ interface Props {
 /** PageUp/PageDown must move by what is actually on screen, which only the list knows. */
 export interface ClipListHandle {
   pageBy: (direction: 1 | -1) => void
+  /** Section jumps put their first row at the top of the viewport, not wherever minimal scroll lands. */
+  revealTop: (id: number) => void
 }
 
 function Thumb({ id, getThumb }: { id: number; getThumb: (id: number) => Promise<string | null> }) {
@@ -219,6 +221,10 @@ export const ClipList = forwardRef<ClipListHandle, Props>(function ClipList(
         const from = index < 0 ? 0 : index
         const next = Math.max(0, Math.min(clips.length - 1, from + direction * span))
         onSelect(clips[next].id)
+      },
+      revealTop: (id) => {
+        const index = clips.findIndex((clip) => clip.id === id)
+        if (index >= 0) virt.scrollToIndex(index, { align: 'start' })
       },
     }),
     [clips, selectedId, onSelect, virt],

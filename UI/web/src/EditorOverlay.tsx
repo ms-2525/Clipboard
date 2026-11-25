@@ -46,6 +46,8 @@ export function EditorOverlay({ clip, timeFormat, getItem, onSave, onClose, onSa
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [formats, setFormats] = useState<string[]>(clip.formats)
+  /** Bumped on every editor update: the count must move on each keystroke, not only when `dirty` flips. */
+  const [revision, setRevision] = useState(0)
   const baseline = useRef('')
   // Captured during the first render, before Radix moves focus into the dialog.
   const returnFocus = useRef<HTMLElement | null>(document.activeElement instanceof HTMLElement ? document.activeElement : null)
@@ -63,7 +65,10 @@ export function EditorOverlay({ clip, timeFormat, getItem, onSave, onClose, onSa
     ],
     content: '',
     autofocus: false,
-    onUpdate: ({ editor: instance }) => setDirty(instance.getHTML() !== baseline.current),
+    onUpdate: ({ editor: instance }) => {
+      setDirty(instance.getHTML() !== baseline.current)
+      setRevision((value) => value + 1)
+    },
   })
 
   useEffect(() => {
@@ -154,7 +159,7 @@ export function EditorOverlay({ clip, timeFormat, getItem, onSave, onClose, onSa
     setDirty(editor.getHTML() !== baseline.current)
   }
 
-  const characterCount = useMemo(() => editor?.getText().length ?? 0, [editor, dirty, loading])
+  const characterCount = useMemo(() => editor?.getText().length ?? 0, [editor, revision, dirty, loading])
   if (!editor) return null
   const highlight = 'var(--highlight)'
 
