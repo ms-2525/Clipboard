@@ -50,7 +50,7 @@ clean; memory stated honestly; docs updated.
 | S9a | OCR: TFM retarget, service, storage | `Clip.csproj`, `Core\` | DONE `a3dee2b` | 93.7 % chars on clip 356; search finds it |
 | S10 | Packaging: embed the web build, flip the default launch | `Clip.csproj`, `build-release.cmd`, `App.xaml.cs` | DONE `e813d53` | 198.6 MiB exe; clean-profile proof |
 | S11 | UI audit fixes: search keys, modal, stale body, SVG, caches | `UI\web\src\*` | DONE `aba6c71` | 30/30 tabs trapped; edit refreshes the row |
-| S12 | Export hide, full-body search, corruption notice | `Host\`, `UI\ShellWindow.xaml.cs` | IN PROGRESS | save and cancel both leave the shell visible |
+| S12 | Export hide, full-body search, corruption notice | `Host\`, `UI\ShellWindow.xaml.cs` | DONE `ec4ce55` | save and cancel keep the shell visible; word at char 3,001 found in 12.4 ms |
 | S13 | Tab management: create, rename, delete, move | `Host\`, `UI\web\src\*` | QUEUED | create, move, rename, delete with clips |
 | S14 | Rewrite `CHECKLIST-uiux.md` for the v2 surface | `docs\` | DONE `02e23cd` | 54 rows: 32 PASS, 14 FAIL, 8 NOT RUN |
 | S15 | Six visual release defects | `UI\web\src\*` | IN PROGRESS | Settings fits 900x700 and 430; hover visible |
