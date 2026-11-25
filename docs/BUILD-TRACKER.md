@@ -59,6 +59,7 @@ clean; memory stated honestly; docs updated.
 | S20 | Keyboard access to tag filters (last uiux FAIL) | `UI\web\src\*`, checklists | DONE `84f9fe9` | 33/33; Ctrl+T picker; mock parity; uiux 48 PASS 0 FAIL 6 NOT RUN |
 | S21 | Rebuild the exe with the final page and sign G-02/G-04 | `dist`, docs | DONE | exe 208,187,846 B SHA-256 `213AC8F4...1744`; G-02 and G-04 signed |
 | S22 | Live acceptance on the published exe (cold/warm show, capture matrix, Office, IME, zoom, toast, tray) | `%TEMP%\opencode\live-accept`, `docs\AUDIT-live-acceptance.md` | IN PROGRESS | exe 208,187,846 B at 08:08 contains the S20 page; isolated profile; Office 16 present, no Hindi IME |
+| S23 | Owner keyboard contract + Playwright e2e gate | `UI\web\src\*`, `UI\web\e2e\*` | DONE `c9b1701` | 9/9 Playwright tests in 6 s on the built page: focus on the selected row, Up/Down, Left/Right tabs with wrap, type-to-search, Esc clears, F2 toggle clean/dirty, Settings icon; zero console/network |
 | S14 | Rewrite `CHECKLIST-uiux.md` for the v2 surface | `docs\` | DONE `02e23cd`, resynced 25 Nov | 54 rows: 46 PASS, 1 FAIL, 7 NOT RUN |
 | S15 | Six visual release defects | `UI\web\src\*` | DONE `50207bd` | Settings 860x657 fits 900x700 with zero scroll; hover 1.17/1.20; index 4ch; 20/20 tab trap |
 

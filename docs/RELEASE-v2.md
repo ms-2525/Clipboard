@@ -16,6 +16,9 @@ found inside the binary).
   named formats, dedupe, cap, password-manager exclusions, SendInput paste.
 - A React 19 + TipTap UI in one warm WebView2: rows with index, up to 10 lines, provenance and automatic
   tags; virtualised list (8-20 rows in the DOM for 1,000 clips); light/dark; 430-900 px; zoom 80-150 %.
+- Keyboard first: the window lands focus on the selected row, Up/Down move, Left/Right change tab
+  (wrapping), typing starts a search, Esc clears it and a second Esc hides, F2 opens and closes the
+  editor (a discard prompt only when the body changed); the Settings icon is always in the top bar.
 - Tag search (`image:`, `excel:`, `code:`, `-tag:`, phrases, unknown tags fall back to text), full-body
   search including text past the 1,200-character preview.
 - Tabs: create, rename, delete (warns "its N clips will be deleted, and this cannot be undone"), move a
@@ -48,6 +51,8 @@ found inside the binary).
   cold start, 1,000-item acceptance, IME) plus five old-app product items listed under limits.
 - **No P0 in any audit.** The data layer was audited three times (DB logic, tags/search, host actions)
   and re-swept on the release build.
+- **Keyboard contract has a standing gate**: `cd UI\web; npm.cmd run e2e` -> 9/9 Playwright tests on the
+  built page in ~6 s, using the Chromium already on the machine (Playwright 1.63.0, no download).
 
 ## Known limits (named, not hidden)
 
