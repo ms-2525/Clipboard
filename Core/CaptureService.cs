@@ -236,6 +236,8 @@ namespace Clip.Core
             {
                 if (task.Status != TaskStatus.RanToCompletion || task.Result == null) return;
                 var item = task.Result;
+                // Both this continuation's Store and the store's Dispose run on the UI thread, so a queued
+                // write either lands before the close or is dropped by the dispatcher; it cannot interleave.
                 try { _ui.BeginInvoke(new Action(() => Store(item))); }
                 catch (InvalidOperationException) { } // app shutting down: the capture is simply not stored
             }, TaskScheduler.Default);
