@@ -51,7 +51,8 @@ clean; memory stated honestly; docs updated.
 | S10 | Packaging: embed the web build, flip the default launch | `Clip.csproj`, `build-release.cmd`, `App.xaml.cs` | DONE `e813d53` | 198.6 MiB exe; clean-profile proof |
 | S11 | UI audit fixes: search keys, modal, stale body, SVG, caches | `UI\web\src\*` | DONE `aba6c71` | 30/30 tabs trapped; edit refreshes the row |
 | S12 | Export hide, full-body search, corruption notice | `Host\`, `UI\ShellWindow.xaml.cs` | DONE `ec4ce55` | save and cancel keep the shell visible; word at char 3,001 found in 12.4 ms |
-| S13 | Tab management: create, rename, delete, move | `Host\`, `UI\web\src\*` | S13a DONE `4954e87`; S13b (UI) IN PROGRESS | 50/50 bridge; delete purges N clips and warns |
+| S13 | Tab management: create, rename, delete, move | `Host\`, `UI\web\src\*` | DONE `4954e87`, `1ced540` | 50/50 bridge; strip CRUD, Ctrl+M picker, delete warns with N clips |
+| S16 | Final release audit + visual re-check + docs refresh | read-only / docs | IN PROGRESS | ship / ship-with-limits verdict; guide rewritten for tabs, export, OCR |
 | S14 | Rewrite `CHECKLIST-uiux.md` for the v2 surface | `docs\` | DONE `02e23cd` | 54 rows: 32 PASS, 14 FAIL, 8 NOT RUN |
 | S15 | Six visual release defects | `UI\web\src\*` | DONE `50207bd` | Settings 860x657 fits 900x700 with zero scroll; hover 1.17/1.20; index 4ch; 20/20 tab trap |
 
