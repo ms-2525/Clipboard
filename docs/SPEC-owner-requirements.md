@@ -64,7 +64,7 @@ page, live proof pending · **AWAITING SIGN** = fixed after a failed live read, 
 | 14 | Keyboard usable from the instant the window appears | SHIPPED (page) / live re-check pending | Focus lands on the selected row; live Alt+V shows keys working; newest wrap + Ctrl rules are page 12/12 |
 | 15 | Up/Down cycle clips, wrapping | **HEADLESS** | e2e `01 → 02 → 01 → 1000 → 01`; live pending on the final exe |
 | 16 | Left/Right change tabs | SHIPPED | Live tab changes by keyboard; e2e covers strip order, wrap, one change per press |
-| 17 | Type to search; Esc clears, Esc again hides | SHIPPED | e2e typing + clear; live Esc clear + hide; digits are text |
+| 17 | Type to search; Esc clears, Esc again hides | SHIPPED (live re-check running) | e2e typing + clear; live Esc clear + hide; digits are text. **Fixed 25 Nov:** the WPF shell had hidden the window on every Escape before the page saw it; the shell now owns Escape only when no page bridge exists, so the ordered cascade (clear → editor/Settings → hide) is the page's |
 | 18 | F2 edits; F2 closes; discard only when changed; Esc closes | SHIPPED | e2e clean/dirty F2, Esc prompt then close; live on the 09:13 exe |
 | 19 | Settings icon in the top bar | SHIPPED | Visible at 900/430, labelled, keyboard opens/closes; **gear** drawn (was sliders) |
 | 20 | Paste a visible row by number | SHIPPED | Changed by owner to **Ctrl+1…Ctrl+9**; e2e proves it; bare digits search |
@@ -75,11 +75,11 @@ page, live proof pending · **AWAITING SIGN** = fixed after a failed live read, 
 | 25 | No data loss (truncation, corrupt DB, cap) | SHIPPED | Emoji truncation fixed and guarded; corrupt DB set aside + notice; cap exact; tab purge counted |
 | 26 | Memory honest and acceptable | LIMIT / decision | 527.5 MB WS / 270.5 MB private, 7 processes (06:52 exe); newest exe not re-measured; owner must accept or set a ceiling |
 | 27 | Cold first open <= 150 ms | LIMIT / decision | Live **160.8 ms** (150 % DPI, 11 ms over); warm median **97.9 ms**; internal show 3.5 ms |
-| 28 | First-run hint ("… is running, press Alt+V") | NOT BUILT | v2 has no first-run affordance; old app used `WasNew` |
-| 29 | Ghost notification preview in Settings | NOT BUILT | v2 Settings has no preview; the real toast exists |
-| 30 | On-screen known-limits note | NOT BUILT | Limits live in the user guide only |
-| 31 | Notice for over-budget clipboard formats | PARTIAL | Oversized images toast; over-budget formats are dropped silently |
-| 32 | 5 MB image decode off the UI thread | NOT BUILT | Capture still decodes/encodes/hashes on the dispatcher |
+| 28 | First-run hint ("… is running, press Alt+V") | SHIPPED (live pending) | `App.V2.cs` shows "Clip is running. Press Alt+V to open the list." once when `Config.WasNew`; the legacy path had it, the v2 path did not. Fresh-profile live check running |
+| 29 | Ghost notification preview in Settings | PARTIAL | Settings → **Preview** now calls the host and shows the **real** native toast at its real coordinates with the current settings (`previewNotification` → `NotificationWindow.ShowFor`). Drag-to-move and live-follow on every slider tick are not built |
+| 30 | On-screen known-limits note | SHIPPED (live pending) | Settings → **Known limits**: colour emoji in the preview, Google Docs/Notion HTML degradation, OCR never for amounts, Excel `007` → `7` in CSV |
+| 31 | Notice for over-budget clipboard formats | SHIPPED (live pending) | `ClipboardFormats.Snapshot` reports every dropped format name; `CaptureService` toasts "Part of the copy was not saved: <formats> over the N MB clip limit". Oversized images already toasted |
+| 32 | 5 MB image decode off the UI thread | SHIPPED (live pending) | Capture reads the clipboard on the UI thread only; decode, thumbnail, DIB re-encode and SHA-256 run on a worker, the hash precomputed into `ClipboardItem.ImageHash`, and the store falls back to hashing when absent |
 | 33 | Paste when the target's editor lacks focus | LIMIT | The guard checks the foreground window, not the focused child; click into the document |
 | 34 | One exe, no runtime, UI embedded | SHIPPED | Content-verified: five unique page sequences inside the exe |
 | 35 | `--legacy` old UI for one release | SHIPPED | Flag documented; master untouched until merge |
@@ -228,15 +228,18 @@ sign-offs are the models for new rows.
 
 ## 8. Further notes — what remains before this is the daily app
 
-1. **Final binary.** The published exe predates the newest page (Images, `tag:`, wrap, Ctrl-digits,
-   gear). Rebuild, content-verify the page inside the exe, then re-run the live keyboard + Images checks
-   on that exact binary.
-2. **Checklist truth.** Update the feature and UI/UX checklists from the live2 report and the new
-   evidence; the cold-first row is FAIL at 160.8 ms until the owner accepts 11 ms over the old budget.
+1. **Final binary.** Published: `dist\Clip.exe`, **208,196,038 B**, SHA-256
+   **221D045B05D1199DBD4160A07E6ECD3D0C007C0598326FB9D7229B1B67470548**; the page was
+   content-verified inside it (five unique page substrings plus `Known limits`, `previewNotification`,
+   `No images yet`). A fresh agent is reading this exact file for the keyboard, Images/`tag:`, toast,
+   first-run and tray checks (`docs\AUDIT-live-acceptance-3.md`).
+2. **Checklist truth.** The feature and UI/UX checklists are updated from the live3 report; the cold-first
+   row is FAIL at 160.8 ms until the owner accepts 11 ms over the old budget.
 3. **Merge and adopt.** Merge `v2-phase1` into `master` in the live repo, run `build-release.cmd`, and
-   fix the autostart registry entry, which currently points at the worktree exe. Back up the real
-   database before the first run of the new build on it.
-4. **Named gaps to schedule next:** first-run hint, toast preview, on-screen limits note, over-budget
-   format notice, 5 MB image work off the UI thread, 125 % settings dialog and 430 toast/export
-   signatures, files over the 400-line budget.
+   fix the autostart registry entry, which currently points at the worktree exe. The real database was
+   backed up to `%TEMP%\opencode\db-backup-095024` (db + shm + wal + verify-backup) before the first run.
+4. **Built this round, awaiting the live sign:** first-run hint, real-toast Preview in Settings, on-screen
+   Known-limits note, over-budget format notice, 5 MB image decode/thumbnail/hash off the UI thread.
+   **Still open:** the preview does not drag or follow each slider tick, the 125 % dialog and 430
+   toast/export rows are unsigned, and eleven files are over the 400-line budget (debt).
 5. **Environment blocks** (Office COM, Hindi IME) stay NOT RUN with the reason; they are not defects.

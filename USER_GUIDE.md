@@ -134,6 +134,9 @@ Open Settings from the gear in the list, or right-click the tray icon and choose
   first. Your own tabs and Pinned are not counted.
 - **Toast lines** - the longest a capture toast may grow. The toast fits its content both ways: a short
   copy gets a narrow, short toast; a long one widens to the maximum, wraps, and stops at the line cap.
+  **Preview** next to it shows the real toast, where it will appear, with your current settings.
+- **Known limits** - a short list on the Settings page: colour emoji in the preview, HTML from Google
+  Docs or Notion, OCR and amounts, and Excel's leading-zero rule for CSV.
 - **Theme** — Light, Dark or System (follows Windows).
 - **Zoom** — 80 %, 100 %, 125 % or 150 %. It changes on screen as you pick it; **Ctrl +** and
   **Ctrl −** step it, **Ctrl+0** returns to 100 %.
