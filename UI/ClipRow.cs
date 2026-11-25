@@ -23,10 +23,10 @@ namespace Clip.UI
         /// <summary>
         /// The estimator's chars-per-line, never measured per row: a measured height would twitch on
         /// font fallback and undo the frozen-geometry contract (§1.2). Calibrated for the content size:
-        /// Inter 14 in the 526 px text column (660 DIP popup − 28 tile − 10 gap − 66 facts − 16 inset).
-        /// FormattedText at 150 % DPI measures 6.63 px per character → 79.
+        /// Inter 13 in the 526 px text column (660 DIP popup − 28 tile − 10 gap − 66 facts − 16 inset).
+        /// FormattedText at 150 % DPI measures ~6.2 px per character → 85.
         /// </summary>
-        public const double CharsPerLine = 79;
+        public const double CharsPerLine = 85;
 
         /// <summary>Rows in the list read as a list, not a document. Full text is the outside tooltip.</summary>
         public const int ListLinesMax = 3;
@@ -252,7 +252,7 @@ namespace Clip.UI
             int total = IsImage || IsFiles ? 1 : Math.Max(WrappedLines(_text), EstimateLines(_textLen));
             int visible = Math.Max(1, Math.Min(Math.Min(_previewLines, ListLinesMax), total));
 
-            _textHeight = visible * 20;
+            _textHeight = visible * RowContent.RowLine;
             _rowHeight = _textHeight + 16;
 
             int hidden = total - visible;

@@ -139,7 +139,11 @@ namespace Clip.UI
                 long id = row.Id;
                 Reload();
                 var again = _visible.FirstOrDefault(r => r.Id == id);
-                if (again != null) History.SelectedItem = again;
+                if (again != null)
+                {
+                    History.SelectedItem = again;
+                    History.ScrollIntoView(again);
+                }
                 Search.Focus();
             };
             editor.Show();

@@ -36,7 +36,13 @@ namespace Clip.UI
 
         internal const int MaxRuns = 300;
         internal const int MaxChars = 2000;   // stops after the sixth rendered line is well past
-        internal const double RowSize = 14;   // content type is Inter 14/20, like the plain body
+
+        // UI/Themes/Typography.xaml owns the numbers: one place sizes every row with the chrome.
+        internal static readonly double RowSize = TypeSize("FontBodySize", 13);
+        internal static readonly double RowLine = TypeSize("FontBodyLine", 18);
+
+        static double TypeSize(string key, double fallback) =>
+            Application.Current?.TryFindResource(key) is double d ? d : fallback;
 
         internal static readonly FontFamily ContentFamily = new(new Uri("pack://application:,,,/"), "./Assets/Fonts/#Inter");
         internal static readonly FontFamily MonoFamily = new(new Uri("pack://application:,,,/"), "./Assets/Fonts/#IBM Plex Mono");

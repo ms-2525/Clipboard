@@ -166,6 +166,8 @@ export function EditorToolbar({ editor, pop, setPop, size, onSize, onSingleLine,
             </div>
             <div className="colours">
               {['var(--fg)', '#C2410C', '#2F8A5B', '#3B82C4', '#C23B3B', '#8A92A1'].map((colour) => (
+                // Fixed document inks (WordPad-style), not theme tokens: the dot previews the ink
+                // that lands in the clip body, which keeps its color in both themes by design.
                 <button
                   key={colour}
                   className="colour"

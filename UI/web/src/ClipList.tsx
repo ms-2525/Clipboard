@@ -5,13 +5,13 @@ import { formatStamp, type TimeFormat } from './format'
 import { IconPin } from './icons'
 import { isRich, loadBody, RowBody } from './rich'
 
-const thumbCache = new Map<number, string | null>()
-const THUMB_MAX = 200
+const imageCache = new Map<number, string | null>()
+const IMAGE_MAX = 50
 
-/** Same FIFO cap as the body cache: scrolling history must not pin every encoded thumbnail. */
-const cacheThumb = (id: number, url: string | null) => {
-  if (thumbCache.size >= THUMB_MAX) thumbCache.delete(thumbCache.keys().next().value!)
-  thumbCache.set(id, url)
+/** Same FIFO cap as the body cache: scrolling history must not pin every full image. */
+const cacheImage = (id: number, url: string | null) => {
+  if (imageCache.size >= IMAGE_MAX) imageCache.delete(imageCache.keys().next().value!)
+  imageCache.set(id, url)
 }
 
 const compact = (value: number) =>
@@ -28,6 +28,8 @@ interface Props {
   onContextMenu: (clip: ClipItem, x: number, y: number) => void
   onTag: (id: string) => void
   getThumb: (id: number) => Promise<string | null>
+  /** Full-resolution image; falls back to the thumbnail when the host predates it. */
+  getImage?: (id: number) => Promise<string | null>
   getItem: (id: number) => Promise<ClipBody | null>
   emptyTitle: string
   emptySub: string
@@ -42,32 +44,48 @@ export interface ClipListHandle {
   focusSelected: () => void
 }
 
-function Thumb({ id, getThumb }: { id: number; getThumb: (id: number) => Promise<string | null> }) {
-  const [src, setSrc] = useState<string | null>(() => thumbCache.get(id) ?? null)
+/** Image rows show the picture only; the OCR text lives in the F2 editor, not the row. */
+function FullImage({
+  id,
+  title,
+  getImage,
+  getThumb,
+}: {
+  id: number
+  title: string
+  getImage?: (id: number) => Promise<string | null>
+  getThumb: (id: number) => Promise<string | null>
+}) {
+  const [src, setSrc] = useState<string | null>(() => imageCache.get(id) ?? null)
 
   useEffect(() => {
-    if (thumbCache.has(id)) {
-      setSrc(thumbCache.get(id) ?? null)
+    if (imageCache.has(id)) {
+      setSrc(imageCache.get(id) ?? null)
       return
     }
     let alive = true
-    getThumb(id)
+    const load = getImage ?? getThumb
+    load(id)
       .then((url) => {
-        cacheThumb(id, url)
+        // A host without full images answers null: fall back to the thumbnail once.
+        if (!url && getImage) return getThumb(id)
+        return url
+      })
+      .then((url) => {
+        cacheImage(id, url)
         if (alive) setSrc(url)
       })
       .catch(() => {
-        // A missing thumbnail is not fatal: keep the styled placeholder.
-        cacheThumb(id, null)
+        cacheImage(id, null)
       })
     return () => {
       alive = false
     }
-  }, [id, getThumb])
+  }, [id, getImage, getThumb])
 
   if (!src) {
     return (
-      <div className="thumb thumb-empty" aria-hidden="true">
+      <div className="thumb thumb-empty" aria-hidden="true" style={{ width: '100%', height: 240 }}>
         <svg width="22" height="22" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round">
           <rect x="2" y="3" width="12" height="10" rx="2" />
           <path d="M2.6 11 6 7.6l2.3 2.2L11 6.6l2.3 4" />
@@ -76,11 +94,20 @@ function Thumb({ id, getThumb }: { id: number; getThumb: (id: number) => Promise
       </div>
     )
   }
-  return <img className="thumb" src={src} alt="" draggable={false} />
+  return (
+    <img
+      className="thumb"
+      src={src}
+      alt=""
+      title={title}
+      draggable={false}
+      style={{ width: '100%', height: 240, objectFit: 'contain', background: 'var(--field)' }}
+    />
+  )
 }
 
 export const ClipList = forwardRef<ClipListHandle, Props>(function ClipList(
-  { clips, selectedId, timeFormat, hidePins, onSelect, onCopy, onContextMenu, onTag, getThumb, getItem, emptyTitle, emptySub },
+  { clips, selectedId, timeFormat, hidePins, onSelect, onCopy, onContextMenu, onTag, getThumb, getImage, getItem, emptyTitle, emptySub },
   ref,
 ) {
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -282,7 +309,7 @@ export const ClipList = forwardRef<ClipListHandle, Props>(function ClipList(
                   aria-posinset={v.index + 1}
                   aria-setsize={clips.length}
                   tabIndex={clip.id === tabbableId ? 0 : -1}
-                  className={'row' + (selected ? ' selected' : '')}
+                  className={'row' + (selected ? ' selected' : '') + (v.index % 2 === 1 ? ' alt' : '')}
                   style={{ transform: `translateY(${v.start}px)` }}
                   onClick={() => onSelect(clip.id)}
                   onFocus={() => onSelect(clip.id)}
@@ -296,8 +323,11 @@ export const ClipList = forwardRef<ClipListHandle, Props>(function ClipList(
                   <div className="row-index">{String(v.index + 1).padStart(2, '0')}</div>
                   <div className="row-content">
                     <div className="row-body">
-                      {clip.hasImage && <Thumb id={clip.id} getThumb={getThumb} />}
-                      <RowBody clip={clip} getItem={getItem} />
+                      {clip.hasImage ? (
+                        <FullImage id={clip.id} title={clip.title || 'Image'} getImage={getImage} getThumb={getThumb} />
+                      ) : (
+                        <RowBody clip={clip} getItem={getItem} />
+                      )}
                     </div>
                     <div className="row-prov">
                       <span className="prov-what">

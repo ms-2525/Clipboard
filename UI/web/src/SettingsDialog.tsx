@@ -181,6 +181,11 @@ export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, o
           className="dialog settings"
           aria-describedby="settings-desc"
           aria-modal="true"
+          onEscapeKeyDown={(event) => {
+            // Radix still closes the dialog; this only keeps the same keystroke from
+            // reaching the window key matrix, which would hide the whole app.
+            event.stopPropagation()
+          }}
           onCloseAutoFocus={(event) => {
             // Radix restores focus to a Dialog.Trigger; this dialog has none, so name the button.
             event.preventDefault()

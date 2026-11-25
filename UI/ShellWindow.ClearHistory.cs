@@ -26,14 +26,14 @@ namespace Clip.UI
             var title = new TextBlock
             {
                 Text = "Clear history",
-                FontSize = 16,
+                FontSize = (double)FindResource("FontDisplaySize"),
                 FontWeight = FontWeights.Medium,
                 Foreground = (Brush)FindResource("Fg")
             };
             var note = new TextBlock
             {
                 Text = "Delete all clips in Clipboard and Images? Pinned clips and tabs stay.",
-                FontSize = 14,
+                FontSize = (double)FindResource("FontBodySize"),
                 TextWrapping = TextWrapping.Wrap,
                 Foreground = (Brush)FindResource("Fg75"),
                 Margin = new Thickness(0, 8, 0, 0)

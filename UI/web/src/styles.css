@@ -5,11 +5,13 @@
   --field: #f1f3f6;
   /* Row hover: 1.17:1 against --surface, still far weaker than the selected fill + ring + rail. */
   --row-hover: #eaedf1;
+  /* Zebra: odd rows (matches WPF RowAlt in UI/Themes). Selection/hover paint over it. */
+  --row-alt: #fafbfc;
   --fg: #14171c;
   --fg75: #2e333b;
   --fg55: #545b68;
   --fg48: #666e7c;
-  --hairline: #e6e9ee;
+  --hairline: #ccd2dc;
   --divider: #edf0f4;
   --control: #7e8a9b;
   --badge: #f1f3f6;
@@ -17,8 +19,11 @@
   --accent-text: #c2410c;
   --on-accent: #1a0d02;
   --accent-soft: #fff3ea;
+  /* Active tab only: burnt orange so the off-white ink clears 4.5:1 (plain accent + off-white is 2.48). */
+  --tab-active: #8f4200;
+  --tab-active-ink: #fff8f0;
   --row-selected: #fff6f1;
-  --selection-ring: #f2d8c9;
+  --selection-ring: #b26e28;
   --rail: #a93a0c;
   --key-bg: #f1f3f6;
   --key-line: #d5dae2;
@@ -50,11 +55,12 @@
   --raised: #1b202b;
   --field: #1f2532;
   --row-hover: #212837;
+  --row-alt: #101319;
   --fg: #e7eaf0;
   --fg75: #c2c7d2;
   --fg55: #a7aebb;
   --fg48: #8a92a1;
-  --hairline: #232a37;
+  --hairline: #3a4456;
   --divider: #1f2532;
   --control: #667284;
   --badge: #1f2532;
@@ -62,8 +68,11 @@
   --accent-text: #ff9550;
   --on-accent: #1a0d02;
   --accent-soft: #2a1a12;
+  /* Active tab only: burnt orange so the off-white ink clears 4.5:1. */
+  --tab-active: #a34a00;
+  --tab-active-ink: #fff8f0;
   --row-selected: #1c2330;
-  --selection-ring: #334054;
+  --selection-ring: #647ea6;
   --rail: #ff9c6b;
   --key-bg: #1f2532;
   --key-line: #2c3648;
@@ -235,7 +244,8 @@ a {
   gap: 8px;
   padding: 0 8px 0 10px;
   background: var(--field);
-  border: 1px solid transparent;
+  /* Resting edge clears 3:1 on the field in both themes; focus upgrades it to accent. */
+  border: 1px solid var(--control);
   border-radius: 8px;
   color: var(--fg48);
   transition: border-color 100ms, background 100ms;
@@ -322,15 +332,7 @@ a {
 }
 
 /* ---------- tabs ---------- */
-.tabs-row {
-  display: flex;
-  align-items: center;
-  flex-wrap: nowrap;
-  gap: 12px;
-  flex-shrink: 0;
-  min-height: 40px;
-  min-width: 0;
-}
+/* (tabs-row retired: TabStrip now lives in .card-head) */
 .tabs-root {
   flex: 1 1 auto;
   min-width: 0;
@@ -404,8 +406,8 @@ a {
   color: var(--fg);
 }
 .tab[data-state='active'] {
-  background: var(--accent);
-  color: var(--on-accent);
+  background: var(--tab-active);
+  color: var(--tab-active-ink);
 }
 .tab-count {
   font-size: 11px;
@@ -471,13 +473,7 @@ a {
   font-size: 10px;
   line-height: 12px;
 }
-.tabs-hint {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--fg48);
-  flex: 0 0 auto;
-}
+/* (tabs-hint retired with the strip's old band; footer keycaps remain) */
 
 /* ---------- card / list ---------- */
 .card {
@@ -499,13 +495,6 @@ a {
   border-bottom: 1px solid var(--divider);
   flex-shrink: 0;
   min-width: 0;
-}
-.card-title {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  min-width: 0;
-  overflow: hidden;
 }
 .chip {
   display: inline-flex;
@@ -585,12 +574,16 @@ a {
   right: 0;
   display: flex;
   gap: 10px;
-  padding: 10px 16px 10px 18px;
+  /* Gutters per owner: 3px left (clears the rail), 12px right (clears the inset ring). */
+  padding: 10px 12px 10px 3px;
   border-bottom: 1px solid var(--divider);
   background: var(--surface);
   cursor: default;
   user-select: none;
   transition: background 100ms;
+}
+.row.alt {
+  background: var(--row-alt);
 }
 .row:hover {
   background: var(--row-hover);
@@ -612,8 +605,9 @@ a {
    The row height is measured by the virtualizer — never fixed here. */
 .row-index {
   flex: 0 0 auto;
-  /* Fixed 4ch covers index 1000; every right edge lines up and the body never shifts. */
-  width: 4ch;
+  /* 3ch + 1px per owner: 4-digit indices (1000 clips) spill left harmlessly — right-aligned, so the
+     body column never shifts. */
+  width: calc(3ch + 1px);
   padding-top: 1px;
   font-size: 12px;
   line-height: 18px;
@@ -685,6 +679,8 @@ a {
   cursor: pointer;
   font-family: inherit;
   text-transform: capitalize;
+  /* 20 px tall: passes WCAG 2.5.8 via the spacing exception (4–6 px gaps to the
+     next chip clear the 24 px circle). Keep a gap if this row ever gets denser. */
 }
 .chip.tag:hover {
   color: var(--fg);
@@ -1850,8 +1846,12 @@ a {
   .search-toggle {
     display: grid;
   }
-  .tabs-hint {
-    display: none;
+  /* Tabs own the first head line at narrow widths; actions wrap below. */
+  .card-head {
+    flex-wrap: wrap;
+  }
+  .card-head .tabs-root {
+    flex: 1 0 100%;
   }
   .editor-chip {
     display: none;
@@ -1877,7 +1877,7 @@ a {
     padding: 6px 10px;
   }
   .row {
-    padding-left: 14px;
+    padding-left: 3.5px;
     padding-right: 12px;
   }
   .footer {
@@ -1975,10 +1975,6 @@ a {
   }
   .search {
     height: 30px;
-  }
-  .tabs-row {
-    min-height: 30px;
-    gap: 4px;
   }
   .tabs {
     padding: 2px;

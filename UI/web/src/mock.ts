@@ -54,11 +54,13 @@ export function createMockHost(): Host {
     __mockGetItemIds?: number[]
     __mockGetThumbCalls?: number
     __mockGetThumbIds?: number[]
+    __mockHideCalls?: number
   }
   counter.__mockGetItemCalls = 0
   counter.__mockGetItemIds = []
   counter.__mockGetThumbCalls = 0
   counter.__mockGetThumbIds = []
+  counter.__mockHideCalls = 0
   const deleted: { clip: ClipItem; index: number }[] = []
   const listeners = new Set<(event: HostEvent) => void>()
   let tabs: HostTab[] = MOCK_TABS.map((tab) => ({ ...tab }))
@@ -274,7 +276,10 @@ export function createMockHost(): Host {
       tabs = tabs.filter((entry) => entry.id !== id)
       return wait({ deleted: true, deletedClips: purged, movedToHistory: 0 })
     },
-    hide: async () => wait(undefined),
+    hide: async () => {
+      counter.__mockHideCalls = (counter.__mockHideCalls ?? 0) + 1
+      await wait(undefined)
+    },
 
     // The mock has no native toast: it only has to answer the shape the page expects.
     previewNotification: async () => {

@@ -362,9 +362,10 @@ namespace Clip.UI
                 if (_chars + text.Length > RowContent.MaxChars) text = text.Substring(0, RowContent.MaxChars - _chars);
                 _chars += text.Length;
 
-                // Sizes are normalised to the row's own 14/20 type: a 12 pt body becomes 14 px, a
-                // heading stays proportionally larger. Clamped 10–20 so no glyph outgrows its line.
-                double size = fmt.Size <= 0 ? RowContent.RowSize : Math.Clamp(fmt.Size * (RowContent.RowSize / BaseSize), 10, 20);
+                // Sizes are normalised to the row's own body type: a 12 pt body becomes RowSize px, a
+                // heading stays proportionally larger. Clamped to the 10 px floor and the body line
+                // box so no glyph outgrows its line (bounds follow Typography.xaml via RowContent).
+                double size = fmt.Size <= 0 ? RowContent.RowSize : Math.Clamp(fmt.Size * (RowContent.RowSize / BaseSize), 10, RowContent.RowLine);
                 // Styled content keeps its own colours: an uncoloured run inside styled content
                 // is ContentInk (the content layer's document default); fully unstyled runs stay null
                 // and inherit the row's UI styling (Layer-1 ownership).

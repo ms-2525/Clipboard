@@ -5,7 +5,7 @@
         Title="Edit clip" Width="640" Height="600"
         WindowStyle="None" Background="{DynamicResource App}"
         ShowInTaskbar="False" ResizeMode="NoResize" WindowStartupLocation="CenterOwner"
-        FontFamily="{StaticResource UiFont}" FontSize="14"
+        FontFamily="{StaticResource UiFont}" FontSize="{DynamicResource FontBodySize}"
         UseLayoutRounding="True" SnapsToDevicePixels="True"
         TextOptions.TextFormattingMode="Display"
         >
@@ -61,8 +61,8 @@
     </Style>
     <Style x:Key="KeycapText" TargetType="TextBlock">
       <Setter Property="FontFamily" Value="{StaticResource MonoFont}"/>
-      <Setter Property="FontSize" Value="11"/>
-      <Setter Property="LineHeight" Value="14"/>
+      <Setter Property="FontSize" Value="{DynamicResource FontKeycapSize}"/>
+      <Setter Property="LineHeight" Value="{DynamicResource FontKeycapLine}"/>
       <Setter Property="FontWeight" Value="SemiBold"/>
       <Setter Property="Foreground" Value="{DynamicResource Fg75}"/>
     </Style>
@@ -83,7 +83,7 @@
 
       <Border Grid.Row="0" Padding="20,0" BorderBrush="{DynamicResource Divider}" BorderThickness="0,0,0,1">
         <Grid>
-          <TextBlock Text="Edit clip" FontSize="14" LineHeight="20" FontWeight="SemiBold"
+          <TextBlock Text="Edit clip" FontSize="{DynamicResource FontBodySize}" LineHeight="{DynamicResource FontBodyLine}" FontWeight="SemiBold"
                      Foreground="{DynamicResource Fg}" VerticalAlignment="Center"/>
           <Button HorizontalAlignment="Right" VerticalAlignment="Center" Style="{StaticResource IconButton}"
                   Click="OnCancelClick"
@@ -101,35 +101,35 @@
         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
           <ToggleButton x:Name="BoldButton" Style="{StaticResource ToolToggle}" Click="OnBoldClick" Margin="0,0,4,0"
                         ToolTip="Bold (Ctrl+B)" AutomationProperties.Name="Bold">
-            <TextBlock Text="B" FontSize="14" LineHeight="18" LineStackingStrategy="BlockLineHeight" FontWeight="Bold"/>
+            <TextBlock Text="B" FontSize="{DynamicResource FontBodySize}" LineHeight="{DynamicResource FontBodyLine}" LineStackingStrategy="BlockLineHeight" FontWeight="Bold"/>
           </ToggleButton>
           <ToggleButton x:Name="ItalicButton" Style="{StaticResource ToolToggle}" Click="OnItalicClick" Margin="0,0,4,0"
                         ToolTip="Italic (Ctrl+I)" AutomationProperties.Name="Italic">
             <!-- Segoe/Manrope italic I is a bare slash; a serif I stays recognisable next to U. -->
-            <TextBlock Text="I" FontFamily="Georgia" FontSize="14" LineHeight="18" LineStackingStrategy="BlockLineHeight" FontStyle="Italic"/>
+            <TextBlock Text="I" FontFamily="Georgia" FontSize="{DynamicResource FontBodySize}" LineHeight="{DynamicResource FontBodyLine}" LineStackingStrategy="BlockLineHeight" FontStyle="Italic"/>
           </ToggleButton>
           <ToggleButton x:Name="UnderlineButton" Style="{StaticResource ToolToggle}" Click="OnUnderlineClick" Margin="0,0,4,0"
                         ToolTip="Underline (Ctrl+U)" AutomationProperties.Name="Underline">
-            <TextBlock Text="U" FontSize="14" LineHeight="18" LineStackingStrategy="BlockLineHeight" TextDecorations="Underline"/>
+            <TextBlock Text="U" FontSize="{DynamicResource FontBodySize}" LineHeight="{DynamicResource FontBodyLine}" LineStackingStrategy="BlockLineHeight" TextDecorations="Underline"/>
           </ToggleButton>
           <ToggleButton x:Name="StrikeButton" Style="{StaticResource ToolToggle}" Click="OnStrikeClick" Margin="0,0,4,0"
                         ToolTip="Strikethrough" AutomationProperties.Name="Strikethrough">
-            <TextBlock Text="S" FontSize="14" LineHeight="18" LineStackingStrategy="BlockLineHeight" TextDecorations="Strikethrough"/>
+            <TextBlock Text="S" FontSize="{DynamicResource FontBodySize}" LineHeight="{DynamicResource FontBodyLine}" LineStackingStrategy="BlockLineHeight" TextDecorations="Strikethrough"/>
           </ToggleButton>
 
           <Border Style="{StaticResource ToolSeparator}"/>
 
           <Button x:Name="SmallerButton" Style="{StaticResource ToolButton}" Click="OnSmallerClick"
                   ToolTip="Smaller text" AutomationProperties.Name="Smaller text">
-            <TextBlock Text="A−" FontSize="14" LineHeight="18" LineStackingStrategy="BlockLineHeight"/>
+            <TextBlock Text="A−" FontSize="{DynamicResource FontBodySize}" LineHeight="{DynamicResource FontBodyLine}" LineStackingStrategy="BlockLineHeight"/>
           </Button>
-          <TextBlock x:Name="SizeText" Text="16" Width="28" TextAlignment="Center" FontSize="14"
-                     LineHeight="18" LineStackingStrategy="BlockLineHeight"
+          <TextBlock x:Name="SizeText" Text="16" Width="28" TextAlignment="Center" FontSize="{DynamicResource FontBodySize}"
+                     LineHeight="{DynamicResource FontBodyLine}" LineStackingStrategy="BlockLineHeight"
                      Foreground="{DynamicResource Fg75}" VerticalAlignment="Center"
                      AutomationProperties.Name="Font size"/>
           <Button x:Name="LargerButton" Style="{StaticResource ToolButton}" Click="OnLargerClick"
                   ToolTip="Larger text" AutomationProperties.Name="Larger text">
-            <TextBlock Text="A+" FontSize="14" LineHeight="18" LineStackingStrategy="BlockLineHeight"/>
+            <TextBlock Text="A+" FontSize="{DynamicResource FontBodySize}" LineHeight="{DynamicResource FontBodyLine}" LineStackingStrategy="BlockLineHeight"/>
           </Button>
 
           <Border Style="{StaticResource ToolSeparator}"/>
@@ -139,7 +139,7 @@
             <!-- One 20 px line block, same as every other glyph, so the letter baseline aligns;
                  the swatch bar parks in the descent zone below it. -->
             <Grid Height="20">
-              <TextBlock Text="A" FontSize="14" LineHeight="18" LineStackingStrategy="BlockLineHeight"
+              <TextBlock Text="A" FontSize="{DynamicResource FontBodySize}" LineHeight="{DynamicResource FontBodyLine}" LineStackingStrategy="BlockLineHeight"
                          VerticalAlignment="Top" HorizontalAlignment="Center"/>
               <Border x:Name="ColorBar" Height="3" Width="14" CornerRadius="1.5" Margin="0,0,0,1"
                       VerticalAlignment="Bottom" Background="{DynamicResource AccentText}"/>
@@ -148,7 +148,7 @@
           <Button x:Name="MarkButton" Style="{StaticResource ToolButton}" Click="OnMarkButtonClick" Margin="0,0,4,0"
                   ToolTip="Highlight" AutomationProperties.Name="Highlight">
             <Grid Height="20">
-              <TextBlock Text="ab" FontSize="14" FontWeight="SemiBold" LineHeight="18"
+              <TextBlock Text="ab" FontSize="{DynamicResource FontBodySize}" FontWeight="SemiBold" LineHeight="{DynamicResource FontBodyLine}"
                          LineStackingStrategy="BlockLineHeight"
                          VerticalAlignment="Top" HorizontalAlignment="Center"/>
               <Border x:Name="MarkChip" Height="3" Width="14" CornerRadius="1.5" Margin="0,0,0,1"
@@ -157,15 +157,15 @@
           </Button>
           <Button x:Name="ClearButton" Style="{StaticResource ToolButton}" Click="OnClearClick"
                   ToolTip="Clear formatting" AutomationProperties.Name="Clear formatting" Padding="10,0">
-            <TextBlock Text="Clear" FontSize="12" FontWeight="Medium" LineHeight="18" LineStackingStrategy="BlockLineHeight"/>
+            <TextBlock Text="Clear" FontSize="{DynamicResource FontCaptionSize}" FontWeight="Medium" LineHeight="{DynamicResource FontCaptionLine}" LineStackingStrategy="BlockLineHeight"/>
           </Button>
           <Button Style="{StaticResource ToolButton}" Click="OnSingleLineClick" Margin="4,0,0,0"
                   ToolTip="Join into one line (remove line breaks)" AutomationProperties.Name="Single line" Padding="10,0">
-            <TextBlock Text="Single line" FontSize="12" FontWeight="Medium" LineHeight="18" LineStackingStrategy="BlockLineHeight"/>
+            <TextBlock Text="Single line" FontSize="{DynamicResource FontCaptionSize}" FontWeight="Medium" LineHeight="{DynamicResource FontCaptionLine}" LineStackingStrategy="BlockLineHeight"/>
           </Button>
           <Button Style="{StaticResource ToolButton}" Click="OnCaseClick" Margin="4,0,0,0"
                   ToolTip="Change case: lowercase / UPPERCASE / Title Case" AutomationProperties.Name="Change case" Padding="10,0">
-            <TextBlock Text="Aa" FontSize="14" FontWeight="SemiBold" LineHeight="18" LineStackingStrategy="BlockLineHeight"/>
+            <TextBlock Text="Aa" FontSize="{DynamicResource FontBodySize}" FontWeight="SemiBold" LineHeight="{DynamicResource FontBodyLine}" LineStackingStrategy="BlockLineHeight"/>
           </Button>
 
           <Popup x:Name="ColorPopup" StaysOpen="False" Placement="Bottom" PlacementTarget="{Binding ElementName=ColorButton}"
@@ -211,7 +211,7 @@
               Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Divider}"
               BorderThickness="1" CornerRadius="8" Padding="10,7"
               AutomationProperties.Name="Formatting not loaded">
-        <TextBlock x:Name="FormatNoticeText" FontSize="12" LineHeight="18"
+        <TextBlock x:Name="FormatNoticeText" FontSize="{DynamicResource FontCaptionSize}" LineHeight="{DynamicResource FontCaptionLine}"
                    Foreground="{DynamicResource Fg75}" TextWrapping="Wrap"
                    Text="This clip's formatting could not be loaded; editing as plain text."/>
       </Border>
@@ -226,7 +226,7 @@
             <ColumnDefinition Width="*"/>
             <ColumnDefinition Width="Auto"/>
           </Grid.ColumnDefinitions>
-          <TextBlock x:Name="DiscardText" Text="Discard changes?" FontSize="14" LineHeight="20"
+          <TextBlock x:Name="DiscardText" Text="Discard changes?" FontSize="{DynamicResource FontBodySize}" LineHeight="{DynamicResource FontBodyLine}"
                      FontWeight="Medium" Foreground="{DynamicResource Fg75}" VerticalAlignment="Center"/>
           <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
             <Button x:Name="KeepEditing" Content="Keep editing" Style="{StaticResource SecondarySmall}"

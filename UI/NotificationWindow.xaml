@@ -25,9 +25,11 @@
         </Grid.ColumnDefinitions>
 
         <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,8,0">
-          <TextBlock x:Name="AppName" Foreground="{DynamicResource AccentText}" FontSize="12"
+          <TextBlock x:Name="AppName" Foreground="{DynamicResource AccentText}" FontSize="{DynamicResource FontCaptionSize}"
+                     LineHeight="{DynamicResource FontCaptionLine}"
                      FontWeight="SemiBold" VerticalAlignment="Center"/>
-          <TextBlock x:Name="Time" Foreground="{DynamicResource Muted}" FontSize="10"
+          <TextBlock x:Name="Time" Foreground="{DynamicResource Muted}" FontSize="{DynamicResource FontMicroSize}"
+                     LineHeight="{DynamicResource FontMicroLine}"
                      VerticalAlignment="Center" Margin="8,0,0,0"/>
         </StackPanel>
 
@@ -47,7 +49,8 @@
       <Image x:Name="ThumbImg" Grid.Row="1" Stretch="Uniform" StretchDirection="DownOnly"
              Margin="0,4,0,0" Visibility="Collapsed"/>
 
-      <TextBlock Grid.Row="1" x:Name="Body" Foreground="{DynamicResource Fg}" FontSize="14"
+      <TextBlock Grid.Row="1" x:Name="Body" Foreground="{DynamicResource Fg}" FontSize="{DynamicResource FontBodySize}"
+                 LineHeight="{DynamicResource FontBodyLine}"
                  Margin="0,4,0,0" TextWrapping="Wrap" TextTrimming="CharacterEllipsis"/>
     </Grid>
   </Border>

@@ -79,14 +79,14 @@ namespace Clip.UI
                 "document.querySelector('button[aria-label=\"Settings\"]')?.click()");
         }
 
-        /// <summary>Hides the transparent warm window and restores the real show settings. Runs once.</summary>
+        /// <summary>Hides the transparent warm window and restores the real show settings. Runs once.
+        /// The shell stays out of the taskbar and Alt+Tab like the old popup (tool window).</summary>
         void EndWarm()
         {
             if (!_warming) return;
             _warming = false;
             Hide();
             Opacity = 1;
-            ShowInTaskbar = true;
             ShowActivated = true;
         }
 

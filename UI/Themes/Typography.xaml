@@ -1,0 +1,30 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=mscorlib">
+
+  <!--
+    THE type scale (docs\DESIGN-typography.md §3). Every FontSize / LineHeight in app
+    chrome references these keys, never a literal — this file is the single place that
+    sizes type. To shrink or grow the whole app, edit the numbers below; the row
+    geometry (ClipRow, RowContent, RichRow) reads the Body/Micro values from these
+    same keys, so rows stay in sync with no second edit.
+    Reduced one step 2026-11-25: body 14→13, caption 12→11, meta 11→10; micro stays
+    at the 10 px floor (§8: no text below 10 px).
+  -->
+
+  <sys:Double x:Key="FontDisplaySize">15</sys:Double>
+  <sys:Double x:Key="FontDisplayLine">20</sys:Double>
+
+  <sys:Double x:Key="FontBodySize">13</sys:Double>
+  <sys:Double x:Key="FontBodyLine">18</sys:Double>
+
+  <sys:Double x:Key="FontCaptionSize">11</sys:Double>
+  <sys:Double x:Key="FontCaptionLine">16</sys:Double>
+
+  <sys:Double x:Key="FontMicroSize">10</sys:Double>
+  <sys:Double x:Key="FontMicroLine">14</sys:Double>
+
+  <sys:Double x:Key="FontKeycapSize">10</sys:Double>
+  <sys:Double x:Key="FontKeycapLine">12</sys:Double>
+
+</ResourceDictionary>

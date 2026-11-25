@@ -914,6 +914,8 @@ export default function App() {
             {search ? (
               <button
                 className="icon-btn ghost"
+                // 22 px: WCAG 2.5.8 passes via the spacing exception (lone target inside
+                // the 34 px search box). Enlarge if neighbors ever crowd it.
                 style={{ width: 22, height: 22, border: 0 }}
                 onClick={() => setSearchText('')}
                 aria-label="Clear search"
@@ -989,38 +991,19 @@ export default function App() {
           </Tooltip.Root>
         </header>
 
-        <div className="tabs-row">
-          <TabStrip
-            tabs={tabs}
-            activeId={images ? IMAGES_TAB : tab}
-            onSelect={chooseTab}
-            onCreate={createTab}
-            onRename={renameTab}
-            onDelete={deleteTab}
-            onOverlayChange={setTabOverlay}
-          />
-          <span className="tabs-hint t-meta">
-            <span className="keycap">↑↓</span> move
-            <span className="keycap" style={{ marginLeft: 6 }}>Enter</span> paste
-          </span>
-        </div>
-
         <main className="card">
           <div className="card-head">
-            <div className="card-title">
-              <span className="t-title">{images ? 'Images' : `${tabLabel} clips`}</span>
-              <span className="chip">{tabCount.toLocaleString()}</span>
-              {searchActive && <span className="chip accent">Filtered</span>}
-              {activeSearch && activeSearch.unknownTags.length > 0 && (
-                <span
-                  className="tag-hint"
-                  title={`No tag named ${activeSearch.unknownTags.map((tag) => `“${tag}”`).join(', ')} — searched as text`}
-                >
-                  no tag named {activeSearch.unknownTags.map((tag) => `“${tag}”`).join(', ')} — searched as text
-                </span>
-              )}
-            </div>
+            <TabStrip
+              tabs={tabs}
+              activeId={images ? IMAGES_TAB : tab}
+              onSelect={chooseTab}
+              onCreate={createTab}
+              onRename={renameTab}
+              onDelete={deleteTab}
+              onOverlayChange={setTabOverlay}
+            />
             <span className="spacer" />
+            {searchActive && <span className="chip accent">Filtered</span>}
             <span className="t-meta shown-count">{visible.length.toLocaleString()} shown</span>
             {selected && (
               <button className="btn sm" onClick={() => setEditorOpen(true)} title="Preview the selected clip in the editor">
@@ -1107,6 +1090,7 @@ export default function App() {
                 focusSearch()
               }}
               getThumb={host.getThumb}
+              getImage={host.getImage ?? host.getThumb}
               getItem={host.getItem}
               emptyTitle={emptyTitle}
               emptySub={emptySub}
@@ -1116,6 +1100,14 @@ export default function App() {
           <div className="footer">
             <div className="footer-left">
               <span className="t-meta">{images ? 'Image results' : searchActive ? `Results for "${query}"` : `${tabLabel} history`}</span>
+              {activeSearch && activeSearch.unknownTags.length > 0 && (
+                <span
+                  className="tag-hint"
+                  title={`No tag named ${activeSearch.unknownTags.map((tag) => `“${tag}”`).join(', ')} — searched as text`}
+                >
+                  no tag named {activeSearch.unknownTags.map((tag) => `“${tag}”`).join(', ')} — searched as text
+                </span>
+              )}
             </div>
             <span className="spacer" />
             <div className="footer-mid">
@@ -1195,6 +1187,7 @@ export default function App() {
           clip={selected}
           timeFormat={timeFormat}
           getItem={host.getItem}
+          getImage={host.getImage ?? host.getThumb}
           onSave={(html, text) => host.saveEditor({ id: selected.id, html, text })}
           onSaved={() => {
             // The row is still mounted with the pre-edit body; drop it before the reload.
@@ -1216,6 +1209,8 @@ export default function App() {
             </div>
             <button
               className="icon-btn ghost"
+              // 20 px: WCAG 2.5.8 passes via the spacing exception (toast padding
+              // clears the 24 px circle). Enlarge if the toast layout densifies.
               style={{ width: 20, height: 20 }}
               onClick={() => setToasts((current) => current.filter((entry) => entry.id !== toast.id))}
               aria-label="Dismiss toast"

@@ -1,6 +1,6 @@
 # Clip — UI/UX Verification Checklist
 
-**Status 25 Nov (live acceptance 3 + visual 3):** 54 rows — **53 PASS · 0 FAIL · 1 NOT RUN**. Release gate in §12.
+**Status 25 Nov (live acceptance 3 + visual 3):** 54 rows — **52 PASS · 0 FAIL · 2 NOT RUN** (K-07 plus G-02, voided by the V4 card-head move). Release gate in §12.
 
 **Surface (25 Nov):** the shipped UI is the React page in `UI\web`, rendered in the warm WebView2 shell
 (`UI\ShellWindow*`). The WPF popup is retired. Every row below describes the v2 page, plus the native
@@ -57,7 +57,7 @@ fresh visual pass may sign these.
 | ID | Surface | M | Status | Evidence |
 |---|---|---|---|---|
 | G-01 | **Popup list** — light, dark, long text: index first, body-first rows, in-row provenance, right-aligned facts | `[U]` | **PASS** | The two structural defects that failed this gate are measured fixed by the 07:17 fresh pass: index box identical at 99/100/101 (`x=35, w=30.98, right=65.98`, content `x=75.98`) and hover `1.17:1` light / `1.20:1` dark, visible as a grey wash without competing with the selected fill + ring + rail (`AUDIT-release-visual-2` §2.2/§2.3, §3.2; `17-index-three.png`, `10-states-crop-*`). |
-| G-02 | **Popup chrome** — header, tab strip, footer one band each; one type scale | `[U]` | **PASS** | Fresh agent, current 08:05 bundle, headless Chromium DPR 1, `?mock=1000` and `?mock=real`, both themes at **900×700** and **430×400** (`%TEMP%\opencode\chrome-signoff\`: `list1000-*`, `real-*`, `settings-*`, `strip-manytabs-430x400-light.png`, `report.json`). **900:** header 44 px — mark + `Clip` 16 px/`CLIPBOARD HISTORY` 11 px, search pill (13 px input, `Ctrl K`), 32 px theme + settings, no rule under it; tab strip one raised 8 px-radius container ending after `+` (5 tabs, 12 px, 430 px wide in the 868 px row) with `move / Enter paste` on the same band; footer 42 px on a 1 px `#EDF0F4` hairline — `All history` · `1,000 clips` · `Ctrl T` / `Ctrl Shift V` / `Esc` keycaps, 10 px gaps, `right 871` inside `883`, no wrap. **430:** header wraps to 66 px (brand + search/theme/settings, then full-width search); strip fits all five tabs + `+` at rest (343/343, no scroll), and with four added tabs the 372 px scroller holds 610 px, scrolls to the end (`scrollLeft 238`) with the active tab and `+` still on screen; footer 36 px, one line, `All history` + `1,000 clips` — keycaps are deliberately `display:none` at this width (`.footer-right`), so nothing collides. Scale is 16/13/12/11 at both sizes; zero horizontal overflow and zero console errors in all 12 loads; every control labelled (`Search clips`, `Collapse/Expand search`, `Toggle theme`, `Settings`, `New tab`, `role=tab`). |
+| G-02 | **Popup chrome** — header, tab strip, footer one band each; one type scale | `[U]` | **NOT RUN** | **25 Nov (V4):** the tab strip moved from its own band into `card-head` (`App.tsx`, `styles.css`); the 08:41 PASS below is void until a fresh agent re-reads 900 + 430. Prior evidence kept for the record: Fresh agent, current 08:05 bundle, headless Chromium DPR 1, `?mock=1000` and `?mock=real`, both themes at **900×700** and **430×400** (`%TEMP%\opencode\chrome-signoff\`: `list1000-*`, `real-*`, `settings-*`, `strip-manytabs-430x400-light.png`, `report.json`). **900:** header 44 px — mark + `Clip` 16 px/`CLIPBOARD HISTORY` 11 px, search pill (13 px input, `Ctrl K`), 32 px theme + settings, no rule under it; tab strip one raised 8 px-radius container ending after `+` (5 tabs, 12 px, 430 px wide in the 868 px row) with `move / Enter paste` on the same band; footer 42 px on a 1 px `#EDF0F4` hairline — `All history` · `1,000 clips` · `Ctrl T` / `Ctrl Shift V` / `Esc` keycaps, 10 px gaps, `right 871` inside `883`, no wrap. **430:** header wraps to 66 px (brand + search/theme/settings, then full-width search); strip fits all five tabs + `+` at rest (343/343, no scroll), and with four added tabs the 372 px scroller holds 610 px, scrolls to the end (`scrollLeft 238`) with the active tab and `+` still on screen; footer 36 px, one line, `All history` + `1,000 clips` — keycaps are deliberately `display:none` at this width (`.footer-right`), so nothing collides. Scale is 16/13/12/11 at both sizes; zero horizontal overflow and zero console errors in all 12 loads; every control labelled (`Search clips`, `Collapse/Expand search`, `Toggle theme`, `Settings`, `New tab`, `role=tab`). |
 | G-03 | **Editor** — toolbar, text area, footer; buttons hug labels; one icon family | `[U]` | **PASS** | `AUDIT-release-visual-2` §2.4/§3.4: 25 buttons, 21 drawn 16 px SVGs (one 12 px `Aa`), 4 text labels by convention (H1–H3, Clear, Single line); the old `☑ ❝ ▦ +▤ •≡` glyphs and `<>`/`1.`/`{}` are drawn now. Footer reads `1 character [1 format]`, `35 characters [1 format]` (`A1-toolbar.png`, `98-one-char.png`). |
 | G-04 | **Settings** — cards with icon + title + description; controls hug content; every group reachable | `[U]` | **PASS** | `AUDIT-release-signoff-2` §3 (fresh agent, current 08:05 bundle, both themes): at 900 the dialog is **860×563**, body **561/561**, not scrollable, two independent stacks **395 + 28 + 395**, all five groups populated and on screen, **TIME→DATA gap 14 px** (was the 173 px hole), last Capture row 8 px above the footer; at 430 the sheet is **430×400**, body **263/696**, a **30 px fade** at rest, wheel reaches `scrollTop 433` and every group is on screen. `settings-900x700-light/dark.png`, `settings-430x400-*-bottom.png`. |
 | G-05 | **In-page toast** — one radius, one shadow, one type scale | `[U]` | **PASS** | `AUDIT-release-visual` §1.4/§4: legible and coherent in both themes; title 17.96/14.74, sub 6.83/7.96. Toast component and tokens unchanged since. |
@@ -206,11 +206,12 @@ carry a written owner-accepted deviation in the release gate below.
 Cutover requires **all 54 rows PASS**, or a written owner-accepted deviation for the named row. A
 deviation is not a PASS and is recorded in this section before the release commit.
 
-**Not PASS today - 0 FAIL + 1 NOT RUN:**
+**Not PASS today - 0 FAIL + 2 NOT RUN:**
 
 | Row | Why |
 |---|---|
 | `K-07` NOT RUN | Real IME never driven (no Hindi/Chinese/Japanese input method on this machine). |
+| `G-02` NOT RUN | V4 (25 Nov) moved the tab strip into `card-head`; chrome re-read owed at 900 + 430. |
 
 `G-06` (tray + toast), `W-02` (125 % zoom) and `W-05` (430 toast/export) moved to PASS on the 25 Nov live
 and visual passes: `docs\AUDIT-live-acceptance-2.md` §3 (`G-06` chrome, `95-traymenu.png`; hover pill
@@ -241,7 +242,7 @@ regression-locked: any change to the code under them returns them to NOT RUN unt
 
 ## 13. Final tally (25 Nov, live acceptance 3)
 
-**54 rows — 51 PASS · 0 FAIL · 3 NOT RUN.** Every PASS row names its artifact; no `[U]` row was signed by a
+**54 rows — 52 PASS · 0 FAIL · 2 NOT RUN** (K-07 plus G-02, voided 25 Nov by the V4 move of the tab strip into `card-head`). Every PASS row names its artifact; no `[U]` row was signed by a
 builder. `G-06` moved from FAIL to PASS on the 25 Nov live tray read (`AUDIT-live-acceptance-2` §3) and its
 hover sub-clause was completed in pass 3 (`AUDIT-live-acceptance-3` §1 #10: `246,246,246` pill on
 `#FFFFFF`, pointer only); `G-04` moved from NOT RUN to PASS on `AUDIT-release-signoff-2` §3; `G-02` moved on

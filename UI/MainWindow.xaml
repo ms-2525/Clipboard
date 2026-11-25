@@ -4,7 +4,7 @@
         Width="660" Height="640"
         WindowStyle="None" Background="{DynamicResource App}"
         ShowInTaskbar="False" ResizeMode="NoResize" WindowStartupLocation="Manual" Topmost="True"
-        FontFamily="{StaticResource UiFont}" FontSize="14"
+        FontFamily="{StaticResource UiFont}" FontSize="{DynamicResource FontBodySize}"
         UseLayoutRounding="True" SnapsToDevicePixels="True"
         TextOptions.TextFormattingMode="Display"
         >
@@ -44,8 +44,8 @@
     </Style>
 
     <Style x:Key="KeycapText" TargetType="TextBlock">
-      <Setter Property="FontSize" Value="12"/>
-      <Setter Property="LineHeight" Value="16"/>
+      <Setter Property="FontSize" Value="{DynamicResource FontKeycapSize}"/>
+      <Setter Property="LineHeight" Value="{DynamicResource FontKeycapLine}"/>
       <Setter Property="FontWeight" Value="SemiBold"/>
 
       <Setter Property="Foreground" Value="{DynamicResource Fg75}"/>
@@ -84,7 +84,7 @@
           </Viewbox>
 
           <Grid Grid.Column="1" Margin="12,0,10,0">
-            <TextBox x:Name="Search" FontSize="14" FontWeight="Normal"
+            <TextBox x:Name="Search" FontSize="{DynamicResource FontBodySize}" FontWeight="Normal"
                      Foreground="{DynamicResource Fg75}" CaretBrush="{DynamicResource Accent}"
                      Background="Transparent" BorderThickness="0" Padding="0"
                      VerticalContentAlignment="Center"
@@ -100,7 +100,7 @@
                 </ContextMenu>
               </TextBox.ContextMenu>
             </TextBox>
-            <TextBlock x:Name="PlaceholderText" Text="Search Clipboard" FontSize="14" LineHeight="22"
+            <TextBlock x:Name="PlaceholderText" Text="Search Clipboard" FontSize="{DynamicResource FontBodySize}" LineHeight="{DynamicResource FontBodyLine}"
                        Foreground="{DynamicResource Placeholder}" IsHitTestVisible="False"
                        VerticalAlignment="Center"/>
           </Grid>
@@ -141,10 +141,10 @@
                         <RowDefinition Height="2"/>
                       </Grid.RowDefinitions>
                       <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock x:Name="TabName" Text="{Binding Name}" FontSize="14" LineHeight="20"
+                        <TextBlock x:Name="TabName" Text="{Binding Name}" FontSize="{DynamicResource FontBodySize}" LineHeight="{DynamicResource FontBodyLine}"
                                    FontWeight="Medium"
                                    Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
-                        <TextBlock x:Name="TabCount" Text="{Binding CountText}" FontSize="10" LineHeight="16"
+                        <TextBlock x:Name="TabCount" Text="{Binding CountText}" FontSize="{DynamicResource FontMicroSize}" LineHeight="{DynamicResource FontMicroLine}"
                                    Margin="8,0,0,0" VerticalAlignment="Center"
                                    Foreground="{DynamicResource Fg48}"
                                    Typography.NumeralAlignment="Tabular"/>
@@ -200,9 +200,9 @@
             <!-- Decode failure degrades visibly, never to an empty box. -->
             <StackPanel x:Name="PreviewFallback" Visibility="Collapsed" Margin="28"
                         HorizontalAlignment="Center" VerticalAlignment="Center">
-              <TextBlock Text="Preview unavailable" FontSize="14" LineHeight="20" FontWeight="Medium"
+              <TextBlock Text="Preview unavailable" FontSize="{DynamicResource FontBodySize}" LineHeight="{DynamicResource FontBodyLine}" FontWeight="Medium"
                          Foreground="{DynamicResource Fg75}" HorizontalAlignment="Center"/>
-              <TextBlock x:Name="PreviewFallbackNote" FontSize="10" LineHeight="16" TextWrapping="Wrap"
+              <TextBlock x:Name="PreviewFallbackNote" FontSize="{DynamicResource FontMicroSize}" LineHeight="{DynamicResource FontMicroLine}" TextWrapping="Wrap"
                          Foreground="{DynamicResource Fg55}" TextAlignment="Center"
                          HorizontalAlignment="Center" Margin="0,6,0,0"/>
             </StackPanel>
@@ -210,7 +210,7 @@
             <Border Height="24" Padding="8,0" CornerRadius="7" Margin="10"
                     Background="{DynamicResource App}" IsHitTestVisible="False"
                     HorizontalAlignment="Right" VerticalAlignment="Bottom">
-              <TextBlock x:Name="PreviewCounterText" FontSize="10" LineHeight="16" FontWeight="Medium"
+              <TextBlock x:Name="PreviewCounterText" FontSize="{DynamicResource FontMicroSize}" LineHeight="{DynamicResource FontMicroLine}" FontWeight="Medium"
                          Foreground="{DynamicResource Fg55}" VerticalAlignment="Center"
                          Typography.NumeralAlignment="Tabular"/>
             </Border>
@@ -262,19 +262,19 @@
                     StrokeThickness="1.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
             </Viewbox>
           </Border>
-          <TextBlock x:Name="EmptyTitle" Text="No clips yet" FontSize="14" LineHeight="22" FontWeight="Medium"
+          <TextBlock x:Name="EmptyTitle" Text="No clips yet" FontSize="{DynamicResource FontBodySize}" LineHeight="{DynamicResource FontBodyLine}" FontWeight="Medium"
                      Foreground="{DynamicResource Fg75}" HorizontalAlignment="Center" Margin="0,14,0,0"/>
           <TextBlock x:Name="EmptySub" Text="Copy text or an image anywhere, and it appears here."
-                     FontSize="12" LineHeight="20" Foreground="{DynamicResource Muted}"
+                     FontSize="{DynamicResource FontCaptionSize}" LineHeight="{DynamicResource FontCaptionLine}" Foreground="{DynamicResource Muted}"
                      TextWrapping="Wrap" TextAlignment="Center" HorizontalAlignment="Center" Margin="0,6,0,0"/>
           <StackPanel x:Name="EmptyKeyRow" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,26,0,0">
             <Border Style="{StaticResource Keycap}">
               <TextBlock x:Name="EmptyKey" Text="Alt+V" Style="{StaticResource KeycapText}"/>
             </Border>
-            <TextBlock x:Name="EmptyKeyHint" Text="Open this list from any app" FontSize="10" LineHeight="16"
+            <TextBlock x:Name="EmptyKeyHint" Text="Open this list from any app" FontSize="{DynamicResource FontMicroSize}" LineHeight="{DynamicResource FontMicroLine}"
                        Foreground="{DynamicResource Muted}" Margin="10,0,0,0" VerticalAlignment="Center"/>
           </StackPanel>
-          <TextBlock x:Name="EmptyNote" Text="" FontSize="10" LineHeight="16" Foreground="{DynamicResource Muted}"
+          <TextBlock x:Name="EmptyNote" Text="" FontSize="{DynamicResource FontMicroSize}" LineHeight="{DynamicResource FontMicroLine}" Foreground="{DynamicResource Muted}"
                      TextWrapping="Wrap" TextAlignment="Center" Margin="0,8,0,0" Visibility="Collapsed"/>
         </StackPanel>
 
@@ -283,12 +283,12 @@
                 Background="{DynamicResource Raised}" BorderBrush="{DynamicResource ControlLine}"
                 BorderThickness="1" CornerRadius="10" Padding="12" Panel.ZIndex="20">
           <StackPanel>
-            <TextBox x:Name="TabNameBox" FontSize="14" Foreground="{DynamicResource Fg}"
+            <TextBox x:Name="TabNameBox" FontSize="{DynamicResource FontBodySize}" Foreground="{DynamicResource Fg}"
                      Background="Transparent" BorderThickness="0" CaretBrush="{DynamicResource Accent}"
                     />
-            <TextBlock x:Name="TabNameError" FontSize="10" LineHeight="16" Foreground="{DynamicResource Error}"
+            <TextBlock x:Name="TabNameError" FontSize="{DynamicResource FontMicroSize}" LineHeight="{DynamicResource FontMicroLine}" Foreground="{DynamicResource Error}"
                        Margin="0,6,0,0" Visibility="Collapsed" TextWrapping="Wrap"/>
-            <TextBlock Text="Enter to create, Esc to cancel." FontSize="10" LineHeight="16"
+            <TextBlock Text="Enter to create, Esc to cancel." FontSize="{DynamicResource FontMicroSize}" LineHeight="{DynamicResource FontMicroLine}"
                        Foreground="{DynamicResource Muted}" Margin="0,6,0,0"/>
           </StackPanel>
         </Border>
@@ -299,7 +299,7 @@
                 BorderBrush="{DynamicResource Hairline}" BorderThickness="1" CornerRadius="14" Padding="18"
                 Panel.ZIndex="20">
           <StackPanel>
-            <TextBlock x:Name="TabConfirmText" FontSize="14" LineHeight="20" Foreground="{DynamicResource Fg75}"
+            <TextBlock x:Name="TabConfirmText" FontSize="{DynamicResource FontBodySize}" LineHeight="{DynamicResource FontBodyLine}" Foreground="{DynamicResource Fg75}"
                        TextWrapping="Wrap"/>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,18,0,0">
               <Button x:Name="TabConfirmCancel" Style="{StaticResource SecondarySmall}" Click="OnTabConfirmCancel" Content="Cancel"/>
@@ -353,11 +353,11 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                   </Grid.ColumnDefinitions>
-                  <TextBlock Text="{Binding Index}" FontSize="10" LineHeight="16" Foreground="{DynamicResource Fg48}"
+                  <TextBlock Text="{Binding Index}" FontSize="{DynamicResource FontMicroSize}" LineHeight="{DynamicResource FontMicroLine}" Foreground="{DynamicResource Fg48}"
                              VerticalAlignment="Center"/>
-                  <TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="12" LineHeight="16"
+                  <TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="{DynamicResource FontCaptionSize}" LineHeight="{DynamicResource FontCaptionLine}"
                              Foreground="{DynamicResource Fg75}" VerticalAlignment="Center"/>
-                  <TextBlock Grid.Column="2" Text="{Binding CountText}" FontSize="10" LineHeight="16"
+                  <TextBlock Grid.Column="2" Text="{Binding CountText}" FontSize="{DynamicResource FontMicroSize}" LineHeight="{DynamicResource FontMicroLine}"
                              Foreground="{DynamicResource Fg48}" VerticalAlignment="Center" Margin="10,0,0,0"/>
                 </Grid>
               </DataTemplate>
@@ -373,22 +373,22 @@
             <ColumnDefinition Width="*"/>
             <ColumnDefinition Width="Auto"/>
           </Grid.ColumnDefinitions>
-          <TextBlock x:Name="SelectionBar" FontSize="10" LineHeight="16"
+          <TextBlock x:Name="SelectionBar" FontSize="{DynamicResource FontMicroSize}" LineHeight="{DynamicResource FontMicroLine}"
                      Foreground="{DynamicResource Fg55}" VerticalAlignment="Center"
                      TextTrimming="CharacterEllipsis" Margin="0,0,14,0"
                      AutomationProperties.Name="Selected clip source, title and time"/>
           <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-            <TextBlock x:Name="StatusCount" FontSize="10" LineHeight="16" FontWeight="Medium"
+            <TextBlock x:Name="StatusCount" FontSize="{DynamicResource FontMicroSize}" LineHeight="{DynamicResource FontMicroLine}" FontWeight="Medium"
                        Foreground="{DynamicResource Fg48}" VerticalAlignment="Center" Margin="0,0,14,0"
                        Typography.NumeralAlignment="Tabular"/>
             <Border Style="{StaticResource Keycap}"><TextBlock Text="Enter" Style="{StaticResource KeycapText}"/></Border>
-            <TextBlock Text="paste" FontSize="10" LineHeight="16" Foreground="{DynamicResource Fg55}"
+            <TextBlock Text="paste" FontSize="{DynamicResource FontMicroSize}" LineHeight="{DynamicResource FontMicroLine}" Foreground="{DynamicResource Fg55}"
                        Margin="8,0,14,0" VerticalAlignment="Center"/>
             <Border Style="{StaticResource Keycap}"><TextBlock Text="F2" Style="{StaticResource KeycapText}"/></Border>
-            <TextBlock Text="edit" FontSize="10" LineHeight="16" Foreground="{DynamicResource Fg55}"
+            <TextBlock Text="edit" FontSize="{DynamicResource FontMicroSize}" LineHeight="{DynamicResource FontMicroLine}" Foreground="{DynamicResource Fg55}"
                        Margin="8,0,14,0" VerticalAlignment="Center"/>
             <Border Style="{StaticResource Keycap}"><TextBlock Text="Esc" Style="{StaticResource KeycapText}"/></Border>
-            <TextBlock Text="hide" FontSize="10" LineHeight="16" Foreground="{DynamicResource Fg55}"
+            <TextBlock Text="hide" FontSize="{DynamicResource FontMicroSize}" LineHeight="{DynamicResource FontMicroLine}" Foreground="{DynamicResource Fg55}"
                        Margin="8,0,0,0" VerticalAlignment="Center"/>
           </StackPanel>
         </Grid>

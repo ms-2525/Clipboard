@@ -9,7 +9,7 @@ import { pathToFileURL } from 'node:url'
 const PAGE = pathToFileURL(fileURLToPath(new URL('../dist/index.html', import.meta.url))).href + '?mock=1000'
 
 const activeTab = (page: Page) => page.locator('[role="tab"][aria-selected="true"] .tab-label')
-const cardTitle = (page: Page) => page.locator('.card-title .t-title')
+const footerScope = (page: Page) => page.locator('.footer-left .t-meta')
 const search = (page: Page) => page.getByLabel('Search clips')
 const shown = (page: Page) => page.locator('.shown-count')
 const selectedRow = (page: Page) => page.locator('.row.selected')
@@ -41,10 +41,10 @@ test('arrows move the selection and focus follows, wrapping at both ends', async
 test('Left/Right change tab in strip order and wrap', async ({ page }) => {
   await page.keyboard.press('ArrowRight')
   await expect(activeTab(page)).toHaveText('Pinned')
-  await expect(cardTitle(page)).toHaveText('Pinned clips')
+  await expect(footerScope(page)).toHaveText('Pinned history')
   await page.keyboard.press('ArrowRight')
   await expect(activeTab(page)).toHaveText('Images')
-  await expect(cardTitle(page)).toHaveText('Images')
+  await expect(footerScope(page)).toHaveText('Image results')
   await page.keyboard.press('ArrowRight')
   await expect(activeTab(page)).toHaveText('Work')
   await page.keyboard.press('ArrowLeft')
@@ -71,7 +71,7 @@ test('the Images tab is a saved image: view and matches the tag search', async (
 
   await page.getByRole('tab', { name: /Images/ }).click()
   await expect(activeTab(page)).toHaveText('Images')
-  await expect(cardTitle(page)).toHaveText('Images')
+  await expect(footerScope(page)).toHaveText('Image results')
   await expect(shown(page)).toHaveText(expected)
 
   // `tag:` is the explicit prefix for the same filter.
@@ -179,6 +179,38 @@ test('the Settings preview and the known-limits note are on screen', async ({ pa
   await expect(page.locator('.dialog')).toHaveCount(0)
 })
 
+test('Esc in the editor returns to the list: same row, same scroll, window stays open', async ({ page }) => {
+  await page.locator('.row.selected').focus()
+  await page.keyboard.press('End')
+  await expect(page.locator('.row.selected .row-index')).toHaveText('1000')
+  for (let i = 0; i < 10; i++) await page.keyboard.press('ArrowUp')
+  const beforeId = await page.locator('.row.selected').getAttribute('data-id')
+  const beforeScroll = await page.locator('.list').evaluate((el) => el.scrollTop)
+
+  await page.keyboard.press('F2')
+  await expect(page.locator('.editor-overlay')).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.locator('.editor-overlay')).toHaveCount(0)
+
+  // The same keystroke must not reach the window matrix: the app stays open.
+  expect(await page.evaluate(() => (window as unknown as { __mockHideCalls?: number }).__mockHideCalls ?? -1)).toBe(0)
+  await expect(page.locator('.row.selected')).toHaveAttribute('data-id', beforeId ?? '')
+  expect(await page.locator('.list').evaluate((el) => el.scrollTop)).toBe(beforeScroll)
+  await expect(selectedRow(page)).toBeFocused()
+})
+
+test('Esc on a dirty editor discards without hiding the window', async ({ page }) => {
+  await page.keyboard.press('F2')
+  await expect(page.locator('.editor-overlay .ProseMirror')).toBeFocused()
+  await page.keyboard.type('X')
+  await page.keyboard.press('Escape')
+  await expect(page.getByText('Discard changes?')).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.locator('.editor-overlay')).toHaveCount(0)
+  expect(await page.evaluate(() => (window as unknown as { __mockHideCalls?: number }).__mockHideCalls ?? -1)).toBe(0)
+  await expect(selectedRow(page)).toBeFocused()
+})
+
 test('the Settings icon is in the top bar and works from the keyboard', async ({ page }) => {
   const button = page.locator('button[aria-label="Settings"]')
   await expect(button).toBeVisible()
@@ -188,6 +220,7 @@ test('the Settings icon is in the top bar and works from the keyboard', async ({
   await expect(page.locator('.dialog')).toHaveCount(1)
   await page.keyboard.press('Escape')
   await expect(page.locator('.dialog')).toHaveCount(0)
+  expect(await page.evaluate(() => (window as unknown as { __mockHideCalls?: number }).__mockHideCalls ?? -1)).toBe(0)
   await expect(button).toBeFocused()
 })
 

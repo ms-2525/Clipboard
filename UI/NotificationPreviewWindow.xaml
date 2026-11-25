@@ -14,7 +14,7 @@
   <Grid x:Name="Shell" MouseLeftButtonDown="OnDragStart">
     <Rectangle x:Name="Wash" RadiusX="12" RadiusY="12"
                StrokeThickness="1" StrokeDashArray="4 3"/>
-    <TextBlock x:Name="Label" Text="NOTIFICATION PREVIEW" FontSize="10" LineHeight="14"
+    <TextBlock x:Name="Label" Text="NOTIFICATION PREVIEW" FontSize="{DynamicResource FontMicroSize}" LineHeight="{DynamicResource FontMicroLine}"
                FontWeight="SemiBold"
                HorizontalAlignment="Center" VerticalAlignment="Center"
                IsHitTestVisible="False"/>

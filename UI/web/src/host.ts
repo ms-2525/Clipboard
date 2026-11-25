@@ -124,6 +124,8 @@ export interface Host {
   search(query: ItemsQuery & { query: string }): Promise<SearchResult>
   getItem(id: number): Promise<ClipBody | null>
   getThumb(id: number): Promise<string | null>
+  /** Full-resolution PNG for an image row and the F2 editor; absent on older hosts. */
+  getImage?(id: number): Promise<string | null>
   copy(params: { id: number; plain?: boolean }): Promise<void>
   paste(params: { id: number; plain?: boolean }): Promise<PasteResult>
   delete(params: { id: number }): Promise<void>
@@ -304,6 +306,18 @@ class WebViewHost implements Host {
 
   getThumb = async (id: number): Promise<string | null> => {
     const result = await this.send<unknown>('getThumb', { id })
+    const dataUrl =
+      typeof result === 'string'
+        ? result
+        : result && typeof result === 'object'
+          ? (result as { dataUrl?: unknown }).dataUrl
+          : null
+    if (typeof dataUrl !== 'string' || !dataUrl) return null
+    return dataUrl.startsWith('data:') ? dataUrl : `data:image/png;base64,${dataUrl}`
+  }
+
+  getImage = async (id: number): Promise<string | null> => {
+    const result = await this.send<unknown>('getImage', { id })
     const dataUrl =
       typeof result === 'string'
         ? result

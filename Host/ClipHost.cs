@@ -132,6 +132,13 @@ namespace Clip.Host
                     return thumb == null ? null : Convert.ToBase64String(thumb);
                 }
 
+                case "getImage":
+                {
+                    var img = _store.GetImage(Long(p, "id"));
+                    byte[] bytes = img?.Image;
+                    return bytes == null ? null : Convert.ToBase64String(bytes);
+                }
+
                 case "copy":
                     CopyToClipboard(_store, Long(p, "id"), Bool(p, "plain"));
                     return new { copied = true };

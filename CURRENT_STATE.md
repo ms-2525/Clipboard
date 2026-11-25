@@ -1,6 +1,24 @@
 # CURRENT_STATE.md — Clip
 
-LANE: release (25 Nov 2026, branch `v2-phase1`)
+LANE: bug
+
+## Esc fix (25 Nov 2026, uncommitted, needs owner rebuild)
+
+Done: F2 then Esc no longer hides the whole window. Root cause: Radix handles Esc at
+`document`; the close commits a re-render before the same keystroke reaches `window`, so the
+re-subscribed key matrix hid the app on that press (proven: mock `hide` called once).
+Fix is `stopPropagation` on the overlay Esc path: `EditorOverlay.onEscape`,
+`SettingsDialog onEscapeKeyDown` (Radix still closes it). v2 list already kept the same
+selected row and scroll offset (e2e asserts both). Legacy (`--legacy`) editor close now also
+`ScrollIntoView`s the edited row instead of leaving the list at the top.
+Proof: `cd UI\web; npx.cmd playwright test e2e/keyboard.spec.ts` - 18 passed;
+`dotnet build -c Release` - 0 warnings, 0 errors. New regression tests assert `hide` is
+never called on editor/Settings Esc. Next: double-click `build-release.cmd` to publish.
+
+Not done: the same one-line `stopPropagation` is still missing on Delete confirm, Move picker,
+Tag picker, tab-delete confirm, row/tab menus and the export menu - same mechanism, same risk.
+`UI/ShellWindow.xaml.cs`, `UI/web/src/ClipList.tsx`, `UI/web/src/styles.css` have unrelated
+uncommitted changes from another session; not touched here.
 
 ## What shipped
 

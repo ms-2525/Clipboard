@@ -4,7 +4,7 @@
         WindowStyle="None" Background="{DynamicResource Surface}"
         ShowInTaskbar="False" ShowActivated="False" Topmost="True"
         ResizeMode="NoResize" WindowStartupLocation="Manual" SizeToContent="Height"
-        FontFamily="{StaticResource UiFont}" FontSize="12"
+        FontFamily="{StaticResource UiFont}" FontSize="{DynamicResource FontCaptionSize}"
         UseLayoutRounding="True" SnapsToDevicePixels="True"
         TextOptions.TextFormattingMode="Display">
 
@@ -13,8 +13,8 @@
           BorderThickness="1" CornerRadius="10" Padding="12,10">
     <ScrollViewer x:Name="Scroller" VerticalScrollBarVisibility="Auto"
                   HorizontalScrollBarVisibility="Disabled" Focusable="False">
-      <TextBlock x:Name="Body" TextWrapping="Wrap" LineHeight="18"
-                 FontFamily="{StaticResource UiFont}" FontSize="12" Foreground="{DynamicResource Fg75}"/>
+      <TextBlock x:Name="Body" TextWrapping="Wrap" LineHeight="{DynamicResource FontCaptionLine}"
+                 FontFamily="{StaticResource UiFont}" FontSize="{DynamicResource FontCaptionSize}" Foreground="{DynamicResource Fg75}"/>
     </ScrollViewer>
   </Border>
 </Window>

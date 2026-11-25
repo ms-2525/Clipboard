@@ -4,13 +4,13 @@
         Title="Settings" Width="780" SizeToContent="Height"
         WindowStyle="None" Background="{DynamicResource App}"
         ShowInTaskbar="False" ResizeMode="NoResize" WindowStartupLocation="CenterScreen"
-        FontFamily="{StaticResource UiFont}" FontSize="14"
+        FontFamily="{StaticResource UiFont}" FontSize="{DynamicResource FontBodySize}"
         UseLayoutRounding="True" SnapsToDevicePixels="True"
         TextOptions.TextFormattingMode="Display">
 
   <Window.Resources>
     <Style x:Key="Sect" TargetType="TextBlock">
-      <Setter Property="FontSize" Value="12"/><Setter Property="LineHeight" Value="18"/>
+      <Setter Property="FontSize" Value="{DynamicResource FontCaptionSize}"/><Setter Property="LineHeight" Value="{DynamicResource FontCaptionLine}"/>
       <Setter Property="FontWeight" Value="SemiBold"/>
       <Setter Property="Foreground" Value="{DynamicResource Fg48}"/>
       <Setter Property="Margin" Value="0,28,0,14"/>
@@ -25,21 +25,21 @@
     </Style>
 
     <Style x:Key="Title" TargetType="TextBlock">
-      <Setter Property="FontSize" Value="16"/><Setter Property="LineHeight" Value="22"/>
+      <Setter Property="FontSize" Value="{DynamicResource FontDisplaySize}"/><Setter Property="LineHeight" Value="{DynamicResource FontDisplayLine}"/>
       <Setter Property="FontWeight" Value="Medium"/>
       <Setter Property="Foreground" Value="{DynamicResource Fg75}"/>
       <Setter Property="VerticalAlignment" Value="Center"/>
     </Style>
 
     <Style x:Key="Desc" TargetType="TextBlock">
-      <Setter Property="FontSize" Value="12"/><Setter Property="LineHeight" Value="18"/>
+      <Setter Property="FontSize" Value="{DynamicResource FontCaptionSize}"/><Setter Property="LineHeight" Value="{DynamicResource FontCaptionLine}"/>
       <Setter Property="Foreground" Value="{DynamicResource Muted}"/>
       <Setter Property="TextWrapping" Value="Wrap"/>
       <Setter Property="Margin" Value="0,2,0,0"/>
     </Style>
 
     <Style x:Key="Err" TargetType="TextBlock">
-      <Setter Property="FontSize" Value="12"/><Setter Property="LineHeight" Value="18"/>
+      <Setter Property="FontSize" Value="{DynamicResource FontCaptionSize}"/><Setter Property="LineHeight" Value="{DynamicResource FontCaptionLine}"/>
       <Setter Property="Foreground" Value="{DynamicResource Error}"/>
       <Setter Property="TextWrapping" Value="Wrap"/>
       <Setter Property="Margin" Value="0,4,0,0"/>
@@ -47,14 +47,14 @@
     </Style>
 
     <Style x:Key="Note" TargetType="TextBlock">
-      <Setter Property="FontSize" Value="16"/><Setter Property="LineHeight" Value="22"/>
+      <Setter Property="FontSize" Value="{DynamicResource FontDisplaySize}"/><Setter Property="LineHeight" Value="{DynamicResource FontDisplayLine}"/>
       <Setter Property="Foreground" Value="{DynamicResource Fg}"/>
       <Setter Property="TextWrapping" Value="Wrap"/>
     </Style>
 
     <Style x:Key="FieldBox" TargetType="TextBox">
       <Setter Property="Width" Value="100"/><Setter Property="Height" Value="32"/>
-      <Setter Property="FontSize" Value="14"/><Setter Property="FontWeight" Value="Medium"/>
+      <Setter Property="FontSize" Value="{DynamicResource FontBodySize}"/><Setter Property="FontWeight" Value="Medium"/>
       <Setter Property="Foreground" Value="{DynamicResource Fg}"/>
       <Setter Property="Background" Value="{DynamicResource Field}"/>
       <Setter Property="BorderBrush" Value="{DynamicResource ControlLine}"/>
@@ -118,7 +118,7 @@
     </Style>
 
     <Style x:Key="Seg" TargetType="RadioButton">
-      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="FontSize" Value="{DynamicResource FontCaptionSize}"/>
       <Setter Property="Foreground" Value="{DynamicResource Muted}"/>
       <Setter Property="Cursor" Value="Hand"/>
       <Setter Property="Template">
@@ -173,9 +173,9 @@
               BorderBrush="{DynamicResource Divider}" BorderThickness="0,0,0,1"
               MouseLeftButtonDown="OnDrag">
         <StackPanel VerticalAlignment="Center">
-          <TextBlock Text="Settings" FontSize="14" LineHeight="20" FontWeight="SemiBold"
+          <TextBlock Text="Settings" FontSize="{DynamicResource FontBodySize}" LineHeight="{DynamicResource FontBodyLine}" FontWeight="SemiBold"
                      Foreground="{DynamicResource Fg}"/>
-          <TextBlock Text="Changes apply when you save." FontSize="10" LineHeight="16"
+          <TextBlock Text="Changes apply when you save." FontSize="{DynamicResource FontMicroSize}" LineHeight="{DynamicResource FontMicroLine}"
                      Foreground="{DynamicResource Muted}"/>
         </StackPanel>
       </Border>
@@ -186,19 +186,19 @@
         <StackPanel Orientation="Horizontal">
           <StackPanel x:Name="TabGeneral" Background="Transparent" Cursor="Hand"
                       MouseLeftButtonUp="OnGeneralTab">
-            <TextBlock x:Name="TabGeneralText" Text="General" FontSize="14" LineHeight="20"/>
+            <TextBlock x:Name="TabGeneralText" Text="General" FontSize="{DynamicResource FontBodySize}" LineHeight="{DynamicResource FontBodyLine}"/>
             <Rectangle x:Name="TabGeneralBar" Height="2" Margin="0,4,0,0"
                        Fill="{DynamicResource AccentText}"/>
           </StackPanel>
           <StackPanel x:Name="TabNotification" Background="Transparent" Cursor="Hand"
                       Margin="18,0,0,0" MouseLeftButtonUp="OnNotificationTab">
-            <TextBlock x:Name="TabNotificationText" Text="Notification" FontSize="14" LineHeight="20"/>
+            <TextBlock x:Name="TabNotificationText" Text="Notification" FontSize="{DynamicResource FontBodySize}" LineHeight="{DynamicResource FontBodyLine}"/>
             <Rectangle x:Name="TabNotificationBar" Height="2" Margin="0,4,0,0"
                        Fill="{DynamicResource AccentText}" Visibility="Collapsed"/>
           </StackPanel>
           <StackPanel x:Name="TabGallery" Background="Transparent" Cursor="Hand"
                       Margin="18,0,0,0" MouseLeftButtonUp="OnGalleryTab">
-            <TextBlock x:Name="TabGalleryText" Text="Rich Text Gallery" FontSize="14" LineHeight="20"/>
+            <TextBlock x:Name="TabGalleryText" Text="Rich Text Gallery" FontSize="{DynamicResource FontBodySize}" LineHeight="{DynamicResource FontBodyLine}"/>
             <Rectangle x:Name="TabGalleryBar" Height="2" Margin="0,4,0,0"
                        Fill="{DynamicResource AccentText}" Visibility="Collapsed"/>
           </StackPanel>

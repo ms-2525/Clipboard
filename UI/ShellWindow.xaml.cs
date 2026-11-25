@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Input;
@@ -17,7 +18,8 @@ namespace Clip.UI
 {
     /// <summary>
     /// The product shell: one WebView2, borderless 900x700, serving the embedded UI bundle (or
-    /// UI\web\dist for a developer build) over https://clip.local/. The page never opens the DB itself;
+    /// UI\web\dist for a developer build, or the vite dev server when CLIP_WEB_URL is set)
+    /// over https://clip.local/. The page never opens the DB itself;
     /// every read and write goes through <see cref="ClipHost"/>.
     /// </summary>
     public partial class ShellWindow : Window
@@ -32,10 +34,13 @@ namespace Clip.UI
         readonly Action _previewToast;
         IntPtr _returnTarget;
         ClipHost _host;
+        /// <summary>Set from CLIP_WEB_URL in OnLoaded; the vite dev server origin the guard lets through.</summary>
+        string _devUrl;
 
         public ShellWindow(ClipboardStore store, Config cfg, string dbPath, Action previewToast = null)
         {
             InitializeComponent();
+            Title = Assembly.GetEntryAssembly()?.GetName().Name ?? "Clip";
             _store = store;
             _cfg = cfg;
             _dbPath = dbPath;
@@ -90,6 +95,16 @@ namespace Clip.UI
                 Web.CoreWebView2.NewWindowRequested += (s, args) => args.Handled = true;
 
                 _host = new ClipHost(Web, _store, _cfg, _dbPath, () => _returnTarget, HideForPaste, ShowAfterPaste, _modals, _previewToast);
+
+                // Dev loop (dev.cmd): a vite server with instant HMR instead of the bundle.
+                _devUrl = (Environment.GetEnvironmentVariable("CLIP_WEB_URL") ?? "").Trim().TrimEnd('/');
+                if (_devUrl.Length > 0)
+                {
+                    settings.AreDevToolsEnabled = true;
+                    settings.AreBrowserAcceleratorKeysEnabled = true;
+                    Web.Source = new Uri(_devUrl + "/", UriKind.Absolute);
+                    return;
+                }
 
                 string webRoot = DeveloperWebRoot();
                 if (webRoot != null)
@@ -254,11 +269,14 @@ namespace Clip.UI
             _ => "application/octet-stream"
         };
 
-        /// <summary>https://clip.local/ is the only address this window may show; a redirect is not ours to follow.</summary>
+        /// <summary>https://clip.local/ is the only address this window may show (plus the
+        /// CLIP_WEB_URL dev origin); a redirect is not ours to follow.</summary>
         void OnNavigationStarting(object sender, CoreWebView2NavigationStartingEventArgs e)
         {
             if (string.IsNullOrEmpty(e.Uri)) return; // NavigateToString has no real address
             if (e.Uri.StartsWith($"https://{HostName}/", StringComparison.OrdinalIgnoreCase)) return;
+            if (!string.IsNullOrEmpty(_devUrl) &&
+                e.Uri.StartsWith(_devUrl + "/", StringComparison.OrdinalIgnoreCase)) return;
             if (e.Uri == "about:blank") return; // NavigateToString (the fallback page) lands here
             if (e.Uri.StartsWith("data:text/html", StringComparison.OrdinalIgnoreCase)) return; // and here on some runtimes
             e.Cancel = true;

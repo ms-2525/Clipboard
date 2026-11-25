@@ -5,13 +5,13 @@
         Width="900" Height="700"
         WindowStyle="None" ResizeMode="NoResize"
         WindowStartupLocation="CenterScreen"
-        Background="{DynamicResource App}" ShowInTaskbar="True"
+        Background="{DynamicResource App}" ShowInTaskbar="False"
         UseLayoutRounding="True" SnapsToDevicePixels="True">
   <Grid>
     <wv2:WebView2 x:Name="Web" />
     <TextBlock x:Name="Notice" Visibility="Collapsed"
                Margin="32" TextWrapping="Wrap" TextAlignment="Center"
                VerticalAlignment="Center" HorizontalAlignment="Center"
-               Foreground="{DynamicResource Fg75}" FontSize="14"/>
+               Foreground="{DynamicResource Fg75}" FontSize="{DynamicResource FontBodySize}"/>
   </Grid>
 </Window>

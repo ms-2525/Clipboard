@@ -17,6 +17,8 @@ interface Props {
   clip: ClipItem
   timeFormat: TimeFormat
   getItem: (id: number) => Promise<ClipBody | null>
+  /** Full image for image clips; the OCR text below is what F2 is for. */
+  getImage?: (id: number) => Promise<string | null>
   onSave: (html: string, text: string) => Promise<{ saved: boolean; error?: string }>
   onClose: () => void
   onSaved: () => void
@@ -37,7 +39,7 @@ const kindLabel = (kind: ClipItem['kind']) =>
 /** The host refuses these too; the page refuses first so a bad body never leaves the browser. */
 const MAX_HTML = 2_000_000
 
-export function EditorOverlay({ clip, timeFormat, getItem, onSave, onClose, onSaved }: Props) {
+export function EditorOverlay({ clip, timeFormat, getItem, getImage, onSave, onClose, onSaved }: Props) {
   const [dirty, setDirty] = useState(false)
   const [confirmDiscard, setConfirmDiscard] = useState(false)
   const [size, setSize] = useState(15)
@@ -45,6 +47,7 @@ export function EditorOverlay({ clip, timeFormat, getItem, onSave, onClose, onSa
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [imgSrc, setImgSrc] = useState<string | null>(null)
   const [formats, setFormats] = useState<string[]>(clip.formats)
   /** Bumped on every editor update: the count must move on each keystroke, not only when `dirty` flips. */
   const [revision, setRevision] = useState(0)
@@ -98,6 +101,26 @@ export function EditorOverlay({ clip, timeFormat, getItem, onSave, onClose, onSa
     }
   }, [clip.formats, clip.id, clip.text, editor, getItem])
 
+  // Image clips: the picture on top, the OCR text below it in the editor.
+  useEffect(() => {
+    if (clip.kind !== 'image' || !getImage) {
+      setImgSrc(null)
+      return
+    }
+    let cancelled = false
+    setImgSrc(null)
+    void getImage(clip.id)
+      .then((url) => {
+        if (!cancelled) setImgSrc(url)
+      })
+      .catch(() => {
+        // The OCR text below is the point of F2; a missing picture must not hide it.
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [clip.id, clip.kind, getImage])
+
   const requestClose = useCallback(() => {
     if (saving) return
     if (!dirty) {
@@ -122,7 +145,10 @@ export function EditorOverlay({ clip, timeFormat, getItem, onSave, onClose, onSa
   // Esc cascade: popover → discard prompt → close. Radix owns the keystroke and the focus trap.
   const onEscape = useCallback(
     (event: KeyboardEvent) => {
+      // The window key matrix re-subscribes the moment this close commits, while the same
+      // keystroke is still bubbling to the window: without this it would hide the whole app.
       event.preventDefault()
+      event.stopPropagation()
       if (pop) setPop(null)
       else if (confirmDiscard) onClose()
       else if (dirty) setConfirmDiscard(true)
@@ -163,6 +189,18 @@ export function EditorOverlay({ clip, timeFormat, getItem, onSave, onClose, onSa
       setSaving(false)
     }
   }, [editor, loading, onClose, onSave, onSaved, saving])
+
+  // Ctrl+S / Cmd+S saves: the browser would otherwise open its Save-page dialog.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+        event.preventDefault()
+        void save()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [save])
 
   const singleLine = () => {
     if (!editor) return
@@ -211,7 +249,7 @@ export function EditorOverlay({ clip, timeFormat, getItem, onSave, onClose, onSa
             <button className="btn ghost" onClick={requestClose}>
               Cancel
             </button>
-            <button className="btn" onClick={() => void save()} disabled={saving || loading} title="Save to this clip">
+            <button className="btn" onClick={() => void save()} disabled={saving || loading} title="Save clip (Ctrl+S)">
               {saving ? 'Saving…' : 'Save clip'}
             </button>
           </div>
@@ -275,9 +313,24 @@ export function EditorOverlay({ clip, timeFormat, getItem, onSave, onClose, onSa
               {loading ? (
                 <div className="t-sec">Loading the full clip…</div>
               ) : (
-                <div style={{ fontSize: size, lineHeight: 1.6 }}>
-                  <EditorContent editor={editor} />
-                </div>
+                <>
+                  {clip.kind === 'image' && imgSrc && (
+                    <div style={{ marginBottom: 12 }}>
+                      <img
+                        src={imgSrc}
+                        alt=""
+                        draggable={false}
+                        style={{ width: '100%', height: 'auto', maxHeight: 360, objectFit: 'contain', borderRadius: 8, background: 'var(--field)' }}
+                      />
+                      <div className="t-sec" style={{ marginTop: 6 }}>
+                        Text read from the image — edit it below. It stays searchable.
+                      </div>
+                    </div>
+                  )}
+                  <div style={{ fontSize: size, lineHeight: 1.6 }}>
+                    <EditorContent editor={editor} />
+                  </div>
+                </>
               )}
               <div className="editor-foot">
                 <span className="t-meta">
@@ -289,7 +342,8 @@ export function EditorOverlay({ clip, timeFormat, getItem, onSave, onClose, onSa
                 <span className="spacer" />
                 <span className="t-meta">{dirty ? 'Unsaved changes' : 'Saved to this clip'}</span>
                 <span className="hint editor-foot-hint">
-                  <span className="keycap">Esc</span> Close
+                  <span className="keycap">Ctrl+S</span> Save
+                  <span className="keycap" style={{ marginLeft: 8 }}>Esc</span> Close
                 </span>
               </div>
             </div>
