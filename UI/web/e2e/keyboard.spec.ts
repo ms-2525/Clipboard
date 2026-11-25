@@ -109,6 +109,15 @@ test('the Settings icon is in the top bar and works from the keyboard', async ({
   await expect(button).toBeFocused()
 })
 
+test('Left/Right from the tab strip itself change one tab, not two', async ({ page }) => {
+  await page.locator('[role="tab"][aria-selected="true"]').focus()
+  await page.keyboard.press('ArrowRight')
+  await expect(activeTab(page)).toHaveText('Pinned')
+  await expect(page.locator('[role="tab"][aria-selected="true"]')).toBeFocused()
+  await page.keyboard.press('ArrowLeft')
+  await expect(activeTab(page)).toHaveText('All')
+})
+
 test('Left/Right in the search field move the caret, never the tab', async ({ page }) => {
   await page.keyboard.press('Control+k')
   await expect(search(page)).toBeFocused()
