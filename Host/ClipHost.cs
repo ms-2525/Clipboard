@@ -31,15 +31,17 @@ namespace Clip.Host
         readonly Func<IntPtr> _returnTarget;
         readonly Action _hide;
         readonly Action _show;
+        readonly Action _previewToast;
         readonly ModalGate _modals;
 
         /// <summary>
         /// <paramref name="returnTarget"/> is the last window that owned the foreground before the shell;
         /// <paramref name="hide"/> and <paramref name="show"/> keep the window itself out of this layer, and
         /// <paramref name="modals"/> is the gate the shell's auto-hide checks while a dialog is open.
+        /// <paramref name="previewToast"/> shows the real notification at its real coordinates from Settings.
         /// </summary>
         public ClipHost(WebView2 web, ClipboardStore store, Config cfg, string dbPath,
-            Func<IntPtr> returnTarget, Action hide, Action show, ModalGate modals)
+            Func<IntPtr> returnTarget, Action hide, Action show, ModalGate modals, Action previewToast = null)
         {
             _web = web;
             _store = store;
@@ -49,6 +51,7 @@ namespace Clip.Host
             _hide = hide;
             _show = show;
             _modals = modals;
+            _previewToast = previewToast;
             _dispatcher = web.Dispatcher;
             _pinnedTabId = store.PinnedTabId;
             _reads = new ReadQueue();
@@ -176,6 +179,11 @@ namespace Clip.Host
                 case "show":
                     _show();
                     return new { shown = true };
+
+                case "previewNotification":
+                    // The owner sees the real toast, at the real coordinates, with his current settings.
+                    _previewToast?.Invoke();
+                    return new { shown = _previewToast != null };
 
                 default:
                     throw new InvalidOperationException("unknown method: " + method);

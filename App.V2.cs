@@ -73,7 +73,17 @@ namespace Clip
             Directory.CreateDirectory(Path.GetDirectoryName(db));
             _store = new ClipboardStore(db);
 
-            _shell = new ShellWindow(_store, _cfg, db);
+            _notif = new NotificationWindow(_cfg);
+            // Settings' Preview shows the real toast at the real coordinates, not a picture of one.
+            _shell = new ShellWindow(_store, _cfg, db, () => _notif?.ShowFor(new ClipboardItem
+            {
+                Kind = "text",
+                Text = "This is how a copied clip will look. A short copy stays one line; a long one wraps up to your Toast lines setting.",
+                AppName = Product,
+                WindowTitle = "Notification preview",
+                CapturedAt = ClipboardItem.Stamp(),
+                SizeBytes = 122
+            }));
             _shell.Closed += (s, e) =>
             {
                 _store?.Dispose();
@@ -83,7 +93,6 @@ namespace Clip
                 Shutdown();
             };
 
-            _notif = new NotificationWindow(_cfg);
             BuildV2Tray();
             _shell.Warm();
 
@@ -116,6 +125,11 @@ namespace Clip
             if (_store.RecoveredFromCorruption)
                 Dispatcher.BeginInvoke(new Action(() => _notif?.ShowMessage(ClipboardStore.CorruptionNotice)),
                     DispatcherPriority.ApplicationIdle);
+
+            // A first launch that lands silently in the tray is a mystery: name the hotkey once.
+            if (_cfg.WasNew)
+                Dispatcher.BeginInvoke(new Action(() => _notif?.ShowMessage(
+                    $"{Product} is running. Press {_cfg.Hotkey} to open the list.")), DispatcherPriority.ApplicationIdle);
 
             RegisterV2Hotkeys();
             ListenForShow();

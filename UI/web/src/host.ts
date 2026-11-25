@@ -135,6 +135,8 @@ export interface Host {
   renameTab(params: { id: number; name: string }): Promise<void>
   deleteTab(params: { id: number }): Promise<DeleteTabResult>
   hide(): Promise<void>
+  /** Shows the real native toast at its real coordinates: the Settings preview. */
+  previewNotification(): Promise<{ shown: boolean }>
   exportClip(params: { id: number; format: string }): Promise<ExportResult>
   saveConfig(patch: SettingsPatch): Promise<SaveConfigResult>
   saveEditor(params: { id: number; html: string; text: string }): Promise<EditorSaveResult>
@@ -364,6 +366,12 @@ class WebViewHost implements Host {
 
   hide = async () => {
     await this.send('hide')
+  }
+
+  /** Shows the real native toast at its real coordinates: the Settings preview. */
+  previewNotification = async (): Promise<{ shown: boolean }> => {
+    const result = await this.send<{ shown?: boolean }>('previewNotification')
+    return { shown: result?.shown === true }
   }
 
   exportClip = async (params: { id: number; format: string }) => {

@@ -275,6 +275,12 @@ export function createMockHost(): Host {
       return wait({ deleted: true, deletedClips: purged, movedToHistory: 0 })
     },
     hide: async () => wait(undefined),
+
+    // The mock has no native toast: it only has to answer the shape the page expects.
+    previewNotification: async () => {
+      await wait(undefined)
+      return { shown: true }
+    },
     // Preview-only: the fixture writes nothing. It answers the same shape as the host so the
     // toast path can be seen in a browser; the real file is only ever written by Clip.Host.
     exportClip: async ({ id, format }) => {

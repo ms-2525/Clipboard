@@ -55,7 +55,7 @@ VALUES ($kind, $text, $html, $rtf, $image, $thumb, $uris, $app, $title, $at, $si
         /// <summary>Full SHA-256 of the PNG, hex. Deterministic and collision-safe enough to be the dedupe key.</summary>
         static string ImageHash(ClipboardItem it) =>
             it.Kind == "image" && it.Image != null && it.Image.Length > 0
-                ? Convert.ToHexString(SHA256.HashData(it.Image))
+                ? it.ImageHash ?? Convert.ToHexString(SHA256.HashData(it.Image))
                 : null;
 
         /// <summary>

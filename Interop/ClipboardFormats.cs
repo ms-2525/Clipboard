@@ -33,7 +33,7 @@ namespace Clip.Interop
             "ExcludeClipboardContentFromMonitorProcessing"
         };
 
-        public static List<(string fmt, byte[] bytes)> Snapshot(long maxBytes)
+        public static List<(string fmt, byte[] bytes)> Snapshot(long maxBytes, List<string> dropped = null)
         {
             var result = new List<(string fmt, byte[] bytes)>();
             if (!OpenWithRetry()) return result; // clipboard stayed locked for the whole window
@@ -48,7 +48,12 @@ namespace Clip.Interop
 
                     var bytes = ReadGlobal(GetClipboardData(f));
                     if (bytes == null || bytes.Length == 0) continue;
-                    if (total + bytes.Length > maxBytes) continue; // budget guard: drop this blob, keep the rest
+                    if (total + bytes.Length > maxBytes)
+                    {
+                        // Budget guard: drop this blob, keep the rest, and let the caller say it was dropped.
+                        dropped?.Add(name);
+                        continue;
+                    }
                     total += bytes.Length;
                     result.Add((name, bytes));
                 }

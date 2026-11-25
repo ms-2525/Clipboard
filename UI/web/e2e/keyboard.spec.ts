@@ -142,6 +142,37 @@ test('F2 on a dirty editor asks before discarding; Escape follows the same casca
   await expect(page.locator('.editor-overlay')).toHaveCount(0)
 })
 
+test('Discard and close never writes the edit', async ({ page }) => {
+  const before = (await page.locator('.row.selected .row-body').textContent())?.trim() ?? ''
+  await page.keyboard.press('F2')
+  await expect(page.locator('.editor-overlay .ProseMirror')).toBeFocused()
+  await page.keyboard.type('X')
+  await page.keyboard.press('F2')
+  await expect(page.getByText('Discard changes?')).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.locator('.editor-overlay')).toHaveCount(0)
+  // The stored body is untouched: the discard path must not reach the store.
+  await expect(page.locator('.row.selected .row-body')).toHaveText(before)
+})
+
+test('the All count matches the list instead of a seeded zero', async ({ page }) => {
+  const all = page.locator('[role="tab"][aria-selected="true"]')
+  await expect(all.locator('.tab-label')).toHaveText('All')
+  await expect(all.locator('.tab-count')).toHaveText('1,000')
+  await expect(shown(page)).toHaveText('1,000 shown')
+})
+
+test('the Settings preview and the known-limits note are on screen', async ({ page }) => {
+  await page.locator('button[aria-label="Settings"]').click()
+  await expect(page.locator('.dialog')).toHaveCount(1)
+  await expect(page.getByText('Known limits')).toBeVisible()
+  await page.getByRole('button', { name: 'Preview' }).click()
+  // The mock answers `shown`; a failure would surface as an error toast.
+  await expect(page.locator('.toast.error')).toHaveCount(0)
+  await page.keyboard.press('Escape')
+  await expect(page.locator('.dialog')).toHaveCount(0)
+})
+
 test('the Settings icon is in the top bar and works from the keyboard', async ({ page }) => {
   const button = page.locator('button[aria-label="Settings"]')
   await expect(button).toBeVisible()

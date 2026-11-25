@@ -1,7 +1,10 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.Text;
+using System.Threading.Tasks;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
@@ -104,8 +107,7 @@ namespace Clip.Core
                     return;
                 }
 
-                var item = CaptureImage();
-                if (item != null) Store(item);
+                CaptureImage(); // schedules its own store: decode and hashing run off this thread
             }
         }
 
@@ -127,7 +129,11 @@ namespace Clip.Core
         void Store(ClipboardItem item)
         {
             // Every original format rides along when it fits the budget: Excel gets Biff12 back, Word RTF/HTML, browsers HTML.
-            item.Formats = ClipboardFormats.Snapshot(_cfg.MaxItemBytes);
+            var dropped = new List<string>();
+            item.Formats = ClipboardFormats.Snapshot(_cfg.MaxItemBytes, dropped);
+            // A dropped blob must never vanish silently: name what was too big to keep.
+            if (dropped.Count > 0)
+                Skipped?.Invoke($"Part of the copy was not saved: {string.Join(", ", dropped)} over the {Megabytes(_cfg.MaxItemBytes)} MB clip limit");
             // A data page that opens but fails on write recovers once inside the store instead of crash-looping (AUDIT P1).
             _store.WriteWithRecovery(() =>
             {
@@ -172,10 +178,10 @@ namespace Clip.Core
         }
 
         /// <summary>
-        /// Image-only capture. The registered "PNG" format is the only lossless carrier most apps publish;
-        /// GetImage goes through CF_DIB and has already lost alpha, so it is only the fallback.
+        /// Image-only capture. The clipboard is read here (it needs this thread); decode, thumbnail,
+        /// DIB re-encode and SHA-256 run on a worker so a 5 MB screenshot cannot freeze an open popup.
         /// </summary>
-        ClipboardItem CaptureImage()
+        void CaptureImage()
         {
             byte[] png = null;
             BitmapSource src = null;
@@ -193,36 +199,58 @@ namespace Clip.Core
                 if (png.Length > _cfg.MaxImageBytes)
                 {
                     Skipped?.Invoke($"Image skipped: {Megabytes(png.Length)} MB over the {Megabytes(_cfg.MaxImageBytes)} MB limit");
-                    return null;
+                    return;
                 }
                 // Header-only dimension read: a 30000x30000 PNG is rejected before a single pixel is decoded.
                 if (HeaderTooLarge(png, out var reason))
                 {
                     Skipped?.Invoke(reason);
-                    return null;
+                    return;
                 }
             }
             else
             {
                 try
                 {
-                    if (!System.Windows.Clipboard.ContainsImage()) return null;
+                    if (!System.Windows.Clipboard.ContainsImage()) return;
                     src = System.Windows.Clipboard.GetImage();
                 }
-                catch { return null; } // clipboard locked or no bitmap on the clipboard
-                if (src == null) return null;
+                catch { return; } // clipboard locked or no bitmap on the clipboard
+                if (src == null) return;
 
                 if (src.PixelWidth > MaxDimension || src.PixelHeight > MaxDimension ||
                     (long)src.PixelWidth * src.PixelHeight > MaxPixels)
                 {
                     Skipped?.Invoke("Image skipped: too large");
-                    return null;
+                    return;
                 }
+                if (src.CanFreeze) src.Freeze(); // a frozen bitmap is safe to read on the worker
+            }
 
+            var (app, title) = ForegroundApp.Get();
+            string at = ClipboardItem.Stamp();
+            long limit = _cfg.MaxImageBytes;
+            byte[] source = png;
+            BitmapSource bitmap = src;
+            Task.Run(() => BuildImage(source, bitmap, app, title, at, limit)).ContinueWith(task =>
+            {
+                if (task.Status != TaskStatus.RanToCompletion || task.Result == null) return;
+                var item = task.Result;
+                try { _ui.BeginInvoke(new Action(() => Store(item))); }
+                catch (InvalidOperationException) { } // app shutting down: the capture is simply not stored
+            }, TaskScheduler.Default);
+        }
+
+        /// <summary>Worker half of an image capture: decode, thumbnail, DIB encode and hash.</summary>
+        ClipboardItem BuildImage(byte[] png, BitmapSource src, string app, string title, string at, long limit)
+        {
+            // GetImage gives a bitmap, not a PNG: the encode (and its size check) is the worker's job.
+            if (png == null)
+            {
                 png = EncodePng(src);
-                if (!WithinLimit(png, _cfg.MaxImageBytes))
+                if (!WithinLimit(png, limit))
                 {
-                    Skipped?.Invoke($"Image skipped: {Megabytes(png?.Length ?? 0)} MB over the {Megabytes(_cfg.MaxImageBytes)} MB limit");
+                    RaiseSkipped($"Image skipped: {Megabytes(png?.Length ?? 0)} MB over the {Megabytes(limit)} MB limit");
                     return null;
                 }
             }
@@ -234,17 +262,24 @@ namespace Clip.Core
             }
 
             var thumb = EncodePng(Thumbnail(src, 96)) ?? png;
-            var (app, title) = ForegroundApp.Get();
             return new ClipboardItem
             {
                 Kind = "image",
                 Image = png,
                 Thumb = thumb,
+                ImageHash = Convert.ToHexString(SHA256.HashData(png)),
                 AppName = app,
                 WindowTitle = title,
-                CapturedAt = ClipboardItem.Stamp(),
+                CapturedAt = at,
                 SizeBytes = png.Length
             };
+        }
+
+        /// <summary>A skip noticed on the worker still toasts on the UI thread.</summary>
+        void RaiseSkipped(string reason)
+        {
+            try { _ui.BeginInvoke(new Action(() => Skipped?.Invoke(reason))); }
+            catch (InvalidOperationException) { } // app shutting down
         }
 
         internal static bool WithinLimit(byte[] png, long maxBytes) => png != null && png.Length <= maxBytes;

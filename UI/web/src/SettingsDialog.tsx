@@ -15,6 +15,8 @@ interface Props {
   onZoom: (zoom: number) => void
   onSave: (patch: SettingsPatch) => Promise<SaveConfigResult>
   onClearHistory: () => void
+  /** Shows the real native toast at its real coordinates with the current settings. */
+  onPreviewToast: () => void
   /** The Settings button; Radix has no Trigger here, so close restores focus to it explicitly. */
   returnFocus?: RefObject<HTMLElement | null>
 }
@@ -57,7 +59,7 @@ function Keycaps({ combo }: { combo: string }) {
   )
 }
 
-export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, onZoom, onSave, onClearHistory, returnFocus }: Props) {
+export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, onZoom, onSave, onClearHistory, onPreviewToast, returnFocus }: Props) {
   const [autostart, setAutostart] = useState(settings.startOnLogin)
   const [cap, setCap] = useState(settings.maxItems)
   const [lines, setLines] = useState(settings.notification.maxLines)
@@ -279,6 +281,9 @@ export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, o
                   <Slider.Thumb className="slider-thumb" />
                 </Slider.Root>
                 <span className="set-value">{lines}</span>
+                <button className="btn ghost sm" onClick={onPreviewToast} type="button">
+                  Preview
+                </button>
               </div>
               <div className="set-row" data-disabled="true" title="Rich capture is on in the v2 build">
                 <div className="grow">
@@ -289,6 +294,13 @@ export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, o
                   <span className="thumbdot" />
                 </Switch.Root>
               </div>
+            </div>
+            <div className="set-group">
+              <div className="t-micro">Known limits</div>
+              <div className="t-sec">Colour emoji can show as boxes in the preview; the copy itself is untouched.</div>
+              <div className="t-sec">HTML from Google Docs, Notion or a web page is simplified on the way back into those apps; the words stay.</div>
+              <div className="t-sec">OCR text is there to find a picture. Never read an amount from it.</div>
+              <div className="t-sec">Excel turns a leading zero, 007, into 7 when it opens a CSV; Clip writes the file correctly.</div>
             </div>
             </div>
 

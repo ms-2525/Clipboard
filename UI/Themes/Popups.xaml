@@ -50,6 +50,11 @@
               <Setter TargetName="State" Property="Opacity" Value="1"/>
               <Setter Property="Foreground" Value="{DynamicResource Fg}"/>
             </Trigger>
+            <!-- A pointer over the row must light it even when the menu has no keyboard highlight. -->
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="State" Property="Opacity" Value="1"/>
+              <Setter Property="Foreground" Value="{DynamicResource Fg}"/>
+            </Trigger>
             <Trigger Property="IsEnabled" Value="False">
               <Setter Property="Foreground" Value="{DynamicResource Fg48}"/>
             </Trigger>

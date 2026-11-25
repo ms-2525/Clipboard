@@ -16,6 +16,11 @@ namespace Clip.Core
         public string Rtf { get; set; }
         public byte[] Image { get; set; }
         public byte[] Thumb { get; set; }
+        /// <summary>
+        /// Precomputed SHA-256 (hex) of <see cref="Image"/>. Capture hashes on a worker thread; the store
+        /// falls back to hashing when it is null, so nothing else has to know.
+        /// </summary>
+        public string ImageHash { get; set; }
         /// <summary>Newline-joined URI/path list for kind "files"; also mirrored into Text so search works.</summary>
         public string Uris { get; set; }
         /// <summary>Caller loads via ClipboardStore.GetFormats(id); restored as every original format on paste.</summary>

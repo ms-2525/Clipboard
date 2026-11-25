@@ -29,15 +29,17 @@ namespace Clip.UI
         readonly string _dbPath;
         /// <summary>Held by a host dialog (export now, confirmations later); see <see cref="ModalGate"/>.</summary>
         readonly ModalGate _modals = new ModalGate();
+        readonly Action _previewToast;
         IntPtr _returnTarget;
         ClipHost _host;
 
-        public ShellWindow(ClipboardStore store, Config cfg, string dbPath)
+        public ShellWindow(ClipboardStore store, Config cfg, string dbPath, Action previewToast = null)
         {
             InitializeComponent();
             _store = store;
             _cfg = cfg;
             _dbPath = dbPath;
+            _previewToast = previewToast;
 
             var app = TryFindResource("App") as SolidColorBrush;
             if (app != null)
@@ -87,7 +89,7 @@ namespace Clip.UI
                 Web.CoreWebView2.NavigationCompleted += OnNavigationCompleted;
                 Web.CoreWebView2.NewWindowRequested += (s, args) => args.Handled = true;
 
-                _host = new ClipHost(Web, _store, _cfg, _dbPath, () => _returnTarget, HideForPaste, ShowAfterPaste, _modals);
+                _host = new ClipHost(Web, _store, _cfg, _dbPath, () => _returnTarget, HideForPaste, ShowAfterPaste, _modals, _previewToast);
 
                 string webRoot = DeveloperWebRoot();
                 if (webRoot != null)
@@ -274,9 +276,12 @@ namespace Clip.UI
         protected override void OnPreviewKeyDown(KeyEventArgs e)
         {
             base.OnPreviewKeyDown(e);
-            if (e.Key == Key.Escape)
+            // The page owns Escape: it clears the search, dismisses the editor (discard prompt included)
+            // or Settings, and only then asks the host to hide. Hiding here made every one of those
+            // steps unreachable. A shell with no page bridge (a broken build) still gets a way out.
+            if (e.Key == Key.Escape && _host == null)
             {
-                Hide(); // the page's own Esc calls hide(); this only makes sure Esc can never end the process
+                Hide();
                 e.Handled = true;
             }
         }

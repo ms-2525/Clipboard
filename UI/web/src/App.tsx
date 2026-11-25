@@ -166,9 +166,14 @@ export default function App() {
     } catch (error) {
       showToast('Could not refresh tabs', messageOf(error), true)
     }
-    // The Images tab is a count over the saved `image:` filter; it never becomes a DB tab.
+    // Counts are live, not seeded once: the page mounts before the first capture, so a seeded All
+    // count would read 0 on a non-empty history forever. An empty query is the whole history.
     try {
-      const images = await host.search({ query: 'image:', tabId: null, offset: 0, limit: 1 })
+      const [all, images] = await Promise.all([
+        host.search({ query: '', tabId: null, offset: 0, limit: 1 }),
+        host.search({ query: 'image:', tabId: null, offset: 0, limit: 1 }),
+      ])
+      setAllCount(all.total)
       setImageCount(images.total)
     } catch {
       // A count is a hint; the list itself still works if this call fails.
@@ -752,9 +757,14 @@ export default function App() {
   }, [confirm, editorOpen, exportOpen, moveClip, rowMenu, search, selectedId, settingsOpen, tabOverlay, tagClip])
 
   useEffect(() => {
-    window.addEventListener('focus', focusRowsOnShow)
-    return () => window.removeEventListener('focus', focusRowsOnShow)
-  }, [focusRowsOnShow])
+    const onShow = () => {
+      focusRowsOnShow()
+      // Every show re-reads the counts: a copy made while the window was hidden is already in the DB.
+      void refreshTabs()
+    }
+    window.addEventListener('focus', onShow)
+    return () => window.removeEventListener('focus', onShow)
+  }, [focusRowsOnShow, refreshTabs])
 
   // A warm window is already focused when the page mounts, so no focus event follows: do it once.
   useEffect(() => {
@@ -806,6 +816,8 @@ export default function App() {
         if (event === 'captured') {
           const item = data as ClipItem | undefined
           if (!item || typeof item.id !== 'number') return
+          // Counts move for every capture, even one that belongs to another tab.
+          void refreshTabs()
           const known = itemsRef.current.some((row) => row.id === item.id)
           const belongs = known || (tab === null ? item.tabId == null : item.tabId === tab)
           if (!belongs) return
@@ -818,7 +830,6 @@ export default function App() {
               ? { ...current, items: moveToTop(current.items, item) }
               : current,
           )
-          void refreshTabs()
           return
         }
         if (event === 'skipped') {
@@ -1132,6 +1143,7 @@ export default function App() {
         onZoom={applyZoom}
         onSave={saveSettings}
         onClearHistory={() => void clearHistory()}
+        onPreviewToast={() => void host.previewNotification()}
         returnFocus={settingsReturn}
       />
 
