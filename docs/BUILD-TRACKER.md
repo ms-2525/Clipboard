@@ -54,6 +54,7 @@ clean; memory stated honestly; docs updated.
 | S13 | Tab management: create, rename, delete, move | `Host\`, `UI\web\src\*` | DONE `4954e87`, `1ced540` | 50/50 bridge; strip CRUD, Ctrl+M picker, delete warns with N clips |
 | S16 | Final release audit + visual re-check + docs refresh | read-only / docs | Audit DONE (ship with named limits, no P0); docs DONE `bae76ad`; visual re-check running | 4 fixes closed; 3 PASS / 7 FAIL / 26 NOT RUN on features |
 | S17 | Close named limits: toolbar glyphs, char count, section jump, tab-move keys, delete wording | `UI\web\src\*` | IN PROGRESS | 4 new key combos; every toolbar button an SVG |
+| S18 | 430 px and dialog polish from the visual re-check | `UI\web\src\*` | QUEUED (after S17) | chip units readable, tab + reachable, no sliced labels, visible initial focus in all dialogs |
 | S14 | Rewrite `CHECKLIST-uiux.md` for the v2 surface | `docs\` | DONE `02e23cd` | 54 rows: 32 PASS, 14 FAIL, 8 NOT RUN |
 | S15 | Six visual release defects | `UI\web\src\*` | DONE `50207bd` | Settings 860x657 fits 900x700 with zero scroll; hover 1.17/1.20; index 4ch; 20/20 tab trap |
 
