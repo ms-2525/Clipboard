@@ -1,6 +1,6 @@
 import { makeClips, MOCK_TABS, mockThumb } from './data'
 import { REAL_CLIPS } from './realClips'
-import { toSettings, type ClipBody, type ClipItem, type Host, type HostEvent, type ItemsQuery, type SearchResult, type SettingsPatch } from './host'
+import { toSettings, type ClipBody, type ClipItem, type Host, type HostEvent, type HostTab, type ItemsQuery, type SearchResult, type SettingsPatch } from './host'
 
 /**
  * Mock-only tag ids. The real host classifies in Core\ClipTags.cs; the page never
@@ -61,11 +61,22 @@ export function createMockHost(): Host {
   counter.__mockGetThumbIds = []
   const deleted: { clip: ClipItem; index: number }[] = []
   const listeners = new Set<(event: HostEvent) => void>()
-  const tabs = MOCK_TABS.map((tab) => ({
-    ...tab,
-    count: clips.filter((clip) => clip.tabId === tab.id).length,
-  }))
+  let tabs: HostTab[] = MOCK_TABS.map((tab) => ({ ...tab }))
+  const withCounts = () =>
+    tabs.map((tab) => ({ ...tab, count: clips.filter((clip) => clip.tabId === tab.id).length }))
   const mainHistory = () => clips.filter((clip) => clip.tabId === null)
+
+  /** The store's own messages, so the page validates the same fixture names it will see in WebView2. */
+  const cleanName = (name: string, exceptId = 0) => {
+    const clean = (name ?? '').trim()
+    if (clean.length === 0) throw new Error('Enter a tab name.')
+    if (clean.length > 24) throw new Error('Tab names are 24 characters at most.')
+    if ([...clean].some((char) => char.charCodeAt(0) < 32)) throw new Error('Tab names cannot contain control characters.')
+    if (tabs.some((tab) => tab.id !== exceptId && tab.name.toLowerCase() === clean.toLowerCase())) {
+      throw new Error('A tab with that name already exists.')
+    }
+    return clean
+  }
   const emit = (event: HostEvent) => {
     for (const listener of listeners) listener(event)
   }
@@ -146,7 +157,7 @@ export function createMockHost(): Host {
         clips: mainHistory().filter((clip) => clip.kind !== 'image').length,
         images: mainHistory().filter((clip) => clip.kind === 'image').length,
       },
-      tabs,
+      tabs: withCounts(),
       config: settings,
       items: mainHistory().slice(0, Math.min(200, settings.maxItems)),
     }),
@@ -209,6 +220,30 @@ export function createMockHost(): Host {
     moveToTab: async ({ id, tabId }) => {
       clips = clips.map((entry) => (entry.id === id ? { ...entry, tabId } : entry))
       return wait(undefined)
+    },
+    listTabs: async () => wait({ tabs: withCounts(), pinnedTabId: tabs.find((tab) => tab.kind === 'pinned')?.id ?? 0 }),
+    createTab: async ({ name }) => {
+      const clean = cleanName(name)
+      const tab: HostTab = { id: Math.max(0, ...tabs.map((entry) => entry.id)) + 1, name: clean, kind: 'custom', count: 0 }
+      tabs = [...tabs, tab]
+      return wait(tab)
+    },
+    renameTab: async ({ id, name }) => {
+      const tab = tabs.find((entry) => entry.id === id)
+      if (!tab) throw new Error('no tab with id ' + id)
+      if (tab.kind === 'pinned') throw new Error('The Pinned tab cannot be renamed.')
+      const clean = cleanName(name, id)
+      tabs = tabs.map((entry) => (entry.id === id ? { ...entry, name: clean } : entry))
+      return wait(undefined)
+    },
+    deleteTab: async ({ id }) => {
+      const tab = tabs.find((entry) => entry.id === id)
+      if (!tab) throw new Error('no tab with id ' + id)
+      if (tab.kind === 'pinned') throw new Error('The Pinned tab cannot be deleted.')
+      const purged = clips.filter((clip) => clip.tabId === id).length
+      clips = clips.filter((clip) => clip.tabId !== id)
+      tabs = tabs.filter((entry) => entry.id !== id)
+      return wait({ deleted: true, deletedClips: purged, movedToHistory: 0 })
     },
     hide: async () => wait(undefined),
     // Preview-only: the fixture writes nothing. It answers the same shape as the host so the

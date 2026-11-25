@@ -17,6 +17,7 @@ export interface KeyActions {
   onEdit: () => void
   onExport: () => void
   onDelete: () => void
+  onMove: () => void
   onRestore: () => void
   onPin: () => void
   onHide: () => void
@@ -73,6 +74,13 @@ export function useClipboardKeys(actions: KeyActions) {
           if (selected) {
             take()
             actions.onPin()
+          }
+          return
+        }
+        if (lower === 'm') {
+          if (selected) {
+            take()
+            actions.onMove()
           }
           return
         }

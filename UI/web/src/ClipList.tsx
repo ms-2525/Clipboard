@@ -25,6 +25,7 @@ interface Props {
   hidePins: boolean
   onSelect: (id: number) => void
   onCopy: (clip: ClipItem) => void
+  onContextMenu: (clip: ClipItem, x: number, y: number) => void
   onTag: (id: string) => void
   getThumb: (id: number) => Promise<string | null>
   getItem: (id: number) => Promise<ClipBody | null>
@@ -75,7 +76,7 @@ function Thumb({ id, getThumb }: { id: number; getThumb: (id: number) => Promise
 }
 
 export const ClipList = forwardRef<ClipListHandle, Props>(function ClipList(
-  { clips, selectedId, timeFormat, hidePins, onSelect, onCopy, onTag, getThumb, getItem, emptyTitle, emptySub },
+  { clips, selectedId, timeFormat, hidePins, onSelect, onCopy, onContextMenu, onTag, getThumb, getItem, emptyTitle, emptySub },
   ref,
 ) {
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -268,6 +269,11 @@ export const ClipList = forwardRef<ClipListHandle, Props>(function ClipList(
                   onClick={() => onSelect(clip.id)}
                   onFocus={() => onSelect(clip.id)}
                   onDoubleClick={() => onCopy(clip)}
+                  onContextMenu={(event) => {
+                    event.preventDefault()
+                    onSelect(clip.id)
+                    onContextMenu(clip, event.clientX, event.clientY)
+                  }}
                 >
                   <div className="row-index">{String(v.index + 1).padStart(2, '0')}</div>
                   <div className="row-content">

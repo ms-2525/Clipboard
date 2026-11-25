@@ -303,6 +303,7 @@ a {
 }
 .icon-btn:focus-visible,
 .tab:focus-visible,
+.tab-add:focus-visible,
 .btn:focus-visible,
 .row:focus-visible,
 .tool:focus-visible,
@@ -324,21 +325,22 @@ a {
 .tabs-row {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 8px 12px;
+  flex-wrap: nowrap;
+  gap: 12px;
   flex-shrink: 0;
   min-height: 40px;
   min-width: 0;
 }
 .tabs-root {
-  flex: 0 1 auto;
+  flex: 1 1 auto;
   min-width: 0;
   max-width: 100%;
+  display: flex;
 }
 .tabs {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 2px;
   background: var(--raised);
   border: 1px solid var(--control);
@@ -346,6 +348,25 @@ a {
   padding: 3px;
   min-width: 0;
   max-width: 100%;
+  flex: 1 1 auto;
+  /* The strip is the only scroller: tabs and the inline field never push the page sideways. */
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+}
+.tabs::-webkit-scrollbar {
+  height: 6px;
+}
+.tabs::-webkit-scrollbar-thumb {
+  background: var(--control);
+  border-radius: 3px;
+}
+.tabs-list {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 2px;
+  flex: 0 0 auto;
 }
 .tab {
   height: 28px;
@@ -382,11 +403,65 @@ a {
 .tab[data-state='active'] .tab-count {
   background: var(--count-bg);
 }
+.tab-add {
+  flex: 0 0 auto;
+  align-self: center;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg55);
+}
+.tab-add:hover {
+  background: var(--field);
+  color: var(--fg);
+}
+.tab-edit {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+  padding: 0 2px;
+}
+.tab-edit-input {
+  width: 150px;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid var(--accent-text);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--fg);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+}
+.tab-edit-input:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 1px;
+}
+.tab-edit-input[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+.tab-edit-error {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--danger);
+  font-size: 10px;
+  line-height: 12px;
+}
 .tabs-hint {
   display: flex;
   align-items: center;
   gap: 6px;
   color: var(--fg48);
+  flex: 0 0 auto;
 }
 
 /* ---------- card / list ---------- */
@@ -1443,7 +1518,8 @@ a {
   padding: 6px;
   min-width: 154px;
 }
-.popover .pop-item {
+.popover .pop-item,
+.move-list .pop-item {
   display: flex;
   width: 100%;
   align-items: center;
@@ -1457,7 +1533,8 @@ a {
   color: var(--fg);
   text-align: left;
 }
-.popover .pop-item:hover {
+.popover .pop-item:hover,
+.move-list .pop-item:hover {
   background: var(--field);
 }
 .popover .pop-item .keycap {
@@ -1467,6 +1544,59 @@ a {
   top: 34px;
   right: 0;
   left: auto;
+}
+.tab-menu {
+  position: fixed;
+  width: 176px;
+  z-index: 80;
+}
+.popover .pop-item.danger {
+  color: var(--danger);
+}
+.move-menu {
+  position: fixed;
+  width: 220px;
+  z-index: 80;
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
+}
+.move-title {
+  padding: 2px 8px 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fg);
+}
+.move-sub {
+  padding: 0 8px 5px;
+  margin-bottom: 3px;
+  border-bottom: 1px solid var(--divider);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--fg48);
+}
+.move-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.move-current {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--fg48);
+}
+.move-picker {
+  width: 320px;
+}
+.move-picker .dialog-body {
+  padding-top: 2px;
+}
+.move-picker .move-list {
+  gap: 2px;
+}
+.move-picker .move-list .pop-item {
+  height: 30px;
 }
 .colours {
   display: grid;
@@ -1702,9 +1832,6 @@ a {
   }
   .search-toggle {
     display: grid;
-  }
-  .tab-count {
-    display: none;
   }
   .tabs-hint {
     display: none;

@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
-import * as Tabs from '@radix-ui/react-tabs'
 import * as Tooltip from '@radix-ui/react-tooltip'
 import { ClipList, type ClipListHandle } from './ClipList'
 import { DeleteConfirm } from './DeleteConfirm'
 import { EditorOverlay } from './EditorOverlay'
+import { MoveMenu, MovePicker, moveTargets } from './MoveToTab'
 import { SettingsDialog } from './SettingsDialog'
-import { createHost, toSettings, type ClipItem, type HostConfig, type HostSettings, type InitResult, type SaveConfigResult, type SearchResult, type SettingsPatch } from './host'
+import { TabStrip, type StripTab } from './TabStrip'
+import { createHost, messageOf, toSettings, type ClipItem, type HostConfig, type HostSettings, type HostTab, type InitResult, type SaveConfigResult, type SearchResult, type SettingsPatch } from './host'
 import { useClipboardKeys } from './useClipboardKeys'
 import { forgetBody } from './rich'
 import type { TimeFormat } from './format'
@@ -49,7 +50,13 @@ interface SearchView extends SearchResult {
   query: string
 }
 
-const messageOf = (error: unknown) => (error instanceof Error ? error.message : String(error))
+/** How many clips the All tab can show; the host's richer `all` wins over the raw clips/images pair. */
+function allCountOf(init: InitResult): number {
+  const counts = init.counts
+  if (typeof counts.all === 'number') return counts.all
+  if (typeof counts.clips === 'number' || typeof counts.images === 'number') return (counts.clips ?? 0) + (counts.images ?? 0)
+  return init.items?.length ?? 0
+}
 
 /** The next-slice bridge methods answer "unknown method"; that is a gap, not a failure. */
 const isNotReady = (error: unknown) => /unknown method|not wired|not ready|phase 2/i.test(messageOf(error))
@@ -84,6 +91,11 @@ export default function App() {
   const [exportOpen, setExportOpen] = useState(false)
   const [toasts, setToasts] = useState<Toast[]>([])
   const [init, setInit] = useState<InitResult | null>(null)
+  const [tabRows, setTabRows] = useState<HostTab[]>([])
+  const [allCount, setAllCount] = useState(0)
+  const [tabOverlay, setTabOverlay] = useState(false)
+  const [rowMenu, setRowMenu] = useState<{ clip: ClipItem; x: number; y: number } | null>(null)
+  const [moveClip, setMoveClip] = useState<ClipItem | null>(null)
   const [items, setItems] = useState<ClipItem[]>([])
   const [found, setFound] = useState<SearchView | null>(null)
   const [searching, setSearching] = useState(false)
@@ -96,6 +108,7 @@ export default function App() {
   const lastQuery = useRef('')
   const lastDeleted = useRef<{ clip: ClipItem; index: number } | null>(null)
   const searchRef = useRef<HTMLInputElement>(null)
+  const searchTyped = useRef(false)
   const listRef = useRef<ClipListHandle>(null)
   const exportRef = useRef<HTMLDivElement>(null)
   const exportReturn = useRef<HTMLElement | null>(null)
@@ -117,6 +130,16 @@ export default function App() {
     setTheme(next.theme)
   }, [])
 
+  /** listTabs is the only live tab source: the host emits no tabs event. */
+  const refreshTabs = useCallback(async () => {
+    try {
+      const result = await host.listTabs()
+      setTabRows(result.tabs)
+    } catch (error) {
+      showToast('Could not refresh tabs', messageOf(error), true)
+    }
+  }, [host, showToast])
+
   const load = useCallback(() => {
     const seq = ++tabSeq.current
     setStatus('loading')
@@ -126,10 +149,13 @@ export default function App() {
       .then((result) => {
         const rows = result.items ?? []
         setInit(result)
+        setTabRows(result.tabs ?? [])
+        setAllCount(allCountOf(result))
         setItems(rows)
         setSelectedId((current) => (current != null && rows.some((row) => row.id === current) ? current : rows[0]?.id ?? null))
         applySettings(result.config)
         setStatus('ready')
+        void refreshTabs()
 
         // init carries the newest page (the host caps it); deepen the All list to 1,000.
         if (seq !== tabSeq.current) return
@@ -148,7 +174,7 @@ export default function App() {
         setLoadError(messageOf(error))
         setStatus('error')
       })
-  }, [applySettings, host])
+  }, [applySettings, host, refreshTabs])
 
   useEffect(() => {
     load()
@@ -161,6 +187,16 @@ export default function App() {
       input?.focus()
       input?.setSelectionRange(input.value.length, input.value.length)
     }, 0)
+  }, [])
+
+  /** Only text the owner typed rides along to the next tab; tag chips and clears do not. */
+  const setSearchText = useCallback((value: string) => {
+    searchTyped.current = value.trim().length > 0
+    setSearch(value)
+  }, [])
+  const setSearchProgrammatic = useCallback((value: string) => {
+    searchTyped.current = false
+    setSearch(value)
   }, [])
 
   useEffect(() => {
@@ -211,6 +247,12 @@ export default function App() {
   const selectTab = useCallback(
     (next: number | null) => {
       const previous = tab
+      // A typed query survives a tab change; a programmatic one (a tag chip) does not.
+      if (!searchTyped.current && (search || query)) {
+        lastQuery.current = ''
+        setSearch('')
+        setQuery('')
+      }
       setTab(next)
       setFound(null)
       searchSeq.current++
@@ -227,25 +269,19 @@ export default function App() {
           setTab(previous)
           showToast('Could not switch tab', messageOf(error), true)
         })
+      void refreshTabs()
     },
-    [host, showToast, tab],
+    [host, query, refreshTabs, search, showToast, tab],
   )
 
-  const allCount = useMemo(() => {
-    const counts = init?.counts
-    if (!counts) return 0
-    if (typeof counts.all === 'number') return counts.all
-    if (typeof counts.clips === 'number' || typeof counts.images === 'number') return (counts.clips ?? 0) + (counts.images ?? 0)
-    return init?.items?.length ?? 0
-  }, [init])
-
   const tabs = useMemo(() => {
-    const rows: { id: number | null; label: string; count: number; kind?: string }[] = [{ id: null, label: 'All', count: allCount }]
-    for (const hostTab of init?.tabs ?? []) {
+    const rows: StripTab[] = [{ id: null, label: 'All', count: allCount, kind: 'all' }]
+    for (const hostTab of tabRows) {
       rows.push({ id: hostTab.id, label: hostTab.kind === 'pinned' ? 'Pinned' : hostTab.name, count: hostTab.count, kind: hostTab.kind })
     }
     return rows
-  }, [init, allCount])
+  }, [tabRows, allCount])
+  const moveDestinations = useMemo(() => moveTargets(tabRows), [tabRows])
 
   const visible = found?.items ?? items
   const visibleRef = useRef(visible)
@@ -259,14 +295,32 @@ export default function App() {
   }, [visible, selectedId])
 
   const selected = visible.find((clip) => clip.id === selectedId) ?? null
-  const tabLabel = tabs.find((entry) => entry.id === tab)?.label ?? 'All'
-  const tabCount = tabs.find((entry) => entry.id === tab)?.count ?? visible.length
+  const activeTab = tabs.find((entry) => entry.id === tab)
+  const tabLabel = activeTab?.label ?? 'All'
+  const tabCount = activeTab?.count ?? visible.length
   // Every row in the Pinned tab is pinned; repeating the glyph there is noise.
   const pinnedTab = tab != null && tabs.some((entry) => entry.id === tab && entry.kind === 'pinned')
   const today = init?.counts?.today
   const timeFormat: TimeFormat = settings.timeFormat === '12h' ? '12h' : '24h'
   const searchActive = query !== ''
   const activeSearch = found?.query === query ? found : null
+  const emptyTitle =
+    searching && visible.length === 0
+      ? 'Searching…'
+      : searchActive
+        ? `Nothing matches “${query}”`
+        : tab == null
+          ? 'No clips yet'
+          : activeTab?.kind === 'pinned'
+            ? 'Nothing pinned'
+            : `Nothing in “${tabLabel}”`
+  const emptySub = searchActive
+    ? 'Try a different search, or clear it with Esc.'
+    : tab == null
+      ? 'Copy something and it will appear here.'
+      : activeTab?.kind === 'pinned'
+        ? 'Press Ctrl+P on a clip to keep it here.'
+        : 'Right-click a clip and move it here.'
 
   const copyItem = useCallback(
     async (clip: ClipItem) => {
@@ -314,6 +368,69 @@ export default function App() {
     return rows
   }, [host, query, tab])
 
+  const createTab = useCallback(
+    async (name: string) => {
+      const created = await host.createTab({ name })
+      await refreshTabs()
+      selectTab(created.id)
+    },
+    [host, refreshTabs, selectTab],
+  )
+
+  const renameTab = useCallback(
+    async (id: number, name: string) => {
+      await host.renameTab({ id, name })
+      await refreshTabs()
+    },
+    [host, refreshTabs],
+  )
+
+  const deleteTab = useCallback(
+    async (entry: StripTab) => {
+      if (entry.id == null) return 0
+      const result = await host.deleteTab({ id: entry.id })
+      await refreshTabs()
+      if (tab === entry.id) selectTab(null)
+      showToast(
+        `Deleted “${entry.label}”`,
+        `${result.deletedClips.toLocaleString()} ${result.deletedClips === 1 ? 'clip' : 'clips'} deleted. Pinned clips were not affected.`,
+      )
+      return result.deletedClips
+    },
+    [host, refreshTabs, selectTab, showToast, tab],
+  )
+
+  /** Move, then re-read both the strip and the current page; the row leaves the list it came from. */
+  const moveClipToTab = useCallback(
+    async (clip: ClipItem, tabId: number | null) => {
+      const index = visibleRef.current.findIndex((row) => row.id === clip.id)
+      try {
+        await host.moveToTab({ id: clip.id, tabId })
+      } catch (error) {
+        showToast('Move failed', messageOf(error), true)
+        return
+      }
+      if (clip.tabId == null && tabId != null) setAllCount((count) => Math.max(0, count - 1))
+      else if (clip.tabId != null && tabId == null) setAllCount((count) => count + 1)
+      await refreshTabs()
+      let rows: ClipItem[]
+      try {
+        rows = await reload()
+      } catch (error) {
+        showToast('Moved, but the list did not refresh', messageOf(error), true)
+        return
+      }
+      setSelectedId((current) =>
+        current != null && rows.some((row) => row.id === current)
+          ? current
+          : rows[Math.min(Math.max(index, 0), rows.length - 1)]?.id ?? null,
+      )
+      const label = moveDestinations.find((target) => target.id === tabId)?.label ?? 'All history'
+      showToast('Moved', `${clip.title || 'Clip'} → ${label}`)
+    },
+    [host, moveDestinations, refreshTabs, reload, showToast],
+  )
+
   const undoDelete = useCallback(async () => {
     const entry = lastDeleted.current
     if (!entry) {
@@ -335,13 +452,16 @@ export default function App() {
     if (!selected) return
     try {
       await host.togglePin({ id: selected.id })
+      if (selected.tabId == null) setAllCount((count) => Math.max(0, count - 1))
+      else if (selected.pinned) setAllCount((count) => count + 1)
+      await refreshTabs()
       await reload()
       setSelectedId(selected.id)
       showToast(selected.pinned ? 'Unpinned' : 'Pinned', `${selected.app} · ${selected.title}`)
     } catch (error) {
       showToast(isNotReady(error) ? 'Pin not ready yet' : 'Pin failed', messageOf(error), true)
     }
-  }, [host, reload, selected, showToast])
+  }, [host, refreshTabs, reload, selected, showToast])
 
   const hideWindow = useCallback(async () => {
     try {
@@ -491,19 +611,20 @@ export default function App() {
   }, [confirm, host, showToast])
 
   useClipboardKeys({
-    enabled: !editorOpen && !settingsOpen && !exportOpen && confirm == null,
+    enabled: !editorOpen && !settingsOpen && !exportOpen && confirm == null && !tabOverlay && rowMenu == null && moveClip == null,
     rows: visible,
     selectedId,
     search,
     searchRef,
     onSelect: setSelectedId,
-    onSearch: setSearch,
+    onSearch: setSearchText,
     onSearchFocus: focusSearch,
     onPage: (direction) => listRef.current?.pageBy(direction),
     onPaste: (clip, plain) => void pasteItem(clip, plain),
     onEdit: () => selected && setEditorOpen(true),
     onExport: openExport,
     onDelete: () => selected && setConfirm(selected),
+    onMove: () => selected && setMoveClip(selected),
     onRestore: () => void undoDelete(),
     onPin: () => void pinItem(),
     onHide: () => void hideWindow(),
@@ -528,6 +649,7 @@ export default function App() {
               ? { ...current, items: moveToTop(current.items, item) }
               : current,
           )
+          void refreshTabs()
           return
         }
         if (event === 'skipped') {
@@ -570,9 +692,10 @@ export default function App() {
           setFound((current) =>
             current ? { ...current, items: current.items.filter((row) => row.id !== id), total: Math.max(0, current.total - 1) } : current,
           )
+          void refreshTabs()
         }
       }),
-    [applySettings, host, load, reload, tab, showToast],
+    [applySettings, host, load, refreshTabs, reload, tab, showToast],
   )
 
   return (
@@ -594,7 +717,7 @@ export default function App() {
             <input
               ref={searchRef}
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              onChange={(event) => setSearchText(event.target.value)}
               placeholder="Search clips, apps, file names…"
               aria-label="Search clips"
               spellCheck={false}
@@ -603,7 +726,7 @@ export default function App() {
               <button
                 className="icon-btn ghost"
                 style={{ width: 22, height: 22, border: 0 }}
-                onClick={() => setSearch('')}
+                onClick={() => setSearchText('')}
                 aria-label="Clear search"
               >
                 <IconClose />
@@ -678,20 +801,15 @@ export default function App() {
         </header>
 
         <div className="tabs-row">
-          <Tabs.Root
-            value={tab === null ? 'all' : String(tab)}
-            onValueChange={(value) => selectTab(value === 'all' ? null : Number(value))}
-            className="tabs-root"
-          >
-            <Tabs.List className="tabs" aria-label="Clip tabs">
-              {tabs.map((entry) => (
-                <Tabs.Trigger key={entry.id ?? 'all'} value={entry.id === null ? 'all' : String(entry.id)} className="tab">
-                  {entry.label}
-                  <span className="tab-count">{entry.count.toLocaleString()}</span>
-                </Tabs.Trigger>
-              ))}
-            </Tabs.List>
-          </Tabs.Root>
+          <TabStrip
+            tabs={tabs}
+            activeId={tab}
+            onSelect={selectTab}
+            onCreate={createTab}
+            onRename={renameTab}
+            onDelete={deleteTab}
+            onOverlayChange={setTabOverlay}
+          />
           <span className="tabs-hint t-meta">
             <span className="keycap">↑↓</span> move
             <span className="keycap" style={{ marginLeft: 6 }}>Enter</span> paste
@@ -794,26 +912,15 @@ export default function App() {
               hidePins={pinnedTab}
               onSelect={setSelectedId}
               onCopy={copyItem}
+              onContextMenu={(clip, x, y) => setRowMenu({ clip, x, y })}
               onTag={(id) => {
-                setSearch(`${id}:`)
+                setSearchProgrammatic(`${id}:`)
                 focusSearch()
               }}
               getThumb={host.getThumb}
               getItem={host.getItem}
-              emptyTitle={
-                searching && visible.length === 0
-                  ? 'Searching…'
-                  : searchActive
-                    ? `Nothing matches “${query}”`
-                    : tab === null
-                      ? 'No clips yet'
-                      : 'This tab is empty'
-              }
-              emptySub={
-                searchActive
-                  ? 'Try a different search, or clear it with Esc.'
-                  : 'Copy something and it will appear here.'
-              }
+              emptyTitle={emptyTitle}
+              emptySub={emptySub}
             />
           )}
 
@@ -851,6 +958,30 @@ export default function App() {
       />
 
       <DeleteConfirm clip={confirm} onCancel={() => setConfirm(null)} onConfirm={() => void confirmDelete()} />
+
+      {rowMenu && (
+        <MoveMenu
+          clip={rowMenu.clip}
+          targets={moveDestinations}
+          x={rowMenu.x}
+          y={rowMenu.y}
+          onChoose={(tabId) => {
+            const clip = rowMenu.clip
+            setRowMenu(null)
+            void moveClipToTab(clip, tabId)
+          }}
+          onClose={() => setRowMenu(null)}
+        />
+      )}
+
+      <MovePicker
+        clip={moveClip}
+        targets={moveDestinations}
+        onChoose={(tabId) => {
+          if (moveClip) void moveClipToTab(moveClip, tabId)
+        }}
+        onClose={() => setMoveClip(null)}
+      />
 
       {editorOpen && selected && (
         <EditorOverlay

@@ -40,6 +40,17 @@ export interface HostTab {
   count: number
 }
 
+export interface ListTabsResult {
+  tabs: HostTab[]
+  pinnedTabId: number
+}
+
+export interface DeleteTabResult {
+  deleted: boolean
+  deletedClips: number
+  movedToHistory: number
+}
+
 export interface Counts {
   /** Main-history rows (tabId null): the host's own shape. */
   clips?: number
@@ -119,6 +130,10 @@ export interface Host {
   restore(params: { id: number }): Promise<void>
   togglePin(params: { id: number }): Promise<void>
   moveToTab(params: { id: number; tabId: number | null }): Promise<void>
+  listTabs(): Promise<ListTabsResult>
+  createTab(params: { name: string }): Promise<HostTab>
+  renameTab(params: { id: number; name: string }): Promise<void>
+  deleteTab(params: { id: number }): Promise<DeleteTabResult>
   hide(): Promise<void>
   exportClip(params: { id: number; format: string }): Promise<ExportResult>
   saveConfig(patch: SettingsPatch): Promise<SaveConfigResult>
@@ -156,6 +171,14 @@ interface PageResult {
 
 const MAX_PAGE = 500
 const REQUEST_TIMEOUT_MS = 15000
+
+/** The host's own message, or the transport's; shown verbatim where the host wrote it for a person. */
+export const messageOf = (error: unknown) => (error instanceof Error ? error.message : String(error))
+
+/** The store calls the built-in tab "builtin"; the page's contract has one pinned kind. */
+function normalizeTab(tab: HostTab): HostTab {
+  return { ...tab, kind: tab.kind === 'custom' ? 'custom' : 'pinned' }
+}
 
 /** Host rows can carry nulls for app/title/text; keep every consumer string-safe. */
 function normalizeItem(item: ClipItem): ClipItem {
@@ -236,7 +259,7 @@ class WebViewHost implements Host {
     const result = await this.send<{ counts?: Counts; tabs?: HostTab[]; config?: HostConfig; items?: ClipItem[] }>('init')
     return {
       counts: result?.counts ?? {},
-      tabs: result?.tabs ?? [],
+      tabs: (result?.tabs ?? []).map(normalizeTab),
       config: toSettings(result?.config),
       items: (result?.items ?? []).map(normalizeItem),
     }
@@ -316,6 +339,27 @@ class WebViewHost implements Host {
 
   moveToTab = async (params: { id: number; tabId: number | null }) => {
     await this.send('moveToTab', { id: params.id, tabId: params.tabId })
+  }
+
+  listTabs = async (): Promise<ListTabsResult> => {
+    const result = await this.send<{ tabs?: HostTab[]; pinnedTabId?: number }>('listTabs')
+    return { tabs: (result?.tabs ?? []).map(normalizeTab), pinnedTabId: result?.pinnedTabId ?? 0 }
+  }
+
+  createTab = async (params: { name: string }): Promise<HostTab> =>
+    normalizeTab(await this.send<HostTab>('createTab', { name: params.name }))
+
+  renameTab = async (params: { id: number; name: string }) => {
+    await this.send('renameTab', { id: params.id, name: params.name })
+  }
+
+  deleteTab = async (params: { id: number }): Promise<DeleteTabResult> => {
+    const result = await this.send<DeleteTabResult | null>('deleteTab', { id: params.id })
+    return {
+      deleted: result?.deleted === true,
+      deletedClips: Math.max(0, result?.deletedClips ?? 0),
+      movedToHistory: Math.max(0, result?.movedToHistory ?? 0),
+    }
   }
 
   hide = async () => {
