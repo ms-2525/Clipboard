@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using System.Threading;
@@ -46,6 +47,9 @@ namespace Clip
             }
 
             _cfg = Config.Load();
+            // A fresh install defaults to StartOnLogin but has no Run value yet: write it once so the
+            // tray tick and the Settings switch agree from the first right-click.
+            if (_cfg.WasNew && _cfg.StartOnLogin) Autostart.Set(true);
             ClipboardItem.ClockFormat = _cfg.TimeFormat == "12h" ? "h:mm tt" : "HH:mm";
             _themeSetting = _cfg.Theme;
             _cfg.Theme = ApplyTheme(_themeSetting); // memory only: the page needs light|dark, never "system"
@@ -202,11 +206,44 @@ namespace Clip
         void OpenV2TrayMenu()
         {
             var menu = Themed(new ContextMenu());
+            // Muted header like the reference menu's title row: rebuilt on every open, so never stale.
+            menu.Items.Add(Themed(new MenuItem { Header = $"Open: {_cfg.Hotkey}", IsEnabled = false }));
             AddTrayItem(menu, $"{Product}: show/hide", () => _shell?.Toggle());
             AddTrayItem(menu, "Settings\u2026", () => _shell?.ShowForSettings());
+            // The tick reads live state: the Run value for login, the config for toasts.
+            var notes = Themed(new MenuItem { Header = "Notifications", IsCheckable = true, IsChecked = _cfg.Notification.Enabled });
+            notes.Click += (s, e) =>
+            {
+                _cfg.Notification.Enabled = notes.IsChecked;
+                SaveCfg();
+            };
+            menu.Items.Add(notes);
+            // The tick reads the real HKCU Run value, not the config: an external change shows honestly.
+            var login = Themed(new MenuItem { Header = "Start on login", IsCheckable = true, IsChecked = Autostart.IsEnabled() });
+            login.Click += (s, e) =>
+            {
+                _cfg.StartOnLogin = login.IsChecked;
+                Autostart.Set(login.IsChecked);
+                SaveCfg();
+            };
+            menu.Items.Add(login);
             menu.Items.Add(Themed(new System.Windows.Controls.Separator()));
+            AddTrayItem(menu, "Open data folder", () =>
+            {
+                try { Process.Start(new ProcessStartInfo(Config.DataDir) { UseShellExecute = true }); }
+                catch (Exception) { _notif?.ShowMessage("Could not open the data folder."); }
+            });
             AddTrayItem(menu, "Exit", ExitV2);
             OpenTrayMenuAtCursor(menu);
+        }
+
+        /// <summary>Persists the config without losing a "system" theme choice (same swap as the settings save).</summary>
+        void SaveCfg()
+        {
+            string live = _cfg.Theme;
+            _cfg.Theme = _themeSetting;
+            _cfg.Save();
+            _cfg.Theme = live;
         }
 
         /// <summary>Both trays open on the cursor pixel scaled to DIP; Win11 refused H.NotifyIcon's own routing.</summary>

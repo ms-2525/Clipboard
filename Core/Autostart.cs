@@ -8,6 +8,26 @@ namespace Clip.Core
     {
         const string RunKey = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
 
+        /// <summary>True when the HKCU Run value points at this exe (quotes tolerated).</summary>
+        public static bool IsEnabled()
+        {
+            try
+            {
+                var asm = Assembly.GetEntryAssembly();
+                if (asm == null) return false;
+                using var key = Registry.CurrentUser.OpenSubKey(RunKey, false);
+                string value = key?.GetValue(asm.GetName().Name) as string;
+                if (string.IsNullOrEmpty(value)) return false;
+                string exe = Environment.ProcessPath;
+                if (string.IsNullOrEmpty(exe)) return true; // a value exists; nothing to compare it with
+                return string.Equals(value.Trim('"'), exe, StringComparison.OrdinalIgnoreCase);
+            }
+            catch
+            {
+                return false; // a settings tick must never throw; treat unreadable as off
+            }
+        }
+
         public static void Set(bool enable)
         {
             try

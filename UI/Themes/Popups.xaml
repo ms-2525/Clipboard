@@ -11,7 +11,8 @@
     <Setter Property="Background" Value="{DynamicResource Surface}"/>
     <Setter Property="BorderBrush" Value="{DynamicResource Hairline}"/>
     <Setter Property="BorderThickness" Value="1"/>
-    <Setter Property="Padding" Value="4"/>
+    <Setter Property="Padding" Value="5"/>
+    <Setter Property="SnapsToDevicePixels" Value="True"/>
     <Setter Property="FontFamily" Value="{DynamicResource UiFont}"/>
     <Setter Property="FontSize" Value="{DynamicResource FontBodySize}"/>
     <Setter Property="Foreground" Value="{DynamicResource Fg75}"/>
@@ -29,22 +30,28 @@
     </Setter>
   </Style>
 
-  <!-- The tray menu's items: 4 % hover pill (never an Aero2 gutter), 12 DIP inset to match the
-       button grammar's padding, and a height that keeps the menu compact. -->
+  <!-- The tray menu's items: compact 26 DIP rows, 4 % hover pill with a 6 DIP radius,
+       and a reserved 16 DIP check gutter so the "Start on login" tick never shifts text. -->
   <Style TargetType="MenuItem">
     <Setter Property="Foreground" Value="{DynamicResource Fg75}"/>
     <Setter Property="FontSize" Value="{DynamicResource FontBodySize}"/>
-    <Setter Property="Padding" Value="14,0"/>
-    <Setter Property="MinHeight" Value="32"/>
+    <Setter Property="Padding" Value="10,0"/>
+    <Setter Property="MinHeight" Value="26"/>
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="MenuItem">
           <Grid>
-            <Border x:Name="State" Background="{DynamicResource StateHover}" CornerRadius="8" Opacity="0"/>
-            <ContentPresenter ContentSource="Header" RecognizesAccessKey="True" VerticalAlignment="Center"
-                              Margin="{TemplateBinding Padding}"/>
+            <Border x:Name="State" Background="{DynamicResource StateHover}" CornerRadius="6" Opacity="0"/>
+            <DockPanel Margin="{TemplateBinding Padding}" VerticalAlignment="Center">
+              <TextBlock x:Name="Check" Text="&#x2713;" Width="16" Visibility="Hidden"
+                         VerticalAlignment="Center" Foreground="{DynamicResource Fg}"/>
+              <ContentPresenter ContentSource="Header" RecognizesAccessKey="True" VerticalAlignment="Center"/>
+            </DockPanel>
           </Grid>
           <ControlTemplate.Triggers>
+            <Trigger Property="IsChecked" Value="True">
+              <Setter TargetName="Check" Property="Visibility" Value="Visible"/>
+            </Trigger>
             <Trigger Property="IsHighlighted" Value="True">
               <Setter TargetName="State" Property="Opacity" Value="1"/>
               <Setter Property="Foreground" Value="{DynamicResource Fg}"/>
@@ -67,7 +74,7 @@
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="Separator">
-          <Border Height="1" Margin="6,4" Background="{DynamicResource Divider}"/>
+          <Border Height="1" Margin="2,5" Background="{DynamicResource Divider}"/>
         </ControlTemplate>
       </Setter.Value>
     </Setter>
