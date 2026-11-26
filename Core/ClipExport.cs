@@ -82,6 +82,8 @@ namespace Clip.Core
             if (fileDrop || string.Equals(item?.Kind, "files", StringComparison.OrdinalIgnoreCase)) return ClipExportKind.Files;
             if (string.Equals(item?.Kind, "image", StringComparison.OrdinalIgnoreCase) ||
                 (item?.Image != null && item.Image.Length > 0)) return ClipExportKind.Image;
+            // An edited grid outlives its Biff blobs (dropped on save as stale): the kind carries it.
+            if (string.Equals(item?.Kind, "sheet", StringComparison.OrdinalIgnoreCase)) return ClipExportKind.Spreadsheet;
             return spreadsheet ? ClipExportKind.Spreadsheet : ClipExportKind.Text;
         }
 

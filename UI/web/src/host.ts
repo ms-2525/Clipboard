@@ -9,7 +9,7 @@
 import { createMockHost } from './mock'
 import { toSettings, type HostConfig, type HostSettings, type SaveConfigResult, type SettingsPatch } from './settings'
 
-export type ClipKind = 'text' | 'rich' | 'image' | 'files'
+export type ClipKind = 'text' | 'rich' | 'image' | 'files' | 'sheet'
 
 /** List-row DTO. `text` is a preview (host truncates to 1200 chars). */
 export interface ClipItem {
@@ -70,6 +70,11 @@ export interface EditorSaveResult {
   saved: boolean
   htmlLength?: number
   error?: string
+}
+
+export interface ReOcrResult {
+  text: string
+  words: number
 }
 
 export interface InitResult {
@@ -153,6 +158,7 @@ export interface Host {
   openInApp(params: { id: number }): Promise<OpenInAppResult>
   saveConfig(patch: SettingsPatch): Promise<SaveConfigResult>
   saveEditor(params: { id: number; html: string; text: string }): Promise<EditorSaveResult>
+  reOcr(params: { id: number }): Promise<ReOcrResult>
   clearHistory(): Promise<void>
   /** Current clip.db (+ WAL) bytes and the advisory limit, for the Settings readout. */
   storageUsage(): Promise<{ bytes: number; limit: number }>
@@ -429,6 +435,12 @@ class WebViewHost implements Host {
     const result = await this.send<EditorSaveResult | null>('saveEditor', params)
     // A host that answers without the flag did not save; never claim a write the host did not confirm.
     return { saved: result?.saved === true, htmlLength: result?.htmlLength, error: result?.error }
+  }
+
+  reOcr = async (params: { id: number }): Promise<ReOcrResult> => {
+    const result = await this.send<{ text?: unknown; words?: unknown } | null>('reOcr', params)
+    if (typeof result?.text !== 'string') throw new Error('Text recognition did not return any text.')
+    return { text: result.text, words: typeof result.words === 'number' ? result.words : 0 }
   }
 
   clearHistory = async () => {

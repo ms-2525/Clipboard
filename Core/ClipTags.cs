@@ -178,6 +178,9 @@ namespace Clip.Core
 
             if (fileDrop) tags = Add(tags, "files");
             if (spreadsheet) tags = Add(tags, "spreadsheet");
+            // An edited grid outlives its Biff blobs (dropped on save as stale): the kind carries it.
+            if (string.Equals(item.Kind, "sheet", StringComparison.OrdinalIgnoreCase))
+                tags = Add(tags, "spreadsheet");
 
             // A list row carries only PreviewChars of the body. Whole-text shapes are skipped on a
             // preview because its cut tail can mint a path or a JSON document that the full body does

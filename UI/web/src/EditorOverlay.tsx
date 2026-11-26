@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
 import { EditorContent, useEditor } from '@tiptap/react'
-import { Extension } from '@tiptap/core'
+import { Extension, type Editor } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import { BackgroundColor, Color, FontFamily, FontSize, TextStyle } from '@tiptap/extension-text-style'
 import Highlight from '@tiptap/extension-highlight'
@@ -25,6 +25,8 @@ interface Props {
   onSaveAs: (format: string) => Promise<void>
   /** The host opens the stored clip in its default app and toasts; never throws. */
   onOpenInApp: () => Promise<void>
+  /** Re-runs Windows OCR over the stored image; throws with the user-facing reason on failure. */
+  onReOcr?: () => Promise<{ text: string; words: number }>
   onClose: () => void
   onSaved: () => void
 }
@@ -39,7 +41,51 @@ const textToHtml = (text: string) =>
     .join('')
 
 const kindLabel = (kind: ClipItem['kind']) =>
-  kind === 'rich' ? 'Rich text' : kind === 'image' ? 'Image' : kind === 'files' ? 'Files' : 'Text'
+  kind === 'rich'
+    ? 'Rich text'
+    : kind === 'image'
+      ? 'Image'
+      : kind === 'files'
+        ? 'Files'
+        : kind === 'sheet'
+          ? 'Spreadsheet'
+          : 'Text'
+
+/** A table cell's words as one line: nested blocks join with spaces, never newlines. */
+const inlineTextOf = (node: any): string => {
+  if (node == null) return ''
+  if (typeof node.text === 'string') return node.text
+  if (!Array.isArray(node.content)) return ''
+  return node.content.map(inlineTextOf).join('')
+}
+
+/**
+ * Tables serialize as TSV so an edited spreadsheet stays a grid (columns survive the save);
+ * anything else uses TipTap's own block text. Only documents containing a table take the
+ * custom path — plain clips keep the old shape byte-for-byte.
+ */
+const bodyTextOf = (editor: Editor): string => {
+  const doc: any = editor.getJSON()
+  const top: any[] = Array.isArray(doc?.content) ? doc.content : []
+  if (!top.some((node) => node?.type === 'table')) return editor.getText({ blockSeparator: '\n' })
+  const lines: string[] = []
+  for (const node of top) {
+    if (node?.type === 'table') {
+      for (const row of node.content ?? []) {
+        if (row?.type !== 'tableRow') continue
+        const cells = (row.content ?? []).filter(
+          (cell: any) => cell?.type === 'tableCell' || cell?.type === 'tableHeader',
+        )
+        lines.push(cells.map((cell: any) => inlineTextOf(cell).replace(/\s*\n+\s*/g, ' ')).join('\t'))
+      }
+    } else if (node?.type === 'bulletList' || node?.type === 'orderedList') {
+      for (const item of node.content ?? []) lines.push(inlineTextOf(item))
+    } else {
+      lines.push(inlineTextOf(node))
+    }
+  }
+  return lines.join('\n')
+}
 
 /** The host refuses these too; the page refuses first so a bad body never leaves the browser. */
 const MAX_HTML = 2_000_000
@@ -72,9 +118,10 @@ const ClipBlockFont = Extension.create({
   },
 })
 
-export function EditorOverlay({ clip, timeFormat, getItem, getImage, onSave, onSaveAs, onOpenInApp, onClose, onSaved }: Props) {
+export function EditorOverlay({ clip, timeFormat, getItem, getImage, onSave, onSaveAs, onOpenInApp, onReOcr, onClose, onSaved }: Props) {
   const [dirty, setDirty] = useState(false)
   const [confirmDiscard, setConfirmDiscard] = useState(false)
+  const [confirmConvert, setConfirmConvert] = useState(false)
   const [size, setSize] = useState(14)
   const [pop, setPop] = useState<EditorPop>(null)
   const [loading, setLoading] = useState(true)
@@ -83,14 +130,13 @@ export function EditorOverlay({ clip, timeFormat, getItem, getImage, onSave, onS
   const [imgSrc, setImgSrc] = useState<string | null>(null)
   /** Bumped on every successful save: the green bar shows until the next edit or its timeout. */
   const [savedTick, setSavedTick] = useState(0)
-  const showSaved = savedTick > 0 && !dirty && !confirmDiscard
+  const showSaved = savedTick > 0 && !dirty && !confirmDiscard && !confirmConvert
 
   useEffect(() => {
     if (!showSaved) return
     const timer = window.setTimeout(() => setSavedTick(0), 2600)
     return () => window.clearTimeout(timer)
   }, [showSaved, savedTick])
-  const [formats, setFormats] = useState<string[]>(clip.formats)
   /** Bumped on every editor update: the count must move on each keystroke, not only when `dirty` flips. */
   const [revision, setRevision] = useState(0)
   const baseline = useRef('')
@@ -142,7 +188,6 @@ export function EditorOverlay({ clip, timeFormat, getItem, getImage, onSave, onS
       const html = body?.html ? cfHtmlFragment(body.html) : textToHtml(body?.text ?? clip.text ?? '')
       editor.commands.setContent(html || '<p></p>', { emitUpdate: false })
       baseline.current = editor.getHTML()
-      setFormats(body?.formats?.length ? body.formats : clip.formats)
       setDirty(false)
       setLoading(false)
       requestAnimationFrame(() => editor.commands.focus('start'))
@@ -150,7 +195,7 @@ export function EditorOverlay({ clip, timeFormat, getItem, getImage, onSave, onS
     return () => {
       cancelled = true
     }
-  }, [clip.formats, clip.id, clip.text, editor, getItem])
+  }, [clip.id, clip.text, editor, getItem])
 
   // Image clips: the picture on top, the OCR text below it in the editor.
   useEffect(() => {
@@ -174,12 +219,16 @@ export function EditorOverlay({ clip, timeFormat, getItem, getImage, onSave, onS
 
   const requestClose = useCallback(() => {
     if (saving) return
+    if (confirmConvert) {
+      setConfirmConvert(false)
+      return
+    }
     if (!dirty) {
       onClose()
       return
     }
     setConfirmDiscard(true)
-  }, [dirty, onClose, saving])
+  }, [confirmConvert, dirty, onClose, saving])
 
   // F2 toggles the editor: from the list it opens, and here it closes. Only a dirty body asks
   // about discarding; a clean one just closes.
@@ -201,11 +250,12 @@ export function EditorOverlay({ clip, timeFormat, getItem, getImage, onSave, onS
       event.preventDefault()
       event.stopPropagation()
       if (pop) setPop(null)
+      else if (confirmConvert) setConfirmConvert(false)
       else if (confirmDiscard) onClose()
       else if (dirty) setConfirmDiscard(true)
       else onClose()
     },
-    [confirmDiscard, dirty, onClose, pop],
+    [confirmConvert, confirmDiscard, dirty, onClose, pop],
   )
 
   /** Writes the editor body to the store; true when the stored clip now matches the screen. Never closes. */
@@ -213,7 +263,7 @@ export function EditorOverlay({ clip, timeFormat, getItem, getImage, onSave, onS
     if (!editor || saving || loading) return false
     if (!dirty) return true
     const html = editor.getHTML()
-    const text = editor.getText({ blockSeparator: '\n' })
+    const text = bodyTextOf(editor)
     if (!text.trim()) {
       setError('The editor has no text, so nothing was saved.')
       return false
@@ -237,6 +287,7 @@ export function EditorOverlay({ clip, timeFormat, getItem, getImage, onSave, onS
       }
       baseline.current = editor.getHTML()
       setDirty(false)
+      setConfirmConvert(false)
       onSaved()
       setSaving(false)
       setSavedTick((tick) => tick + 1)
@@ -249,9 +300,15 @@ export function EditorOverlay({ clip, timeFormat, getItem, getImage, onSave, onS
   }, [dirty, editor, loading, onSave, onSaved, saving])
 
   const save = useCallback(async () => {
+    // A file list pastes as files; saving turns it into plain text, so ask first.
     // Ctrl+S / Save clip persist and stay open; Esc or Cancel closes. The green bar confirms the write.
+    if (clip.kind === 'files' && dirty && !confirmConvert) {
+      setConfirmDiscard(false)
+      setConfirmConvert(true)
+      return
+    }
     await persist()
-  }, [persist])
+  }, [clip.kind, confirmConvert, dirty, persist])
 
   // Open in app / Export act on the stored clip, so a dirty editor is written first; a failed
   // write aborts before the host is asked. Both callbacks toast and never throw.
@@ -262,6 +319,37 @@ export function EditorOverlay({ clip, timeFormat, getItem, getImage, onSave, onS
   const saveHereAs = useCallback(async () => {
     if (await persist()) await onSaveAs('auto')
   }, [persist, onSaveAs])
+
+  const [reReading, setReReading] = useState(false)
+
+  /** Re-runs OCR over the stored image and shows the fresh text; refused on unsaved edits. */
+  const reRead = useCallback(async () => {
+    if (!editor || saving || loading || reReading || !onReOcr) return
+    if (dirty) {
+      setError('Re-read replaces the text below — Save or Revert your edits first.')
+      return
+    }
+    setReReading(true)
+    setError('')
+    try {
+      const result = await onReOcr()
+      const text = (result.text ?? '').replace(/\r\n/g, '\n')
+      if (!text.trim()) {
+        setError('No text found in this image.')
+        return
+      }
+      editor.commands.setContent(textToHtml(text), { emitUpdate: false })
+      baseline.current = editor.getHTML()
+      setDirty(false)
+      setConfirmConvert(false)
+      onSaved()
+      setSavedTick((tick) => tick + 1)
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : String(failure))
+    } finally {
+      setReReading(false)
+    }
+  }, [dirty, editor, loading, onReOcr, onSaved, reReading, saving])
 
   // Ctrl+S / Cmd+S saves: the browser would otherwise open its Save-page dialog.
   useEffect(() => {
@@ -309,11 +397,6 @@ export function EditorOverlay({ clip, timeFormat, getItem, getImage, onSave, onS
                 Editing clip
                 {dirty && <span className="dirty-dot" title="Unsaved changes" />}
                 <span className="chip editor-chip">{kindLabel(clip.kind)}</span>
-                {formats.length > 1 && (
-                  <span className="chip editor-chip">
-                    +{formats.length - 1} {formats.length === 2 ? 'format' : 'formats'}
-                  </span>
-                )}
               </div>
               <div className="t-meta editor-sub">
                 {clip.app || 'Unknown'} · {clip.title} · {formatTime(clip.time, timeFormat)}
@@ -354,7 +437,20 @@ export function EditorOverlay({ clip, timeFormat, getItem, getImage, onSave, onS
             </div>
           )}
 
-          {confirmDiscard ? (
+          {confirmConvert ? (
+            <div className="discard-banner">
+              <IconWarning />
+              <span style={{ fontWeight: 600 }}>Save as text?</span>
+              <span className="banner-sub">This file list will become plain text. Pasting will paste file paths as text, not files.</span>
+              <span className="grow" />
+              <button className="btn ghost sm" onClick={() => setConfirmConvert(false)}>
+                Keep editing
+              </button>
+              <button className="btn danger sm" onClick={() => void persist()}>
+                Save as text
+              </button>
+            </div>
+          ) : confirmDiscard ? (
             <div className="discard-banner">
               <IconWarning />
               <span style={{ fontWeight: 600 }}>Discard changes?</span>
@@ -420,6 +516,18 @@ export function EditorOverlay({ clip, timeFormat, getItem, getImage, onSave, onS
                       <div className="t-sec" style={{ marginTop: 6 }}>
                         Text read from the image — edit it below. It stays searchable.
                       </div>
+                      {onReOcr && (
+                        <div style={{ marginTop: 6 }}>
+                          <button
+                            className="btn ghost sm"
+                            onClick={() => void reRead()}
+                            disabled={saving || loading || reReading}
+                            title="Run text recognition again over the stored image"
+                          >
+                            {reReading ? 'Reading…' : 'Re-read text from image'}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
                   <div style={{ fontSize: size, lineHeight: 1.6 }}>
@@ -431,9 +539,11 @@ export function EditorOverlay({ clip, timeFormat, getItem, getImage, onSave, onS
                 <span className="t-meta">
                   {characterCount.toLocaleString()} {characterCount === 1 ? 'character' : 'characters'}
                 </span>
-                <span className="chip">
-                  {formats.length} {formats.length === 1 ? 'format' : 'formats'}
-                </span>
+                {clip.tags.map((id) => (
+                  <span key={id} className="chip tag">
+                    {id}
+                  </span>
+                ))}
                 <span className="spacer" />
                 <span className="t-meta">{dirty ? 'Unsaved changes' : 'Saved to this clip'}</span>
                 <span className="hint editor-foot-hint">

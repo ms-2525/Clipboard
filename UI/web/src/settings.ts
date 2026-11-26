@@ -29,6 +29,8 @@ export interface SettingsPatch {
   theme?: 'light' | 'dark' | 'system'
   timeFormat?: '12h' | '24h'
   maxItems?: number
+  /** Row preview lines (1..20); every non-image row clamps to this many wrapped lines. */
+  previewLines?: number
   showImagesInAll?: boolean
   uiZoom?: number
   hotkey?: string
@@ -52,7 +54,10 @@ export function toSettings(config: HostConfig | null | undefined): HostSettings 
     themeChoice: choice === 'dark' || choice === 'system' || choice === 'light' ? choice : theme,
     timeFormat: config?.timeFormat === '12h' ? '12h' : '24h',
     maxItems: typeof config?.maxItems === 'number' ? config.maxItems : 200,
-    previewLines: typeof config?.previewLines === 'number' ? config.previewLines : 10,
+    previewLines:
+      typeof config?.previewLines === 'number' && Number.isFinite(config.previewLines)
+        ? Math.min(20, Math.max(1, Math.round(config.previewLines)))
+        : 10,
     showImagesInAll: config?.showImagesInAll !== false,
     uiZoom: typeof config?.uiZoom === 'number' ? config.uiZoom : 100,
     hotkey: typeof config?.hotkey === 'string' ? config.hotkey : 'Alt+V',

@@ -77,6 +77,7 @@ const SECTIONS: { id: Section; label: string; icon: React.ComponentType }[] = [
 export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, onZoom, onSave, onClearHistory, onPreviewToast, onStorageUsage, returnFocus }: Props) {
   const [autostart, setAutostart] = useState(settings.startOnLogin)
   const [cap, setCap] = useState(settings.maxItems)
+  const [rowLines, setRowLines] = useState(settings.previewLines)
   const [showImagesInAll, setShowImagesInAll] = useState(settings.showImagesInAll)
   const [lines, setLines] = useState(settings.notification.maxLines)
   const [toastSize, setToastSize] = useState(settings.notification.size ?? 0)
@@ -112,6 +113,7 @@ export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, o
     if (open && !wasOpen.current) {
       setAutostart(settings.startOnLogin)
       setCap(settings.maxItems)
+      setRowLines(settings.previewLines)
       setShowImagesInAll(settings.showImagesInAll)
       setLines(settings.notification.maxLines)
       setToastSize(settings.notification.size ?? 0)
@@ -189,6 +191,7 @@ export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, o
         theme: themeChoice,
         timeFormat,
         maxItems: cap,
+        previewLines: rowLines,
         showImagesInAll,
         uiZoom: settings.uiZoom,
         hotkey,
@@ -407,6 +410,22 @@ export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, o
                             <IconMonitor />
                             System
                           </button>
+                        </div>
+                      </div>
+                      <div className="set-group">
+                        <div className="set-subtitle">Rows</div>
+                        <div className="set-row">
+                          <div className="grow">
+                            <div className="label">Row preview lines</div>
+                            <div className="t-sec">How many wrapped lines each clip shows; images stay fixed.</div>
+                          </div>
+                          <Slider.Root className="slider" min={1} max={20} step={1} value={[rowLines]} onValueChange={([value]) => setRowLines(value)} aria-label="Row preview lines">
+                            <Slider.Track className="slider-track">
+                              <Slider.Range className="slider-range" />
+                            </Slider.Track>
+                            <Slider.Thumb className="slider-thumb" />
+                          </Slider.Root>
+                          <span className="set-value">{rowLines}</span>
                         </div>
                       </div>
                       <div className="set-group">

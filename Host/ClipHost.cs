@@ -153,6 +153,9 @@ namespace Clip.Host
                 case "saveEditor":
                     return SaveEditor(p);
 
+                case "reOcr":
+                    return ReOcr(p);
+
                 case "clearHistory":
                     return ClearHistory(p);
 

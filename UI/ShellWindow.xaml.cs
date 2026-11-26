@@ -155,6 +155,8 @@ namespace Clip.UI
         }
 
         const int WM_ACTIVATE = 0x0006;
+        const int WM_SYSCOMMAND = 0x0112;
+        const int SC_KEYMENU = 0xF100;
 
         IntPtr _shellHwnd;
         DispatcherTimer _foregroundWatch;
@@ -169,6 +171,14 @@ namespace Clip.UI
 
         IntPtr OnWindowMessage(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
         {
+            // Releasing Alt+V lands a bare Alt on this window, which arms the system menu — then Down
+            // opens Restore/Move/Size instead of moving selection. Borderless with no menu bar, so SC_KEYMENU
+            // has no legitimate function; swallow it (Alt+F4/SC_CLOSE still works).
+            if (msg == WM_SYSCOMMAND && ((int)wParam & 0xFFF0) == SC_KEYMENU)
+            {
+                handled = true;
+                return IntPtr.Zero;
+            }
             if (msg == WM_ACTIVATE && (int)wParam != 0 && lParam != IntPtr.Zero && lParam != hwnd)
                 _returnTarget = lParam;
             return IntPtr.Zero;

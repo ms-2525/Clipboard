@@ -65,13 +65,12 @@ namespace Clip.Core
                 }
                 else
                 {
-                    // Bare "foo:" is plain text with no hint; only `tag:foo` names a tag, so only it
-                    // can warn. The bare prefix "tag:" is text, and is not a tag named "tag".
-                    if (!token.Equals("tag:", StringComparison.OrdinalIgnoreCase))
-                    {
-                        if (token.StartsWith("tag:", StringComparison.OrdinalIgnoreCase) && token.Length > 4)
-                            AddUnknown(unknown, token.Substring(4));
-                    }
+                    // Bare "tag:" is an empty filter: it opens the dropdown and shows all rows,
+                    // and is not a tag named "tag".
+                    if (token.Equals("tag:", StringComparison.OrdinalIgnoreCase))
+                        continue;
+                    if (token.StartsWith("tag:", StringComparison.OrdinalIgnoreCase) && token.Length > 4)
+                        AddUnknown(unknown, token.Substring(4));
                     terms.Add(negate ? "-" + token : token);
                 }
             }
@@ -159,7 +158,13 @@ namespace Clip.Core
                     return true;
 
                 case "email":
+                    tag = "email";
+                    return true;
+
                 case "path":
+                    tag = "path";
+                    return true;
+
                 case "color":
                 case "colour":
                     tag = "color";

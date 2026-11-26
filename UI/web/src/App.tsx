@@ -7,7 +7,7 @@ import { MovePicker, moveTargets } from './MoveToTab'
 import { RowMenu } from './RowMenu'
 import { ClipInfo, StorageNotice } from './ClipInfo'
 import { SettingsDialog } from './SettingsDialog'
-import { TagPicker, clearTagTokens, tagToken, TAG_VOCAB } from './TagPicker'
+import { TagPicker, canonicalTag, clearTagTokens, tagToken, TAG_ALIASES, TAG_VOCAB } from './TagPicker'
 import { TabStrip, type StripTab } from './TabStrip'
 import { createHost, messageOf, toSettings, type ClipItem, type HostConfig, type HostSettings, type HostTab, type InitResult, type SaveConfigResult, type SearchResult, type SettingsPatch } from './host'
 import { useClipboardKeys } from './useClipboardKeys'
@@ -63,6 +63,9 @@ function allCountOf(init: InitResult): number {
 const isNotReady = (error: unknown) => /unknown method|not wired|not ready|phase 2/i.test(messageOf(error))
 /** The virtual Images tab's id; never a DB tab id (the store starts at 1). */
 const IMAGES_TAB = -1
+
+/** Cache slot for a tab's last-known unfiltered rows: Inbox is `all`, customs/pinned by id. */
+const cacheKeyOf = (tabId: number | null) => (tabId == null ? 'all' : `tab:${tabId}`)
 
 /** Local calendar day of a row's time: the boundary Ctrl+Up/Down walks. */
 const dayKey = (time: string) => {
@@ -151,6 +154,10 @@ export default function App() {
   const tagReturn = useRef<HTMLElement | null>(null)
   const infoReturn = useRef<HTMLElement | null>(null)
   const storageShown = useRef(false)
+  /** Per-tab last-known unfiltered rows: a switch shows these at once, then refreshes underneath. */
+  const itemsCache = useRef(new Map<string, ClipItem[]>())
+  /** The Images tab's last `tag:image` answer, for the same instant switch. */
+  const imagesFound = useRef<SearchView | null>(null)
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
@@ -192,6 +199,9 @@ export default function App() {
 
   const load = useCallback(() => {
     const seq = ++tabSeq.current
+    // A cleared history wipes every row: cached pages from before it are lies.
+    itemsCache.current.clear()
+    imagesFound.current = null
     setStatus('loading')
     setLoadError('')
     host
@@ -219,6 +229,27 @@ export default function App() {
           .catch(() => {
             // init's first page is already on screen; the deeper read only extends history.
           })
+
+        // Warm the other tabs + Images so the first switch shows cached rows at once
+        // instead of flashing. Same limits as a real switch, so the cache matches it.
+        window.setTimeout(() => {
+          void (async () => {
+            try {
+              for (const entry of result.tabs ?? []) {
+                const key = cacheKeyOf(entry.id)
+                if (itemsCache.current.has(key)) continue
+                const rows = await host.getItems({ tabId: entry.id, offset: 0, limit: 1000 })
+                if (rows.length > 0) itemsCache.current.set(key, rows)
+              }
+              if (!imagesFound.current) {
+                const found = await host.search({ query: 'tag:image', tabId: null, limit: 500 })
+                imagesFound.current = { query: 'tag:image', ...found }
+              }
+            } catch {
+              // Warming fails silently: the switch just fetches as before.
+            }
+          })()
+        }, 600)
       })
       .catch((error) => {
         setLoadError(messageOf(error))
@@ -313,16 +344,26 @@ export default function App() {
       }
       setTab(next)
       setFound(null)
-      // Drop the old tab's rows at once: keeping them until the fetch lands flashes the
-      // previous tab (notably its images) inside the new one.
-      setItems([])
       searchSeq.current++
       // A surviving typed query owns the list: the query effect searches the new tab,
       // so an unfiltered fetch here would flash the wrong rows first.
       if (keepQuery) {
+        // No cache for an arbitrary query+tab: clear so the old tab never shows as the new one.
+        setItems([])
         setSearching(true)
         void refreshTabs()
         return
+      }
+      // Seamless switch: the tab's last-known rows appear at once (no blank flash),
+      // then the fetch below refreshes them underneath.
+      const cached = itemsCache.current.get(cacheKeyOf(next))
+      if (cached) {
+        setItems(cached)
+        setSelectedId((current) => (current != null && cached.some((row) => row.id === current) ? current : cached[0]?.id ?? null))
+      } else {
+        // First visit: nothing to show yet, so the old tab's rows must go now rather
+        // than flash inside the new one.
+        setItems([])
       }
       const seq = ++tabSeq.current
       host
@@ -363,11 +404,17 @@ export default function App() {
   const selectImages = useCallback(() => {
     setImages(true)
     setTab(null)
-    setFound(null)
-    // Same stale-row flash as a tab switch: the Inbox rows (with their images) must go
-    // now, not when the `tag:image` search answers.
-    setItems([])
-    setSearching(true)
+    // Same instant switch as a tab: the last answer shows at once, then the search refreshes it.
+    const cached = imagesFound.current
+    if (!cached) {
+      // Same stale-row flash as a tab switch: the Inbox rows (with their images) must go
+      // now, not when the `tag:image` search answers.
+      setItems([])
+      setFound(null)
+      setSearching(true)
+    } else {
+      setFound(cached)
+    }
     searchSeq.current++
     lastQuery.current = ''
     // Trailing space: the tag is done, so the `tag:` list stays closed.
@@ -405,6 +452,17 @@ export default function App() {
   visibleRef.current = visible
   const itemsRef = useRef(items)
   itemsRef.current = items
+
+  // Write-through caches: every rows update refreshes the current view's last-known page,
+  // so capture / delete / move / reload all stay seamless without touching each path.
+  // Empty pages never overwrite: a genuinely empty tab just fetches again next visit.
+  useEffect(() => {
+    if (images || items.length === 0) return
+    itemsCache.current.set(cacheKeyOf(tab), items)
+  }, [items, images, tab])
+  useEffect(() => {
+    if (found?.query === 'tag:image' && tab === null) imagesFound.current = found
+  }, [found, tab])
 
   useEffect(() => {
     if (selectedId != null && visible.some((clip) => clip.id === selectedId)) return
@@ -468,8 +526,8 @@ export default function App() {
     if (!match) return null
     const frag = match[1]
     const rest = match[2]
-    // A complete `tag:image` followed by space/text is done typing: the list stays closed.
-    if (rest.length > 0 && TAG_VOCAB.includes(frag.toLowerCase())) return null
+    // A complete `tag:image` (or an alias like `tag:excel`) followed by space/text is done: closed.
+    if (rest.length > 0 && canonicalTag(frag) != null) return null
     return frag
   }, [search])
   const suggestOpen = tagFrag != null && searchFocused
@@ -503,20 +561,23 @@ export default function App() {
   const suggestItems = useMemo(() => {
     if (!suggestOpen || tagFrag == null) return []
     const needle = tagFrag.toLowerCase()
-    return TAG_VOCAB.filter((name) => name.startsWith(needle)).filter(
-      (name) => (tagCounts ? (tagCounts[name] ?? 0) > 0 : true),
-    )
+    // An alias fragment surfaces its canonical tag: `tag:exc` shows `spreadsheet`.
+    return TAG_VOCAB.filter(
+      (name) =>
+        name.startsWith(needle) ||
+        Object.keys(TAG_ALIASES).some((alias) => TAG_ALIASES[alias] === name && alias.startsWith(needle)),
+    ).filter((name) => (tagCounts ? (tagCounts[name] ?? 0) > 0 : true))
   }, [suggestOpen, tagFrag, tagCounts])
   useEffect(() => {
     setSuggestIndex((current) => Math.min(current, Math.max(0, suggestItems.length - 1)))
   }, [suggestItems.length])
-  /** Plain words of the query (no `tag:` filter): what the rows highlight. */
+  /** Plain words of the query (no `tag:` filter, negated or not): what the rows highlight. */
   const highlight = useMemo(
     () =>
       search
         .split(/\s+/)
-        .filter((word) => word && !/^tag:[A-Za-z0-9_-]*$/i.test(word) && word.toLowerCase() !== 'tag:')
         .map((word) => word.replace(/^-/, ''))
+        .filter((word) => word && !/^tag:[A-Za-z0-9_-]*$/i.test(word) && word.toLowerCase() !== 'tag:')
         .filter((word) => word.length > 0),
     [search],
   )
@@ -1363,6 +1424,7 @@ export default function App() {
               emptyTitle={emptyTitle}
               emptySub={emptySub}
               highlight={highlight}
+              maxLines={settings.previewLines}
             />
           )}
 
@@ -1511,6 +1573,7 @@ export default function App() {
           onSave={(html, text) => host.saveEditor({ id: selected.id, html, text })}
           onSaveAs={(format) => saveClip(selected, format)}
           onOpenInApp={() => openInApp(selected)}
+          onReOcr={selected.kind === 'image' ? () => host.reOcr({ id: selected.id }) : undefined}
           onSaved={() => {
             // The row is still mounted with the pre-edit body; drop it before the reload.
             forgetBody(selected.id)

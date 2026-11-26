@@ -171,12 +171,14 @@ DELETE FROM item_formats WHERE item_id = $id";
             using var cmd = _conn.CreateCommand();
             cmd.Transaction = tx;
             // The old format blobs no longer match the edited body, so drop them rather than paste stale content.
+            // A files row becomes text: FileDrop is gone, so the row must stop claiming file paste.
             cmd.CommandText = @"
-UPDATE items SET text = $text, html = $html, rtf = $rtf, captured_at = $at WHERE id = $id;
+UPDATE items SET text = $text, html = $html, rtf = $rtf, kind = $kind, captured_at = $at WHERE id = $id;
 DELETE FROM item_formats WHERE item_id = $id";
             cmd.Parameters.AddWithValue("$text", (object)it.Text ?? DBNull.Value);
             cmd.Parameters.AddWithValue("$html", (object)it.Html ?? DBNull.Value);
             cmd.Parameters.AddWithValue("$rtf", (object)it.Rtf ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("$kind", (object)it.Kind ?? DBNull.Value);
             cmd.Parameters.AddWithValue("$at", now);
             cmd.Parameters.AddWithValue("$id", it.Id);
             cmd.ExecuteNonQuery();
@@ -186,6 +188,20 @@ DELETE FROM item_formats WHERE item_id = $id";
             return true;
         }
 
+        /// <summary>
+        /// Re-OCR overwrite: the user asked for a fresh read, so it replaces even text they edited.
+        /// Unlike <see cref="SetOcrText"/> there is no NULL guard — the button click is the consent.
+        /// Only an image row is touched, so it can never overwrite a text clip.
+        /// </summary>
+        public bool OverwriteOcrText(long id, string text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return false;
+            using var cmd = _conn.CreateCommand();
+            cmd.CommandText = "UPDATE items SET text = $text WHERE id = $id AND kind = 'image'";
+            cmd.Parameters.AddWithValue("$text", text);
+            cmd.Parameters.AddWithValue("$id", id);
+            return cmd.ExecuteNonQuery() == 1;
+        }
         /// <summary>
         /// The OCR write path: the recognised text becomes an image row's body so search finds the picture.
         /// Deliberately not <see cref="Update"/> — that guard exists to stop a <see cref="PreviewChars"/>-char

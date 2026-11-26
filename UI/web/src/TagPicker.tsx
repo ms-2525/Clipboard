@@ -23,7 +23,23 @@ export const TAG_VOCAB = [
   'shell', 'sql', 'spreadsheet', 'typescript', 'xml',
 ]
 
-/** Host grammar: `tag:name` (case-insensitive); `tag:` alone is text, never a filter. */
+/** Alias a `tag:` fragment may use for a canonical id. Mirrors Core\ClipSearch.TryCanonical. */
+export const TAG_ALIASES: Record<string, string> = {
+  excel: 'spreadsheet', sheet: 'spreadsheet', xls: 'spreadsheet', csv: 'spreadsheet',
+  img: 'image', pic: 'image', photo: 'image', screenshot: 'image',
+  file: 'files', attachment: 'files',
+  url: 'link', website: 'link',
+  colour: 'color',
+  powershell: 'shell', bash: 'shell', sh: 'shell',
+}
+
+/** The canonical id a `tag:` fragment names, or null when it names nothing. */
+export function canonicalTag(frag: string): string | null {
+  const lower = frag.toLowerCase()
+  if ((TAG_VOCAB as readonly string[]).includes(lower)) return lower
+  return TAG_ALIASES[lower] ?? null
+}
+/** Host grammar: `tag:name` (case-insensitive); `tag:` alone is an empty filter. */
 const isTagToken = (word: string) => /^tag:[A-Za-z][A-Za-z0-9_-]*$/i.test(word)
 
 /** Tag filters already in the query; a negated `-foo:` counts, a drive `C:` does not. */

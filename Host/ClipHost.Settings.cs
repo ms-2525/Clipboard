@@ -85,11 +85,13 @@ namespace Clip.Host
             string theme = Choice(patch, "theme", null, "light", "dark", "system");
             string timeFormat = Choice(patch, "timeFormat", null, "12h", "24h");
             int? maxItems = IntOrNull(patch, "maxItems");
+            int? previewLines = IntOrNull(patch, "previewLines");
             int? zoom = IntOrNull(patch, "uiZoom");
             string hotkey = String(patch, "hotkey");
             bool? startOnLogin = BoolOrNull(patch, "startOnLogin");
             bool? showImagesInAll = BoolOrNull(patch, "showImagesInAll");
             if (maxItems.HasValue) maxItems = Math.Clamp(maxItems.Value, 20, 10_000);
+            if (previewLines.HasValue) previewLines = Math.Clamp(previewLines.Value, 1, 20);
             if (zoom.HasValue) zoom = Math.Clamp(zoom.Value, ZoomMin, ZoomMax);
             if (hotkey != null && !IsHotkey(hotkey))
                 throw new ArgumentException("\"" + hotkey + "\" is not a key combination. Use at least one modifier and a key.");
@@ -111,6 +113,7 @@ namespace Clip.Host
                 (System.Windows.Application.Current as Clip.App)?.ApplyThemeFromSettings(theme);
             }
             if (maxItems.HasValue) _cfg.MaxItems = maxItems.Value;
+            if (previewLines.HasValue) _cfg.PreviewLines = previewLines.Value;
             if (showImagesInAll.HasValue) _cfg.ShowImagesInAll = showImagesInAll.Value;
             if (timeFormat != null)
             {
@@ -272,6 +275,15 @@ namespace Clip.Host
             item.Text = (text ?? "").TrimEnd('\r', '\n');
             item.Html = HtmlFragment.Wrap(html);
             item.Rtf = null; // the old RTF no longer describes the edited body
+            // An edited grid keeps its cells: CSV export, the tag and the list all follow the kind,
+            // not the Biff blobs (dropped below as stale). A grid needs both halves — TSV text and
+            // a real table — so typed tabs or a lone table alone never mint a spreadsheet.
+            bool isGrid = text.IndexOf('\t') >= 0
+                && html.IndexOf("<table", StringComparison.OrdinalIgnoreCase) >= 0;
+            if (isGrid)
+                item.Kind = "sheet";
+            else if (string.Equals(item.Kind, "files", StringComparison.OrdinalIgnoreCase))
+                item.Kind = "text"; // file paste is gone with the format blobs; the row is now plain text
             if (!_store.Update(item))
                 return new { saved = false, error = "The clip could not be saved. Nothing was written." };
 
@@ -282,6 +294,41 @@ namespace Clip.Host
                 if (dto != null) Emit("edited", dto);
             });
             return new { saved = true, htmlLength = length };
+        }
+
+        /// <summary>
+        /// The image editor's "Re-read text": runs Windows OCR over the stored PNG and replaces the
+        /// row's text, even when the user edited it (the click is the consent). Image, formats and kind
+        /// are untouched, so paste and export keep working; only the searchable text changes.
+        /// </summary>
+        object ReOcr(JsonElement p)
+        {
+            long id = Long(p, "id");
+            var stored = _store.GetImage(id);
+            if (stored == null) throw new ArgumentException("no clip with id " + id);
+            if (!string.Equals(stored.Kind, "image", StringComparison.OrdinalIgnoreCase) || stored.Image == null)
+                throw new InvalidOperationException("Only an image clip can be re-read.");
+            OcrResult result;
+            using (var ocr = new OcrService())
+                result = ocr.TryRead(stored.Image);
+            switch (result.Status)
+            {
+                case OcrStatus.Ok:
+                    if (!_store.OverwriteOcrText(id, result.Text))
+                        throw new InvalidOperationException("That clip no longer exists.");
+                    OnUi(() =>
+                    {
+                        var dto = ReadDto(_dbPath, id, _pinnedTabId);
+                        if (dto != null) Emit("edited", dto);
+                    });
+                    return new { text = result.Text, words = result.Words };
+                case OcrStatus.NoText:
+                    throw new InvalidOperationException("No text found in this image.");
+                case OcrStatus.LanguageNotAvailable:
+                    throw new InvalidOperationException("No text-recognition language is installed on this PC.");
+                default:
+                    throw new InvalidOperationException("Text recognition failed for this image.");
+            }
         }
 
         // ---- storage usage ---------------------------------------------------------------

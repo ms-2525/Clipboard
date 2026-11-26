@@ -39,6 +39,8 @@ interface Props {
   emptySub: string
   /** Plain query words (no `tag:` filter): what plain row text highlights. */
   highlight?: string[]
+  /** Row preview lines (1..20): every non-image row clamps to this many wrapped lines. */
+  maxLines?: number
 }
 
 /** PageUp/PageDown must move by what is actually on screen, which only the list knows. */
@@ -115,7 +117,7 @@ function FullImage({
 }
 
 export const ClipList = forwardRef<ClipListHandle, Props>(function ClipList(
-  { clips, selectedId, selectedIds, timeFormat, hidePins, showGroups, onSelect, onCopy, onContextMenu, onTag, getThumb, getImage, getItem, emptyTitle, emptySub, highlight },
+  { clips, selectedId, selectedIds, timeFormat, hidePins, showGroups, onSelect, onCopy, onContextMenu, onTag, getThumb, getImage, getItem, emptyTitle, emptySub, highlight, maxLines },
   ref,
 ) {
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -311,6 +313,10 @@ export const ClipList = forwardRef<ClipListHandle, Props>(function ClipList(
               const shownTags = tags.slice(0, richOnly ? 1 : 2)
               const hiddenTags = tags.length - shownTags.length
               const extra = clip.truncated ? Math.max(0, clip.remainingChars) : 0
+              // shortcut: source lines (split on \n), not wrapped visual lines; upgrade when the row measures overflow.
+              const linesCap = Math.min(20, Math.max(1, Math.round(maxLines ?? 9)))
+              const previewLines = clip.kind === 'files' || clip.hasImage || !clip.text ? 0 : clip.text.split(/\r\n|\r|\n/).length
+              const hiddenLines = Math.max(0, previewLines - linesCap)
               const bucket = buckets[v.index]
               const showSep = !!showGroups && !!bucket && (v.index === 0 || buckets[v.index - 1] !== bucket)
               return (
@@ -362,7 +368,7 @@ export const ClipList = forwardRef<ClipListHandle, Props>(function ClipList(
                       {clip.hasImage ? (
                         <FullImage id={clip.id} title={clip.title || 'Image'} getImage={getImage} getThumb={getThumb} />
                       ) : (
-                        <RowBody clip={clip} getItem={getItem} highlight={highlight} />
+                        <RowBody clip={clip} getItem={getItem} highlight={highlight} maxLines={maxLines} />
                       )}
                     </div>
                     <div className="row-prov">
@@ -402,11 +408,25 @@ export const ClipList = forwardRef<ClipListHandle, Props>(function ClipList(
                           <span className="chip-unit"> {hiddenTags === 1 ? 'tag' : 'tags'}</span>
                         </span>
                       )}
-                      {extra > 0 && (
-                        <span className="chip facts-chip" title={`${clip.remainingChars.toLocaleString()} more characters`}>
+                      {extra > 0 ? (
+                        <span
+                          className="chip facts-chip"
+                          title={
+                            hiddenLines > 0
+                              ? `${clip.remainingChars.toLocaleString()} more characters, at least ${hiddenLines.toLocaleString()} more ${hiddenLines === 1 ? 'line' : 'lines'}`
+                              : `${clip.remainingChars.toLocaleString()} more characters`
+                          }
+                        >
                           +{compact(extra)}
-                          <span className="chip-unit"> chars</span>
+                          <span className="chip-unit"> chars{hiddenLines > 0 ? ` (${hiddenLines}+ ${hiddenLines === 1 ? 'line' : 'lines'})` : ''}</span>
                         </span>
+                      ) : (
+                        hiddenLines > 0 && (
+                          <span className="chip facts-chip" title={`${hiddenLines.toLocaleString()} more ${hiddenLines === 1 ? 'line' : 'lines'} (row shows ${linesCap})`}>
+                            +{hiddenLines.toLocaleString()}
+                            <span className="chip-unit"> {hiddenLines === 1 ? 'line' : 'lines'}</span>
+                          </span>
+                        )
                       )}
                     </div>
                   </div>

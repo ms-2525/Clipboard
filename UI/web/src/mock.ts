@@ -128,9 +128,10 @@ export function createMockHost(): Host {
 
   const match = (query: string, tabId: number | null): SearchResult => {
     const tags: string[] = []
-    const terms: string[] = []
+    const excludeTags: string[] = []
+    const terms: { text: string; negated: boolean }[] = []
     const unknownTags: string[] = []
-    const addTag = (name: string): boolean => {
+    const addTag = (name: string, negated: boolean): boolean => {
       // Mirrors Core\ClipSearch.TryCanonical (colour/powershell/bash/sh aliases included).
       const alias =
         name === 'excel' || name === 'sheet' || name === 'xls' || name === 'csv'
@@ -147,39 +148,45 @@ export function createMockHost(): Host {
                     ? 'shell'
                     : name
       if (!KNOWN_TAGS.has(alias) && alias !== 'code') return false
-      tags.push(alias)
+      ;(negated ? excludeTags : tags).push(alias)
       return true
     }
     for (const token of query.trim().toLowerCase().split(/\s+/)) {
       if (!token) continue
-      // The bare prefix is text, not a tag named "tag".
-      if (token === 'tag:') {
-        terms.push(token)
+      // A leading '-' negates, mirroring Core\ClipSearch.Parse.
+      const negated = token.startsWith('-') && token.length > 1
+      const raw = negated ? token.slice(1) : token
+      // The bare prefix is an empty filter (shows all), not a tag named "tag".
+      if (raw === 'tag:') {
         continue
       }
       // `tag:image` is the only filter syntax; a bare `image:` is plain text.
-      const explicit = /^tag:([a-z0-9-]+)$/.exec(token)
+      const explicit = /^tag:([a-z0-9-]+)$/.exec(raw)
       if (explicit) {
-        if (!addTag(explicit[1])) {
-          unknownTags.push(explicit[1])
-          terms.push(token)
+        if (!addTag(explicit[1], negated)) {
+          if (!unknownTags.includes(explicit[1])) unknownTags.push(explicit[1])
+          terms.push({ text: raw, negated })
         }
         continue
       }
-      terms.push(token)
+      terms.push({ text: raw, negated })
     }
+    const hasTag = (clip: ClipItem, tag: string) =>
+      tag === 'code'
+        ? clip.tags.some((t) => LANGUAGES.includes(t))
+        : clip.tags.includes(tag)
     const rows = clips.filter((clip) => {
       if (clip.tabId !== tabId) return false
-      if (tags.some((tag) => tag === 'code'
-        ? !clip.tags.some((t) => LANGUAGES.includes(t))
-        : !clip.tags.includes(tag))) return false
-      return terms.every(
-        (term) =>
-          clip.title.toLowerCase().includes(term) ||
-          clip.text.toLowerCase().includes(term) ||
-          clip.app.toLowerCase().includes(term) ||
-          clip.formats.some((format) => format.toLowerCase().includes(term)),
-      )
+      if (tags.some((tag) => !hasTag(clip, tag))) return false
+      if (excludeTags.some((tag) => hasTag(clip, tag))) return false
+      return terms.every(({ text, negated }) => {
+        const found =
+          clip.title.toLowerCase().includes(text) ||
+          clip.text.toLowerCase().includes(text) ||
+          clip.app.toLowerCase().includes(text) ||
+          clip.formats.some((format) => format.toLowerCase().includes(text))
+        return found !== negated
+      })
     })
     return { total: rows.length, items: rows.slice(0, 500), unknownTags }
   }
@@ -352,10 +359,27 @@ export function createMockHost(): Host {
       if (/<script/i.test(html)) return wait({ saved: false, error: 'The clip contains a script, so it was not saved.' })
       const body = realBodies.get(id)
       if (body) realBodies.set(id, { ...body, html, text, formats: [] })
-      clips = clips.map((entry) => (entry.id === id ? { ...entry, text: text.slice(0, 1200), hasHtml: true, hasRtf: false, formats: [] } : entry))
+      // Same rule as the host's SaveEditor: a saved grid keeps spreadsheet-ness via the kind.
+      const isGrid = text.includes('\t') && /<table/i.test(html)
+      const kind = isGrid ? 'sheet' : clip.kind === 'files' ? 'text' : clip.kind
+      clips = clips.map((entry) =>
+        entry.id === id
+          ? { ...entry, kind, text: text.slice(0, 1200), hasHtml: true, hasRtf: false, formats: [], tags: isGrid ? ['spreadsheet'] : [] }
+          : entry,
+      )
       const dto = clips.find((entry) => entry.id === id)!
       emit({ event: 'edited', data: dto })
       return wait({ saved: true, htmlLength: html.length + 200 })
+    },
+    reOcr: async ({ id }) => {
+      const clip = clips.find((entry) => entry.id === id)
+      if (!clip || (clip.kind !== 'image' && !clip.hasImage)) throw new Error('Only an image clip can be re-read.')
+      const text = realBodies.get(id)?.text || clip.text
+      if (!text.trim()) throw new Error('No text found in this image.')
+      clips = clips.map((entry) => (entry.id === id ? { ...entry, text: text.slice(0, 1200) } : entry))
+      const dto = clips.find((entry) => entry.id === id)!
+      emit({ event: 'edited', data: dto })
+      return wait({ text, words: text.split(/\s+/).filter(Boolean).length })
     },
     clearHistory: async () => {
       clips = clips.filter((clip) => clip.tabId !== null)

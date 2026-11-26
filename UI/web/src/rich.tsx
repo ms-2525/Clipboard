@@ -301,7 +301,10 @@ export function clearTitle(e: ReactMouseEvent<HTMLElement>): void {
 }
 
 /** The row body: rich HTML when the clip has a safe body, plain preview until it arrives. */
-export function RowBody({ clip, getItem, highlight }: { clip: ClipItem; getItem: GetItem; highlight?: string[] }) {  const rich = isRich(clip)
+export function RowBody({ clip, getItem, highlight, maxLines }: { clip: ClipItem; getItem: GetItem; highlight?: string[]; maxLines?: number }) {
+  // 9 lines = 9 wrapped visual lines of this clip's body in its row (not 9 rows in the window).
+  const lines = Math.min(20, Math.max(1, Math.round(maxLines ?? 9)))
+  const rich = isRich(clip)
   const [body, setBody] = useState<ClipBody | null | undefined>(() => (rich ? bodyCache.get(clip.id) : undefined))
   const [recall, setRecall] = useState(0)
 
@@ -339,9 +342,11 @@ export function RowBody({ clip, getItem, highlight }: { clip: ClipItem; getItem:
 
   if (clip.kind === 'files') {
     const paths = pathsOf(clip.text)
+    // Same ceiling as every other row: N paths, or N-1 + the chip (= N lines).
+    const shown = paths.length > lines ? paths.slice(0, Math.max(1, lines - 1)) : paths.slice(0, lines)
     return (
-      <div className="row-text row-files" data-full={title} onMouseEnter={overflowTitle} onMouseLeave={clearTitle}>
-        {paths.slice(0, 2).map((path, index) => {
+      <div className="row-text row-files" style={{ maxHeight: lines * 18 }} data-full={title} onMouseEnter={overflowTitle} onMouseLeave={clearTitle}>
+        {shown.map((path, index) => {
           const cut = Math.max(path.lastIndexOf('\\'), path.lastIndexOf('/'))
           return (
             <span className="file-path" key={`${index}:${path}`} data-full={path} onMouseEnter={overflowTitle} onMouseLeave={clearTitle}>
@@ -350,10 +355,10 @@ export function RowBody({ clip, getItem, highlight }: { clip: ClipItem; getItem:
             </span>
           )
         })}
-        {paths.length > 2 && (
-          <span className="chip" title={`${paths.length - 2} more ${paths.length - 2 === 1 ? 'file' : 'files'}: ${paths.slice(2).join('\n')}`}>
-            +{paths.length - 2}
-            <span className="chip-unit"> {paths.length - 2 === 1 ? 'file' : 'files'}</span>
+        {paths.length > shown.length && (
+          <span className="chip" title={`${paths.length - shown.length} more ${paths.length - shown.length === 1 ? 'file' : 'files'}: ${paths.slice(shown.length).join('\n')}`}>
+            +{paths.length - shown.length}
+            <span className="chip-unit"> {paths.length - shown.length === 1 ? 'file' : 'files'}</span>
           </span>
         )}
       </div>
@@ -367,7 +372,7 @@ export function RowBody({ clip, getItem, highlight }: { clip: ClipItem; getItem:
     return (
       <div className="row-ocr">
         {words && <div className="ocr-mark">Text read from image</div>}
-        <div className={'row-text' + (words ? '' : ' ocr-none')} data-full={title} onMouseEnter={overflowTitle} onMouseLeave={clearTitle}>
+        <div className={'row-text' + (words ? '' : ' ocr-none')} style={{ WebkitLineClamp: lines }} data-full={title} onMouseEnter={overflowTitle} onMouseLeave={clearTitle}>
           {words ? highlightParts(words, highlight) : 'No text found in this image'}
         </div>
       </div>
@@ -375,7 +380,7 @@ export function RowBody({ clip, getItem, highlight }: { clip: ClipItem; getItem:
   }
 
   if (rich && safe) {
-    return <div className="row-text clip-rich" data-full={title} onMouseEnter={overflowTitle} onMouseLeave={clearTitle} dangerouslySetInnerHTML={{ __html: safe }} />
+    return <div className="row-text clip-rich" style={{ maxHeight: lines * 20 }} data-full={title} onMouseEnter={overflowTitle} onMouseLeave={clearTitle} dangerouslySetInnerHTML={{ __html: safe }} />
   }
-  return <div className="row-text" data-full={title} onMouseEnter={overflowTitle} onMouseLeave={clearTitle}>{highlightParts(plain, highlight)}</div>
+  return <div className="row-text" style={{ WebkitLineClamp: lines }} data-full={title} onMouseEnter={overflowTitle} onMouseLeave={clearTitle}>{highlightParts(plain, highlight)}</div>
 }
