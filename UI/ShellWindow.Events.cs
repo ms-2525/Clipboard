@@ -43,14 +43,18 @@ namespace Clip.UI
             ShowActivated = false;
             ShowInTaskbar = false;
             Opacity = 0;
-            Show();
-            // A hosted HWND (WebView2) ignores WPF Opacity, so an opacity-0 warm window still
-            // paints as an opaque box until the first frame hides it. Park it offscreen instead;
-            // EndWarm restores the centered position from the first Show.
-            _warmLeft = Left;
-            _warmTop = Top;
+            // Park BEFORE the first Show, not after: Show-then-move loses a DWM race on slow
+            // cold starts (single-file extraction) and flashes one black centered frame. The
+            // centered show position is computed up front, never shown-then-stashed.
+            var screen = System.Windows.Forms.Screen.FromPoint(System.Windows.Forms.Cursor.Position);
+            double scale = ScreenDpi.Scale(screen);
+            var wa = screen.WorkingArea;
+            _warmLeft = wa.Left / scale + (wa.Width / scale - Width) / 2;
+            _warmTop = wa.Top / scale + (wa.Height / scale - Height) / 2;
+            WindowStartupLocation = WindowStartupLocation.Manual;
             Left = -32000;
             Top = -32000;
+            Show();
         }
 
         internal void Toggle()
