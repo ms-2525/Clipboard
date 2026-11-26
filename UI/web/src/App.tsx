@@ -924,9 +924,8 @@ export default function App() {
     }
   }, [host, showToast])
 
-  const confirmDelete = useCallback(async () => {
-    const clips = confirm
-    if (!clips || clips.length === 0) return
+  const deleteClips = useCallback(async (clips: ClipItem[]) => {
+    if (clips.length === 0) return
     setConfirm(null)
     const rows = visibleRef.current
     const ids = new Set(clips.map((clip) => clip.id))
@@ -952,7 +951,12 @@ export default function App() {
       lastDeleted.current = null
       showToast(isNotReady(error) ? 'Delete not ready yet' : 'Delete failed', messageOf(error), true)
     }
-  }, [confirm, host, showToast])
+  }, [host, showToast])
+
+  /** The dialog only opens for many clips; confirming deletes whatever it holds. */
+  const confirmDelete = useCallback(() => {
+    if (confirm) void deleteClips(confirm)
+  }, [confirm, deleteClips])
 
   /** Programmatic filters (a chip or Ctrl+T) replace the query; only typed text survives a tab change. */
   const filterByTag = useCallback(
@@ -1053,9 +1057,14 @@ export default function App() {
     onDelete: () => {
       if (!selected) return
       // Delete acts on the whole Shift+Up/Down range; every other action uses the cursor row.
+      // One clip deletes at once; many ask first.
       const ids = selectedIds.length > 1 ? new Set(selectedIds) : null
       const clips = ids ? visible.filter((row) => ids.has(row.id)) : [selected]
       if (clips.length === 0) return
+      if (clips.length === 1) {
+        void deleteClips(clips)
+        return
+      }
       confirmReturn.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
       setConfirm(clips)
     },
@@ -1511,8 +1520,7 @@ export default function App() {
           onDelete={() => {
             const clip = rowMenu.clip
             setRowMenu(null)
-            confirmReturn.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
-            setConfirm([clip])
+            void deleteClips([clip])
           }}
           onOpenDefault={() => {
             const clip = rowMenu.clip

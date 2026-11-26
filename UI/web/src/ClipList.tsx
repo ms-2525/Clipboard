@@ -3,7 +3,7 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import type { ClipBody, ClipItem } from './host'
 import { formatStamp, dateBucket, type TimeFormat } from './format'
 import { IconPin } from './icons'
-import { isRich, loadBody, overflowTitle, clearTitle, RowBody } from './rich'
+import { isRich, loadBody, overflowTitle, clearTitle, RowBody, pathsOf } from './rich'
 
 const imageCache = new Map<number, string | null>()
 const IMAGE_MAX = 50
@@ -317,6 +317,9 @@ export const ClipList = forwardRef<ClipListHandle, Props>(function ClipList(
               const linesCap = Math.min(20, Math.max(1, Math.round(maxLines ?? 9)))
               const previewLines = clip.kind === 'files' || clip.hasImage || !clip.text ? 0 : clip.text.split(/\r\n|\r|\n/).length
               const hiddenLines = Math.max(0, previewLines - linesCap)
+              // File rows show a full `linesCap` paths; the overflow count lives in the footer.
+              const filePaths = clip.kind === 'files' && clip.text ? pathsOf(clip.text) : []
+              const hiddenFiles = Math.max(0, filePaths.length - linesCap)
               const bucket = buckets[v.index]
               const showSep = !!showGroups && !!bucket && (v.index === 0 || buckets[v.index - 1] !== bucket)
               return (
@@ -406,6 +409,12 @@ export const ClipList = forwardRef<ClipListHandle, Props>(function ClipList(
                         <span className="chip" title={`${hiddenTags} more ${hiddenTags === 1 ? 'tag' : 'tags'}: ${tags.slice(shownTags.length).join(', ')}`}>
                           +{hiddenTags}
                           <span className="chip-unit"> {hiddenTags === 1 ? 'tag' : 'tags'}</span>
+                        </span>
+                      )}
+                      {hiddenFiles > 0 && (
+                        <span className="chip" title={`${hiddenFiles} more ${hiddenFiles === 1 ? 'file' : 'files'}: ${filePaths.slice(linesCap).join('\n')}`}>
+                          +{hiddenFiles}
+                          <span className="chip-unit"> {hiddenFiles === 1 ? 'file' : 'files'}</span>
                         </span>
                       )}
                       {extra > 0 ? (

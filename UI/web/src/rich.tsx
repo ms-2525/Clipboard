@@ -342,8 +342,8 @@ export function RowBody({ clip, getItem, highlight, maxLines }: { clip: ClipItem
 
   if (clip.kind === 'files') {
     const paths = pathsOf(clip.text)
-    // Same ceiling as every other row: N paths, or N-1 + the chip (= N lines).
-    const shown = paths.length > lines ? paths.slice(0, Math.max(1, lines - 1)) : paths.slice(0, lines)
+    // The footer carries the overflow count; the body shows a full `lines` paths.
+    const shown = paths.slice(0, lines)
     return (
       <div className="row-text row-files" style={{ maxHeight: lines * 18 }} data-full={title} onMouseEnter={overflowTitle} onMouseLeave={clearTitle}>
         {shown.map((path, index) => {
@@ -355,12 +355,6 @@ export function RowBody({ clip, getItem, highlight, maxLines }: { clip: ClipItem
             </span>
           )
         })}
-        {paths.length > shown.length && (
-          <span className="chip" title={`${paths.length - shown.length} more ${paths.length - shown.length === 1 ? 'file' : 'files'}: ${paths.slice(shown.length).join('\n')}`}>
-            +{paths.length - shown.length}
-            <span className="chip-unit"> {paths.length - shown.length === 1 ? 'file' : 'files'}</span>
-          </span>
-        )}
       </div>
     )
   }
