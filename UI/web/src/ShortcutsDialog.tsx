@@ -1,28 +1,15 @@
-import * as Dialog from '@radix-ui/react-dialog'
-import type { RefObject } from 'react'
-import { IconClose } from './icons'
-
-interface Props {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  /** The live global bindings, not hardcoded guesses. */
-  openHotkey: string
-  plainHotkey: string
-  returnFocus?: RefObject<HTMLElement | null>
-}
-
 interface Entry {
   combo: string
   label: string
 }
 
-interface Section {
+export interface ShortcutSection {
   title: string
   entries: Entry[]
 }
 
 /** The whole key matrix in one place: useClipboardKeys + App zoom + editor + pickers. */
-function sections(openHotkey: string, plainHotkey: string): Section[] {
+export function shortcutSections(openHotkey: string, plainHotkey: string): ShortcutSection[] {
   return [
     {
       title: 'Global',
@@ -89,7 +76,7 @@ function sections(openHotkey: string, plainHotkey: string): Section[] {
   ]
 }
 
-function Combo({ combo }: { combo: string }) {
+export function ShortcutCombo({ combo }: { combo: string }) {
   return (
     <span className="keycaps" style={{ justifyContent: 'flex-end', flexShrink: 0 }}>
       {combo.split(' ').map((word, index) => (
@@ -102,71 +89,5 @@ function Combo({ combo }: { combo: string }) {
         </span>
       ))}
     </span>
-  )
-}
-
-export function ShortcutsDialog({ open, onOpenChange, openHotkey, plainHotkey, returnFocus }: Props) {
-  return (
-    <Dialog.Root open={open} onOpenChange={onOpenChange}>
-      <Dialog.Portal>
-        <Dialog.Overlay className="overlay" />
-        <Dialog.Content
-          className="dialog"
-          style={{ width: 440 }}
-          aria-describedby="shortcuts-desc"
-          aria-modal="true"
-          onEscapeKeyDown={(event) => {
-            event.stopPropagation()
-          }}
-          onCloseAutoFocus={(event) => {
-            event.preventDefault()
-            returnFocus?.current?.focus()
-          }}
-        >
-          <div className="dialog-head">
-            <div className="grow">
-              <Dialog.Title className="t-title" style={{ margin: 0 }}>
-                Keyboard shortcuts
-              </Dialog.Title>
-              <Dialog.Description id="shortcuts-desc" className="t-sec" style={{ marginTop: 2 }}>
-                Everything Clip answers to, in one place.
-              </Dialog.Description>
-            </div>
-            <Dialog.Close asChild>
-              <button className="icon-btn ghost" aria-label="Close shortcuts">
-                <IconClose />
-              </button>
-            </Dialog.Close>
-          </div>
-
-          <div className="dialog-body-wrap">
-            <div className="dialog-body">
-              {sections(openHotkey, plainHotkey).map((section) => (
-                <div className="set-group" key={section.title}>
-                  <div className="t-micro">{section.title}</div>
-                  {section.entries.map((entry) => (
-                    <div className="set-row" key={entry.combo + entry.label}>
-                      <div className="grow">
-                        <div className="label" style={{ fontWeight: 400 }}>
-                          {entry.label}
-                        </div>
-                      </div>
-                      <Combo combo={entry.combo} />
-                    </div>
-                  ))}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="dialog-foot">
-            <span className="t-meta grow">Esc close</span>
-            <Dialog.Close asChild>
-              <button className="btn">Done</button>
-            </Dialog.Close>
-          </div>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
   )
 }

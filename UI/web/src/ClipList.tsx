@@ -314,7 +314,7 @@ export const ClipList = forwardRef<ClipListHandle, Props>(function ClipList(
               const hiddenTags = tags.length - shownTags.length
               const extra = clip.truncated ? Math.max(0, clip.remainingChars) : 0
               // shortcut: source lines (split on \n), not wrapped visual lines; upgrade when the row measures overflow.
-              const linesCap = Math.min(20, Math.max(1, Math.round(maxLines ?? 9)))
+              const linesCap = Math.min(20, Math.max(1, Math.round(maxLines ?? 10)))
               const previewLines = clip.kind === 'files' || clip.hasImage || !clip.text ? 0 : clip.text.split(/\r\n|\r|\n/).length
               const hiddenLines = Math.max(0, previewLines - linesCap)
               // File rows show a full `linesCap` paths; the overflow count lives in the footer.
@@ -383,7 +383,6 @@ export const ClipList = forwardRef<ClipListHandle, Props>(function ClipList(
                         )}
                         <span className="prov-app">{clip.app}</span> · {clip.title}
                       </span>
-                      <span className="prov-time">{formatStamp(clip.time, timeFormat)}</span>
                       {richOnly && (
                         <span className="chip" title="Rich text (RTF) — the list shows its plain text">
                           Rich text
@@ -437,6 +436,7 @@ export const ClipList = forwardRef<ClipListHandle, Props>(function ClipList(
                           </span>
                         )
                       )}
+                      <span className="prov-time">{formatStamp(clip.time, timeFormat)}</span>
                     </div>
                   </div>
                   </div>

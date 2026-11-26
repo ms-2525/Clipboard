@@ -200,7 +200,7 @@ export function createMockHost(): Host {
       },
       tabs: withCounts(),
       config: settings,
-      items: mainHistory().slice(0, Math.min(200, settings.maxItems)),
+      items: mainHistory().slice(0, settings.maxItems),
     }),
     getItems: async ({ tabId = null, offset = 0, limit = 1000, query = '' }: ItemsQuery = {}) => {
       const needle = query.trim().toLowerCase()
@@ -342,11 +342,13 @@ export function createMockHost(): Host {
         themeChoice: patch.theme ?? settings.themeChoice,
         timeFormat: patch.timeFormat ?? settings.timeFormat,
       }
-      // The one conflict the real host can answer: the plain-paste chord, which the fixture reserves.
-      if (patch.hotkey && patch.hotkey.toUpperCase() === 'CTRL+SHIFT+V') {
-        settings = next
-        emit({ event: 'settingsSaved', data: settings })
+      // Either global chord can conflict, like the host: the losing chord keeps its working binding.
+      const nextPlain = patch.hotkeyPlain ?? settings.hotkeyPlain
+      if (patch.hotkey && patch.hotkey.toUpperCase() === nextPlain.toUpperCase()) {
         return wait({ config: settings, hotkeyError: `Could not register ${patch.hotkey}. Another app may own it; kept ${settings.hotkey}.` })
+      }
+      if (patch.hotkeyPlain && patch.hotkeyPlain.toUpperCase() === (patch.hotkey ?? settings.hotkey).toUpperCase()) {
+        return wait({ config: settings, hotkeyError: `Could not register ${patch.hotkeyPlain}. Another app may own it; kept ${settings.hotkeyPlain}.` })
       }
       settings = next
       emit({ event: 'settingsSaved', data: settings })

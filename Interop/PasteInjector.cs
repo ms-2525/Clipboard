@@ -84,8 +84,8 @@ namespace Clip.Interop
             var dib = BuildDib(png);
             var data = new System.Windows.DataObject();
             if (dib != null) data.SetData(System.Windows.DataFormats.Dib, new MemoryStream(dib));
-            data.SetData("PNG", new MemoryStream(png));
-            return ClipboardFormats.Write(() => System.Windows.Clipboard.SetDataObject(data, true), "PNG");
+            data.SetData(ClipboardFormats.PngFormat, new MemoryStream(png));
+            return ClipboardFormats.Write(() => System.Windows.Clipboard.SetDataObject(data, true), ClipboardFormats.PngFormat);
         }
 
         /// <summary>BITMAPINFOHEADER(40) + 24-bpp BGR rows, 4-byte stride, bottom-up, alpha composited over white.</summary>

@@ -302,8 +302,8 @@ export function clearTitle(e: ReactMouseEvent<HTMLElement>): void {
 
 /** The row body: rich HTML when the clip has a safe body, plain preview until it arrives. */
 export function RowBody({ clip, getItem, highlight, maxLines }: { clip: ClipItem; getItem: GetItem; highlight?: string[]; maxLines?: number }) {
-  // 9 lines = 9 wrapped visual lines of this clip's body in its row (not 9 rows in the window).
-  const lines = Math.min(20, Math.max(1, Math.round(maxLines ?? 9)))
+  // 10 lines = 10 wrapped visual lines of this clip's body in its row (not 10 rows in the window).
+  const lines = Math.min(20, Math.max(1, Math.round(maxLines ?? 10)))
   const rich = isRich(clip)
   const [body, setBody] = useState<ClipBody | null | undefined>(() => (rich ? bodyCache.get(clip.id) : undefined))
   const [recall, setRecall] = useState(0)

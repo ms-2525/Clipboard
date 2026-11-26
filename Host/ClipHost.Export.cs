@@ -175,7 +175,7 @@ namespace Clip.Host
                 {
                     ext = ".html";
                     bytes = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false).GetBytes(
-                        "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"utf-8\">\n<title>Clip</title>\n</head>\n<body>\n"
+                        "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"utf-8\">\n<title>" + ClipExport.ProductStem + "</title>\n</head>\n<body>\n"
                         + fragment + "\n</body>\n</html>");
                 }
                 else
@@ -187,7 +187,7 @@ namespace Clip.Host
                 }
             }
 
-            string dir = Path.Combine(Path.GetTempPath(), "Clip");
+            string dir = Path.Combine(Path.GetTempPath(), ClipExport.ProductStem);
             Directory.CreateDirectory(dir);
             string path = Path.Combine(dir, ClipExport.SuggestedName(item.Text, ext, CapturedAt(item.CapturedAt)));
             try

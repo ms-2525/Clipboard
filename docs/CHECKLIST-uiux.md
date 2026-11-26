@@ -114,7 +114,7 @@ fresh visual pass may sign these.
 |---|---|---|---|---|
 | K-01 | Focus is selection; one row is the single tab stop | `[L]` | **PASS** | `onFocus={() => onSelect}` (`ClipList.tsx`); roving tabindex; `AUDIT-ui-code` §1; `s4a` keyboard shot. Re-measured on the final bundle: `focusEqualsSelection {focused:true, selected:"true", id:"1"}` (`s18\final-report.json`). |
 | K-02 | `↑ ↓ Home End PgUp PgDn` move the selected row by the measured viewport | `[L]` | **PASS** | `s4a\EVIDENCE.md`: id 10→27, Home/End first/last, PgDn = the two tall rows actually visible. Re-measured: ArrowDown 01→02, Home `01`, End `497` (`s18\final-report.json`). |
-| K-03 | `Enter`, `1`–`9`, `Ctrl+Shift+V` act on the selected/visible row | `[L]` | **PASS** | `s4a`: Enter pasted (mock fallback `Copied instead`), `3` pasted the third visible row, Ctrl+Shift+V took the plain-paste path. Those handler branches are unchanged by 141ec9e (diff adds only Ctrl+Up/Down, Ctrl+Shift+←/→ and Ctrl+M). Host paste delivery is a features-checklist row. |
+| K-03 | `Enter`, `Ctrl+1`–`Ctrl+9`, `Ctrl+Shift+V` act on the selected/visible row | `[L]` | **PASS** | `s4a`: Enter pasted (mock fallback `Copied instead`), Ctrl+Shift+V took the plain-paste path; a bare digit is search text since the owner change, and `Ctrl+2` pasting the second visible row is proven in `e2e/keyboard.spec.ts` (`Ctrl+1..Ctrl+9 paste the visible row`). Those handler branches are unchanged by 141ec9e (diff adds only Ctrl+Up/Down, Ctrl+Shift+←/→ and Ctrl+M). Host paste delivery is a features-checklist row. |
 | K-04 | `F2 Ctrl+F Ctrl+P Delete Ctrl+Z` act on the right target | `[L]` | **PASS** | `s4a`: F2 opened the editor and `↓` did nothing while open; Ctrl+F focused search keeping the query; Ctrl+P pinned; Delete asked first; Ctrl+Z restored and re-selected. Re-measured F2 opens the editor (`s18\final-report.json`); handler branches unchanged. |
 | K-05 | `Ctrl+E` opens **Export** for the selected clip (the editor is F2) | `[L]` | **PASS** | Row corrected to the shipped contract: `useClipboardKeys.ts:106-110` maps Ctrl+E to `onExport`; `s18\final-report.json` `regress.ctrle=true` after a scripted `Control+e` (the `export-pop` menu opened, no editor). |
 | K-06 | No matrix key fires while typing in search (`Delete`, `Home`, `End`, `Enter`, digits keep their caret meaning) | `[L]` | **PASS** | `s20\proof-report.json` D1: with `abc` in the search box, `Delete`, `Home`, `End` and `Enter` each left **0 dialogs, 0 toasts**, focus in the input and the value unchanged; `1` typed as text (`abc1`). No history action ran while the field owned the caret. |
@@ -183,7 +183,7 @@ dock and the Aero2 tray gutter. Their history is in `docs\CHECKLIST-archive.md`;
 - Colour lives only in the two token blocks in `styles.css`; components name tokens.
 - No layout animation; selection never animates geometry; `prefers-reduced-motion` is honoured.
 - Ortu's warm paper and `docs\DESIGN-contrast.md` are history, not authority.
-- `previewLines` keeps its 1..100 range; `durationMs` stays milliseconds.
+- `previewLines` keeps its 1..20 range (the `settings.ts` clamp and the Capture slider); `durationMs` stays milliseconds.
 - macOS keep-clips model is rejected: deleting a tab deletes its clips, and the confirm says so.
 
 ## 10. Audit scoring (unchanged dimensions, 0–4)

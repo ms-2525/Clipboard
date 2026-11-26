@@ -261,3 +261,9 @@ export const IconDatabase = () => (
     <path d="M3 8c0 1.1 2.2 2 5 2s5-.9 5-2" />
   </Svg>
 )
+export const IconKeyboard = () => (
+  <Svg>
+    <rect x="1.8" y="4" width="12.4" height="8" rx="2" />
+    <path d="M4.8 7.2h1M7.4 7.2h1M10 7.2h1M4.8 9.8h6.4" />
+  </Svg>
+)

@@ -29,10 +29,13 @@ namespace Clip.Core
         /// <summary>An image was deliberately not stored (too large); App turns the reason into a toast.</summary>
         public event Action<string> Skipped;
 
-        // Research: reject before decoding anything a bomb could allocate for.
-        const string PngFormat = "PNG";
+        // Research: reject before decoding anything a bomb could allocate. Format name lives with
+        // the clipboard code that reads and writes it (ClipboardFormats.PngFormat).
         const long MaxPixels = 50_000_000;
         const int MaxDimension = 16384;
+        const int DebounceMs = 100;
+        const int ThumbMaxPx = 96;
+        const double BytesPerMb = 1048576.0;
 
         public CaptureService(ClipboardStore store, Config cfg)
         {
@@ -41,7 +44,7 @@ namespace Clip.Core
             _listener = new ClipboardListener();
             _listener.Changed += OnChanged;
             // Apps publish their formats in several SetClipboardData calls; reading inline can catch a half-populated clipboard.
-            _debounce = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
+            _debounce = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(DebounceMs) };
             _debounce.Tick += (s, e) => { _debounce.Stop(); Capture(); };
         }
 
@@ -130,7 +133,7 @@ namespace Clip.Core
         {
             // Every original format rides along when it fits the budget: Excel gets Biff12 back, Word RTF/HTML, browsers HTML.
             var dropped = new List<string>();
-            item.Formats = ClipboardFormats.Snapshot(_cfg.MaxItemBytes, dropped);
+            item.Formats = ClipboardFormats.Snapshot(_cfg.MaxItemBytes, dropped, _cfg.IgnoreFormats);
             // A dropped blob must never vanish silently: name what was too big to keep.
             if (dropped.Count > 0)
                 Skipped?.Invoke($"Part of the copy was not saved: {string.Join(", ", dropped)} over the {Megabytes(_cfg.MaxItemBytes)} MB clip limit");
@@ -188,8 +191,8 @@ namespace Clip.Core
 
             try
             {
-                if (System.Windows.Clipboard.ContainsData(PngFormat))
-                    png = (System.Windows.Clipboard.GetData(PngFormat) as MemoryStream)?.ToArray();
+                if (System.Windows.Clipboard.ContainsData(ClipboardFormats.PngFormat))
+                    png = (System.Windows.Clipboard.GetData(ClipboardFormats.PngFormat) as MemoryStream)?.ToArray();
             }
             catch { } // locked mid-read; the DIB fallback below may still work
             if (png != null && !HasPngSignature(png)) png = null;
@@ -263,7 +266,7 @@ namespace Clip.Core
                 if (src == null) return null;
             }
 
-            var thumb = EncodePng(Thumbnail(src, 96)) ?? png;
+            var thumb = EncodePng(Thumbnail(src, ThumbMaxPx)) ?? png;
             return new ClipboardItem
             {
                 Kind = "image",
@@ -314,7 +317,7 @@ namespace Clip.Core
             bytes != null && bytes.Length >= 8 &&
             bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47;
 
-        static string Megabytes(long bytes) => (bytes / 1048576.0).ToString("0.#");
+        static string Megabytes(long bytes) => (bytes / BytesPerMb).ToString("0.#");
 
         static BitmapSource DecodePng(byte[] png)
         {

@@ -34,6 +34,8 @@ export interface SettingsPatch {
   showImagesInAll?: boolean
   uiZoom?: number
   hotkey?: string
+  /** Global plain-paste binding; the host re-registers it like the open hotkey. */
+  hotkeyPlain?: string
   startOnLogin?: boolean
   notification?: Partial<HostSettings['notification']>
 }

@@ -4,6 +4,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
+using Clip.Core;
 
 namespace Clip.Interop
 {
@@ -27,24 +28,30 @@ namespace Clip.Interop
         // Only true GDI handle types are unreadable as HGLOBAL; CF_DIB/CF_DIBV5 are HGLOBAL-backed and must be stored.
         static readonly uint[] HandleTypes = { 2, 3, 9, 14 }; // CF_BITMAP, CF_METAFILEPICT, CF_PALETTE, CF_ENHMETAFILE
 
-        static readonly HashSet<string> Ignored = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            "Clipboard Viewer Ignore",
-            "ExcludeClipboardContentFromMonitorProcessing"
-        };
+        // Seeded from Config so the two lists cannot drift; Snapshot prefers the caller's live list when given.
+        static readonly HashSet<string> Ignored = new HashSet<string>(new Config().IgnoreFormats, StringComparer.OrdinalIgnoreCase);
 
-        public static List<(string fmt, byte[] bytes)> Snapshot(long maxBytes, List<string> dropped = null)
+        internal const string PngFormat = "PNG";
+
+        // One home for the clipboard-busy retry budget, shared by both loops below.
+        const int RetryAttempts = 5;
+        const int RetryDelayMs = 30;
+
+        public static List<(string fmt, byte[] bytes)> Snapshot(long maxBytes, List<string> dropped = null, IEnumerable<string> ignored = null)
         {
             var result = new List<(string fmt, byte[] bytes)>();
             if (!OpenWithRetry()) return result; // clipboard stayed locked for the whole window
             try
             {
                 long total = 0;
+                var skip = ignored != null
+                    ? new HashSet<string>(ignored, StringComparer.OrdinalIgnoreCase)
+                    : Ignored;
                 for (uint f = EnumClipboardFormats(0); f != 0; f = EnumClipboardFormats(f))
                 {
                     if (IsSkippedType(f)) continue;
                     string name = FormatName(f);
-                    if (name == null || Ignored.Contains(name)) continue;
+                    if (name == null || skip.Contains(name)) continue;
 
                     var bytes = ReadGlobal(GetClipboardData(f));
                     if (bytes == null || bytes.Length == 0) continue;
@@ -108,14 +115,14 @@ namespace Clip.Interop
         /// </summary>
         internal static bool WithClipboardRetry(Action set)
         {
-            for (int attempt = 0; attempt < 5; attempt++)
+            for (int attempt = 0; attempt < RetryAttempts; attempt++)
             {
                 try
                 {
                     set();
                     return true;
                 }
-                catch (COMException) { Thread.Sleep(30); } // still owned by another process: the next attempt, then give up
+                catch (COMException) { Thread.Sleep(RetryDelayMs); } // still owned by another process: the next attempt, then give up
             }
             return false;
         }
@@ -196,10 +203,10 @@ namespace Clip.Interop
 
         static bool OpenWithRetry()
         {
-            for (int attempt = 0; attempt < 5; attempt++)
+            for (int attempt = 0; attempt < RetryAttempts; attempt++)
             {
                 if (OpenClipboard(IntPtr.Zero)) return true;
-                Thread.Sleep(30);
+                Thread.Sleep(RetryDelayMs);
             }
             return false;
         }

@@ -128,7 +128,7 @@ Harness sources are in `%TEMP%\opencode\` (scratch, not committed): `s17\verify-
       `95-preview-toast-2.png`. It is a button-driven preview, not a live drag of the offset sliders — that
       sub-clause is not claimed.
 - [x] **PASS** — [L] Startup hint on every launch: a start shows the native toast
-      `Clip is running. Press Alt+V to open the list.` Live 25 Nov pass 3, fresh profile on
+      `Clip is running. Press Alt+V to open the list.` (default binding — the toast renders the configured hotkey, see Settings → Shortcuts). Live 25 Nov pass 3, fresh profile on
       `221D045B…0548`: visible at 1.9 s and 2.6 s after process start, not yet at 1.2 s; toast window
       **477x116 px at 1419,988** (`02-firstrun-1900.png`, `03-firstrun-2600.png`). The same profile then
       opened on `No clips yet` (`06-warm-show.png`), proving it was a first run.
@@ -170,14 +170,14 @@ the v2 page. They are one-liners in `docs\CHECKLIST-archive.md` (§ "Retired 25 
       colour, number, JSON, HTML, SQL, and 8 controls that must return **no** tag (prose, password, mixed
       formats, ambiguous code). 28/28 re-run at this HEAD, zero false positives
       (`AUDIT-release-logic-2` §4).
-- [x] **PASS** — [U] Row = index `01`, body up to 10 lines auto-height, then `app · title · date time`
+- [x] **PASS** — [U] Row = index `01`, body up to 10 lines auto-height at the default 10 (Capture → Row preview lines, 1–20), then `app · title · date time`
       on every row; time never truncates at 430 px width. Fresh pass `AUDIT-release-signoff-2` §2 on the
       current 08:05 bundle (headless Chromium, both themes): row **01 = 65 px / 1 line**, row **02 = 245 px
       / 10 lines** clamped with the trailing ellipsis; index 98–101 share `x 35 → 66, w 31`,
       `tabular-nums`, text starts at **76**; `.prov-time` **107 px**, `scrollWidth == clientWidth` at 900
       **and 430**; image row 100 = 263 px with `Text read from image`, files row carries
       `Chrome · board-minutes.docx and 2 more`. **Headless page**, fresh agent — not the shell.
-- [ ] **NOT RUN** — [L] Digit `1`–`9` copies the item whose **visible** index is that number, renumbering
+- [ ] **NOT RUN** — [L] `Ctrl+1`–`Ctrl+9` copies the item whose **visible** index is that number (a bare digit is search text), renumbering
       correctly after search, tab switch and filter. Code path present; no post-fix live pass.
 - [ ] **NOT RUN** — [U] A 1-line clip is shorter than a 10-line row, a 30-line clip clamps at 10, and the
       outside tooltip still carries the full text (auto-fit, not a fixed row size). No fresh visual.
@@ -191,7 +191,7 @@ the v2 page. They are one-liners in `docs\CHECKLIST-archive.md` (§ "Retired 25 
       wrong (`the river â€¦`, UTF-8 ellipsis read as Latin-1) - cosmetic, named in
       `AUDIT-live-acceptance-3` F-3.
 - [ ] **NOT RUN** — [L] Web list keyboard matrix: ↑ ↓ Home End PageUp PageDown Enter Ctrl+Shift+V F2
-      Ctrl+F Esc Ctrl+M Ctrl+T `1`–`9`, with the Esc cascade order preserved. Individual chords are
+      Ctrl+F Esc Ctrl+M Ctrl+T `Ctrl+1`–`Ctrl+9` (a bare digit is search text), with the Esc cascade order preserved. Individual chords are
       proven headless (above; S20 adds Ctrl+T: picker open → Enter filters → Esc returns row focus,
       `s20\proof-report.json` A/B); the full matrix and the cascade order have no live pass. Live partial
       25 Nov (`AUDIT-live-acceptance-2`): ↑ ↓, ← → tab cycle (All → Pinned → Work → All), type-to-search,
@@ -201,7 +201,7 @@ the v2 page. They are one-liners in `docs\CHECKLIST-archive.md` (§ "Retired 25 
       (`53-bare-2-search.png`); typing `stripe` filtered to 2 rows and one Esc cleared it without hiding
       (see the cascade row). With the search box holding the caret, `←/→` correctly stay in the field, so
       the tab cycle could not be re-walked from a text caret. `Ctrl+2`, Ctrl+F/M/T, Ctrl+Shift+V,
-      PageUp/PageDown and the digit paste keys were **not** exercised live, so the row stays NOT RUN.
+      PageUp/PageDown and the Ctrl+digit paste keys were **not** exercised live, so the row stays NOT RUN.
 
 ## 10. Deferred, tracked, not in scope (kept as decisions, not checks)
 

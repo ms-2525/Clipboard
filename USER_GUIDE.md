@@ -24,7 +24,7 @@ first run shows a toast naming the hotkey, since Clip starts silently in the tra
 
 - **Left-click** or **double-click** the icon to show or hide the list.
 - **Right-click** (or the keyboard menu key on a focused icon) opens the menu:
-  - A grey header shows the current hotkey (`Open: Alt+V`) — it always matches Settings.
+  - A grey header shows the current hotkey (`Open: Alt+V` by default) — it always matches Settings.
   - **Clip: show/hide** — same as left-click.
   - **Settings…** — opens Settings.
   - **Notifications** (ticked on/off) — turns the capture toasts on or off.
@@ -35,9 +35,9 @@ first run shows a toast naming the hotkey, since Clip starts silently in the tra
 
 ## 3. Opening and hiding the list
 
-- Press **Alt+V** anywhere to open the list. Press **Esc** to hide it. One Esc first clears a
+- Press your hotkey (**Alt+V** by default) anywhere to open the list. Press **Esc** to hide it. One Esc first clears a
   search, a second Esc hides the window.
-- **Ctrl+Shift+V** opens the list ready to paste as plain text (see §12).
+- **Ctrl+Shift+V** (by default) opens the list ready to paste as plain text (see §12).
 - Clicking another window also hides Clip. It does not quit — it waits in the tray.
 - To quit for good, right-click the tray icon and choose **Exit**.
 - The first open after signing in to Windows can take a moment while the window warms up. Later
@@ -50,7 +50,8 @@ The newest clip is at the top, grouped by day. Each row shows:
 - **A number** — 01, 02, 03 and so on. These are not decoration: with the list active,
   **Ctrl+1**–**Ctrl+9** pastes the 1st–9th visible row straight into the app you came from. A bare
   digit types into the search box, so you can search for `2024` or `1,250` without a modifier.
-- **The clip itself**, up to 10 lines. Long text is cut for display only; the whole clip is kept.
+- **The clip itself**, up to 10 lines by default (Settings → Capture → Row preview lines, 1–20).
+  Long text is cut for display only; the whole clip is kept.
 - **Where it came from** — app, window title and the time it was copied.
 - **Tags** — what kind of thing it is, worked out automatically. Up to two tags fit on a row; the
   rest fold into **+N**. A clip with no tag is normal: Clip only tags what it can prove.
@@ -215,20 +216,25 @@ not a promise. Small, blurred or stylised text is missed more often.
 ## 13. Settings
 
 Open Settings from the gear in the list, from the tray menu, or by pressing the gear. Settings has
-sections down the left: **General**, **Capture**, **Appearance**, **Notifications**, **Storage** and
-**About**. **Save changes** keeps everything on the open page; zoom applies the moment you pick it.
+sections down the left: **General**, **Shortcuts**, **Capture**, **Appearance**, **Notifications**,
+**Storage** and **About**. **Save changes** keeps everything on the open page; zoom applies the moment you pick it.
 
 - **General**
   - *Launch at login* — start Clip with Windows. On for fresh installs; mirrors the tray
     menu switch, and the tick always shows the real startup entry.
   - *Start hidden in the tray* — fixed on in this release; Clip always starts in the tray.
-  - *Open Clip hotkey* — click the field, then press the new combination. If another app owns it,
-    Clip keeps the old one and tells you.
   - *Time format* — 12-hour or 24-hour clock on every row.
+- **Shortcuts**
+  - *Open Clip hotkey* and *Plain-paste hotkey* — click the field, then press the new combination.
+    If another app owns it, Clip keeps the old one and tells you.
+  - The rest of the map on the page (Enter, Ctrl+1…Ctrl+9, Esc and the rest) is fixed and shown
+    for reference.
 - **Capture**
   - *History limit* — how many clips **Inbox** keeps (100 to 5,000, default 200). When it is full,
     the oldest unfiled clips go first; a clip you just re-copied counts as newest. Your own tabs
     and Pinned are not counted.
+  - *Row preview lines* — how many wrapped lines each clip shows (1–20, default 10); images
+    stay fixed.
   - *Show images in Inbox* — when off, picture clips appear only in the **Images** tab.
   - *Plain text only* — fixed off in this release; rich capture is always on (use Ctrl+Shift+V
     when you want a plain paste).
@@ -257,12 +263,12 @@ sections down the left: **General**, **Capture**, **Appearance**, **Notification
 ## 14. Keyboard map
 
 The same list lives inside the app under Settings → **Shortcuts**; the global hotkeys there show
-your current bindings.
+your current bindings and can be changed on the spot.
 
 | Key | Action |
 |---|---|
-| Alt+V | show Clip |
-| Ctrl+Shift+V | open the list to paste as plain text |
+| Alt+V (default) | show Clip |
+| Ctrl+Shift+V (default) | open the list to paste as plain text |
 | Enter | paste the selected clip |
 | Ctrl+Shift+V (in the list) | paste the selected clip as plain text |
 | Ctrl+1 … Ctrl+9 | paste row 1 to 9 (a bare digit searches) |

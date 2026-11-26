@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Reflection;
 using System.Text;
 using Clip.Interop;
 
@@ -187,16 +188,19 @@ namespace Clip.Core
         /// The name the Save dialog offers: first line of the text, every character Windows rejects (and every
         /// control) turned into a space, surrounding spaces/dots trimmed, capped at <see cref="MaxStem"/>
         /// characters on a code-point boundary, reserved device names prefixed "_", and the fixed extension for
-        /// the kind appended. Empty, whitespace-only and image clips fall back to "Clip yyyy-MM-dd HH-mm".
+        /// the kind appended. Empty, whitespace-only and image clips fall back to "<product> yyyy-MM-dd HH-mm".
         /// </summary>
         public static string SuggestedName(string text, string extension, DateTime capturedAt)
         {
             if (!string.IsNullOrEmpty(extension) && extension[0] != '.') extension = "." + extension;
             string stem = Clean(FirstLine(text));
             if (stem.Length == 0)
-                stem = "Clip " + capturedAt.ToString("yyyy-MM-dd HH-mm", CultureInfo.InvariantCulture);
+                stem = ProductStem + " " + capturedAt.ToString("yyyy-MM-dd HH-mm", CultureInfo.InvariantCulture);
             return stem + extension;
         }
+
+        /// <summary>Assembly name, like the data folder: one rename hook, never a product literal.</summary>
+        internal static string ProductStem => Assembly.GetEntryAssembly()?.GetName().Name ?? "Clip";
 
         static string FirstLine(string text)
         {

@@ -52,7 +52,7 @@ page, live proof pending · **AWAITING SIGN** = fixed after a failed live read, 
 | 2 | Copy/paste exactly for text, HTML, RTF, files, images, named formats | SHIPPED | Harness 4 formats into Notepad; live capture of 5 kinds; 600-emoji body whole |
 | 3 | Paste into Office (Excel grid, Word RTF) | BLOCKED | Office 16 installed, both COM servers fail `TYPE_E_CANTLOADLIBRARY`; no UI matrix run |
 | 4 | Tray, global hotkey, autostart, single instance | SHIPPED | Live tray show/hide; Alt+V; Exit 996 ms; duplicate launch exits |
-| 5 | Row: index first, body up to 10 lines, provenance app·title·time | SHIPPED | 65 px one-line / 245 px ten-line; index 4ch; time 107 px at 900 and 430 |
+| 5 | Row: index first, body up to 10 lines, provenance app·title·time | SHIPPED | 65 px one-line / 245 px ten-line at the default 10 (Capture → Row preview lines, 1–20); index 4ch; time 107 px at 900 and 430 |
 | 6 | Toast auto-fits content in **both** dimensions, capped; inside the work area | SHIPPED (live re-measure pending) | Height 77 → 160 px by content; live two-line toast at 150 % DPI, no focus steal. Width now follows content too: minimum 240 DIP, configured 420 is the cap; a long body wraps at the cap and drops lines |
 | 7 | Reliable automatic tags (proven only; missing is normal) | SHIPPED | 28/28 fixture, zero prose false positives; chips on rows; `+N` overflow |
 | 8 | Search by tag (`image:`, `excel:`, `path:`, `code:`) | SHIPPED | Grammar 15/15; p50 9.3 ms at 1,000 rows; full-body match past char 3,001 |
@@ -75,7 +75,7 @@ page, live proof pending · **AWAITING SIGN** = fixed after a failed live read, 
 | 25 | No data loss (truncation, corrupt DB, cap) | SHIPPED | Emoji truncation fixed and guarded; corrupt DB set aside + notice; cap exact; tab purge counted |
 | 26 | Memory honest and acceptable | LIMIT / decision | 527.5 MB WS / 270.5 MB private, 7 processes (06:52 exe); newest exe not re-measured; owner must accept or set a ceiling |
 | 27 | Cold first open <= 150 ms | LIMIT / decision | Live **160.8 ms** (150 % DPI, 11 ms over); warm median **97.9 ms**; internal show 3.5 ms |
-| 28 | Startup hint ("… is running, press Alt+V") | SHIPPED (live pending) | `App.V2.cs` shows "Clip is running. Press Alt+V to open the list." from `Ready` on every cold start. Fresh-profile live check running |
+| 28 | Startup hint ("… is running, press Alt+V") | SHIPPED (live pending) | `App.V2.cs` shows "Clip is running. Press Alt+V to open the list." from `Ready` on every cold start (default binding — the toast renders the configured hotkey, see Settings → Shortcuts). Fresh-profile live check running |
 | 29 | Ghost notification preview in Settings | PARTIAL | Settings → **Preview** now calls the host and shows the **real** native toast at its real coordinates with the current settings (`previewNotification` → `NotificationWindow.ShowFor`). Drag-to-move and live-follow on every slider tick are not built |
 | 30 | On-screen known-limits note | SHIPPED (live pending) | Settings → **Known limits**: colour emoji in the preview, Google Docs/Notion HTML degradation, OCR never for amounts, Excel `007` → `7` in CSV |
 | 31 | Notice for over-budget clipboard formats | SHIPPED (live pending) | `ClipboardFormats.Snapshot` reports every dropped format name; `CaptureService` toasts "Part of the copy was not saved: <formats> over the N MB clip limit". Oversized images already toasted |

@@ -88,6 +88,7 @@ namespace Clip.Host
             int? previewLines = IntOrNull(patch, "previewLines");
             int? zoom = IntOrNull(patch, "uiZoom");
             string hotkey = String(patch, "hotkey");
+            string hotkeyPlain = String(patch, "hotkeyPlain");
             bool? startOnLogin = BoolOrNull(patch, "startOnLogin");
             bool? showImagesInAll = BoolOrNull(patch, "showImagesInAll");
             if (maxItems.HasValue) maxItems = Math.Clamp(maxItems.Value, 20, 10_000);
@@ -95,6 +96,8 @@ namespace Clip.Host
             if (zoom.HasValue) zoom = Math.Clamp(zoom.Value, ZoomMin, ZoomMax);
             if (hotkey != null && !IsHotkey(hotkey))
                 throw new ArgumentException("\"" + hotkey + "\" is not a key combination. Use at least one modifier and a key.");
+            if (hotkeyPlain != null && !IsHotkey(hotkeyPlain))
+                throw new ArgumentException("\"" + hotkeyPlain + "\" is not a key combination. Use at least one modifier and a key.");
 
             if (TryParam(patch, "notification", out var n))
             {
@@ -133,9 +136,14 @@ namespace Clip.Host
                 Autostart.Set(startOnLogin.Value);
             }
 
-            // The hotkey last: a conflict rolls back to the binding that still works, and nothing else is lost.
+            // The hotkeys last: a conflict rolls back to the binding that still works, and nothing else is lost.
             string hotkeyError = null;
-            if (hotkey != null && hotkey != _cfg.Hotkey) hotkeyError = RebindHotkey(hotkey);
+            if (hotkey != null && hotkey != _cfg.Hotkey) hotkeyError = RebindHotkey(hotkey, false);
+            if (hotkeyPlain != null && hotkeyPlain != _cfg.HotkeyPlain)
+            {
+                string plainError = RebindHotkey(hotkeyPlain, true);
+                if (plainError != null) hotkeyError = hotkeyError == null ? plainError : hotkeyError + " " + plainError;
+            }
 
             // Persist the choice, not the resolved theme: App.V2 resolves "system" again on the next start.
             _cfg.Theme = _themeChoice;
@@ -182,29 +190,29 @@ namespace Clip.Host
         /// shortcut: the hotkey windows are private to App.V2.cs, which this slice must not edit, so the
         /// rebind is one reflected call. Swap it for an internal method on App when that file is free.
         /// </remarks>
-        string RebindHotkey(string combo)
+        string RebindHotkey(string combo, bool plain)
         {
             var app = System.Windows.Application.Current;
-            string[] members = { "_hotkey", "_hotkeyPlain" };
+            string member = plain ? "_hotkeyPlain" : "_hotkey";
             var method = app?.GetType().GetMethod("RegisterV2Hotkeys", BindingFlags.Instance | BindingFlags.NonPublic);
             if (method == null) return "This build cannot change the hotkey at runtime.";
 
-            string old = _cfg.Hotkey;
-            _cfg.Hotkey = combo;
+            string old = plain ? _cfg.HotkeyPlain : _cfg.Hotkey;
+            if (plain) _cfg.HotkeyPlain = combo; else _cfg.Hotkey = combo;
             try
             {
                 method.Invoke(app, null);
-                if (app.GetType().GetField(members[0], BindingFlags.Instance | BindingFlags.NonPublic)?.GetValue(app) != null)
+                if (app.GetType().GetField(member, BindingFlags.Instance | BindingFlags.NonPublic)?.GetValue(app) != null)
                     return null;
 
                 // The new binding was refused: put the working one back before reporting the conflict.
-                _cfg.Hotkey = old;
+                if (plain) _cfg.HotkeyPlain = old; else _cfg.Hotkey = old;
                 method.Invoke(app, null);
                 return "Could not register " + combo + ". Another app may own it; kept " + old + ".";
             }
             catch (Exception ex)
             {
-                _cfg.Hotkey = old;
+                if (plain) _cfg.HotkeyPlain = old; else _cfg.Hotkey = old;
                 try { method.Invoke(app, null); } catch (Exception) { } // best effort: restore what worked
                 return "Could not change the hotkey: " + (ex.InnerException?.Message ?? ex.Message);
             }

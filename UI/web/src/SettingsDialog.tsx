@@ -4,8 +4,8 @@ import * as Switch from '@radix-ui/react-switch'
 import * as Slider from '@radix-ui/react-slider'
 import type { HostSettings, SaveConfigResult, SettingsPatch } from './host'
 import { formatBytes } from './ClipInfo'
-import { ShortcutsDialog } from './ShortcutsDialog'
-import { IconBell, IconChevron, IconClipboard, IconClose, IconDatabase, IconInfo, IconMonitor, IconMoon, IconSettings, IconSun } from './icons'
+import { shortcutSections, ShortcutCombo } from './ShortcutsDialog'
+import { IconBell, IconChevron, IconClipboard, IconClose, IconDatabase, IconInfo, IconKeyboard, IconMonitor, IconMoon, IconSettings, IconSun } from './icons'
 
 interface Props {
   open: boolean
@@ -63,10 +63,11 @@ function Keycaps({ combo }: { combo: string }) {
   )
 }
 
-type Section = 'general' | 'capture' | 'appearance' | 'notifications' | 'storage' | 'about'
+type Section = 'general' | 'shortcuts' | 'capture' | 'appearance' | 'notifications' | 'storage' | 'about'
 
 const SECTIONS: { id: Section; label: string; icon: React.ComponentType }[] = [
   { id: 'general', label: 'General', icon: IconSettings },
+  { id: 'shortcuts', label: 'Shortcuts', icon: IconKeyboard },
   { id: 'capture', label: 'Capture', icon: IconClipboard },
   { id: 'appearance', label: 'Appearance', icon: IconSun },
   { id: 'notifications', label: 'Notifications', icon: IconBell },
@@ -84,14 +85,13 @@ export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, o
   const [themeChoice, setThemeChoice] = useState(settings.themeChoice)
   const [timeFormat, setTimeFormat] = useState(settings.timeFormat)
   const [hotkey, setHotkey] = useState(settings.hotkey)
-  const [capturing, setCapturing] = useState(false)
+  const [plainHotkey, setPlainHotkey] = useState(settings.hotkeyPlain)
+  const [capturing, setCapturing] = useState<'open' | 'plain' | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [confirmClear, setConfirmClear] = useState(false)
   const [storage, setStorage] = useState<{ bytes: number; limit: number } | null>(null)
-  const [showShortcuts, setShowShortcuts] = useState(false)
   const [section, setSection] = useState<Section>('general')
-  const shortcutsReturn = useRef<HTMLElement | null>(null)
   const captureRef = useRef<HTMLButtonElement>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
   const navRef = useRef<HTMLDivElement>(null)
@@ -120,7 +120,8 @@ export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, o
       setThemeChoice(settings.themeChoice)
       setTimeFormat(settings.timeFormat)
       setHotkey(settings.hotkey)
-      setCapturing(false)
+      setPlainHotkey(settings.hotkeyPlain)
+      setCapturing(null)
       setSaving(false)
       setError('')
       setConfirmClear(false)
@@ -150,16 +151,17 @@ export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, o
       if (event.key === 'Escape') {
         event.preventDefault()
         event.stopPropagation()
-        setCapturing(false)
+        setCapturing(null)
         return
       }
       event.preventDefault()
       event.stopPropagation()
       const combo = comboOf(event)
       if (!combo) return
-      setHotkey(combo)
+      if (capturing === 'open') setHotkey(combo)
+      else setPlainHotkey(combo)
       setError('')
-      setCapturing(false)
+      setCapturing(null)
     }
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
@@ -171,13 +173,13 @@ export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, o
   }
 
   const pickZoom = (zoom: number) => {
-    setCapturing(false)
+    setCapturing(null)
     onZoom(zoom)
   }
 
   const pickSection = (next: Section) => {
     setSection(next)
-    setCapturing(false)
+    setCapturing(null)
     // Keep the pane's scroll position at the top when switching sections.
     bodyRef.current?.scrollTo({ top: 0 })
   }
@@ -195,14 +197,16 @@ export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, o
         showImagesInAll,
         uiZoom: settings.uiZoom,
         hotkey,
+        hotkeyPlain: plainHotkey,
         startOnLogin: autostart,
         notification: { maxLines: lines, size: toastSize },
       })
       if (result.hotkeyError) {
-        // The host kept the binding that still works; say which one is live and leave the dialog open.
+        // The host kept the bindings that still work; say which ones are live and leave the dialog open.
         setHotkey(result.config.hotkey)
+        setPlainHotkey(result.config.hotkeyPlain)
         setError(result.hotkeyError)
-        setSection('general')
+        setSection('shortcuts')
         return
       }
       onOpenChange(false)
@@ -216,7 +220,7 @@ export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, o
 
   return (
     <>
-    <Dialog.Root open={open} onOpenChange={(next) => { setCapturing(false); if (!next) setShowShortcuts(false); onOpenChange(next) }}>
+    <Dialog.Root open={open} onOpenChange={(next) => { setCapturing(null); onOpenChange(next) }}>
       <Dialog.Portal>
         <Dialog.Overlay className="overlay" />
         <Dialog.Content
@@ -299,32 +303,7 @@ export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, o
                       </div>
 
                       <div className="set-group">
-                        <div className="set-subtitle">Keyboard</div>
-                        <div className="set-row">
-                          <div className="grow">
-                            <div className="label">Open Clip hotkey</div>
-                            <div className="t-sec">
-                              {capturing ? 'Press the new combination. Esc keeps the current one.' : 'Click the keys, then type the new combination.'}
-                            </div>
-                            {error && (
-                              <div className="t-sec set-error" role="alert">
-                                {error}
-                              </div>
-                            )}
-                          </div>
-                          <button
-                            ref={captureRef}
-                            className={'btn ghost hotkey-field' + (capturing ? ' capturing' : '')}
-                            onClick={() => {
-                              setError('')
-                              setCapturing((on) => !on)
-                            }}
-                            onBlur={() => setCapturing(false)}
-                            aria-label="Change the open Clip hotkey"
-                          >
-                            <Keycaps combo={capturing ? 'Press keys' : hotkey} />
-                          </button>
-                        </div>
+                        <div className="set-subtitle">Clock</div>
                         <div className="set-row">
                           <div className="grow">
                             <div className="label">Time format</div>
@@ -340,6 +319,84 @@ export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, o
                           </div>
                         </div>
                       </div>
+                    </>
+                  )}
+
+                  {section === 'shortcuts' && (
+                    <>
+                      <div className="settings-pane-head">
+                        <div className="t-title">Shortcuts</div>
+                        <div className="t-sec">The two global hotkeys, and every key the list answers to.</div>
+                      </div>
+                      <div className="set-group">
+                        <div className="set-subtitle">Global</div>
+                        <div className="set-row">
+                          <div className="grow">
+                            <div className="label">Open Clip hotkey</div>
+                            <div className="t-sec">
+                              {capturing === 'open' ? 'Press the new combination. Esc keeps the current one.' : 'Click the keys, then type the new combination.'}
+                            </div>
+                            {error && (
+                              <div className="t-sec set-error" role="alert">
+                                {error}
+                              </div>
+                            )}
+                          </div>
+                          <button
+                            ref={captureRef}
+                            className={'btn ghost hotkey-field' + (capturing === 'open' ? ' capturing' : '')}
+                            onClick={() => {
+                              setError('')
+                              setCapturing((on) => (on === 'open' ? null : 'open'))
+                            }}
+                            onBlur={() => {
+                              if (capturing === 'open') setCapturing(null)
+                            }}
+                            aria-label="Change the open Clip hotkey"
+                          >
+                            <Keycaps combo={capturing === 'open' ? 'Press keys' : hotkey} />
+                          </button>
+                        </div>
+                        <div className="set-row">
+                          <div className="grow">
+                            <div className="label">Plain-paste hotkey</div>
+                            <div className="t-sec">
+                              {capturing === 'plain' ? 'Press the new combination. Esc keeps the current one.' : 'Opens the list ready to paste as plain text.'}
+                            </div>
+                          </div>
+                          <button
+                            className={'btn ghost hotkey-field' + (capturing === 'plain' ? ' capturing' : '')}
+                            onClick={() => {
+                              setError('')
+                              setCapturing((on) => (on === 'plain' ? null : 'plain'))
+                            }}
+                            onBlur={() => {
+                              if (capturing === 'plain') setCapturing(null)
+                            }}
+                            aria-label="Change the plain-paste hotkey"
+                          >
+                            <Keycaps combo={capturing === 'plain' ? 'Press keys' : plainHotkey} />
+                          </button>
+                        </div>
+                      </div>
+                      {/* The globals are edited above; the matrix below repeats only the fixed in-list keys. */}
+                      {shortcutSections(hotkey, plainHotkey)
+                        .filter((group) => group.title !== 'Global')
+                        .map((group) => (
+                          <div className="set-group" key={group.title}>
+                            <div className="set-subtitle">{group.title}</div>
+                            {group.entries.map((entry) => (
+                              <div className="set-row" key={entry.combo + entry.label}>
+                                <div className="grow">
+                                  <div className="label" style={{ fontWeight: 400 }}>
+                                    {entry.label}
+                                  </div>
+                                </div>
+                                <ShortcutCombo combo={entry.combo} />
+                              </div>
+                            ))}
+                          </div>
+                        ))}
                     </>
                   )}
 
@@ -570,19 +627,10 @@ export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, o
           </div>
 
           <div className="dialog-foot">
-            <button
-              className="btn ghost"
-              style={{ marginRight: 'auto' }}
-              type="button"
-              ref={(el) => {
-                shortcutsReturn.current = el
-              }}
-              onClick={() => setShowShortcuts(true)}
-            >
-              Shortcuts
-            </button>
             <Dialog.Close asChild>
-              <button className="btn ghost">Cancel</button>
+              <button className="btn ghost" style={{ marginRight: 'auto' }}>
+                Cancel
+              </button>
             </Dialog.Close>
             <button className="btn primary" onClick={() => void save()} disabled={saving}>
               {saving ? 'Saving…' : 'Save changes'}
@@ -591,13 +639,6 @@ export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, o
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
-    <ShortcutsDialog
-      open={showShortcuts && open}
-      onOpenChange={setShowShortcuts}
-      openHotkey={hotkey}
-      plainHotkey={settings.hotkeyPlain}
-      returnFocus={shortcutsReturn}
-    />
     </>
   )
 }

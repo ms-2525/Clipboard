@@ -630,7 +630,7 @@ mark.hit {
   display: flex;
   gap: 10px;
   /* Gutters: 3px left aligns the index, 12px right clears the inset ring. */
-  padding: 10px 12px 10px 3px;
+  padding: 10px 12px 5px 3px;
   border-bottom: 1px solid var(--divider);
   background: var(--surface);
   cursor: default;
