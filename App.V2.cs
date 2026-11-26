@@ -110,10 +110,11 @@ namespace Clip
                 Dispatcher.BeginInvoke(new Action(() => _notif?.ShowMessage(ClipboardStore.CorruptionNotice)),
                     DispatcherPriority.ApplicationIdle);
 
-            // A first launch that lands silently in the tray is a mystery: name the hotkey once.
+            // A first launch that lands silently in the tray is a mystery: once the shell is fully
+            // loaded, Windows itself names the hotkey. Native, not our toast: it must survive the
+            // page failing to load, and it fires from Ready, never during startup.
             if (_cfg.WasNew)
-                Dispatcher.BeginInvoke(new Action(() => _notif?.ShowMessage(
-                    $"{Product} is running. Press {_cfg.Hotkey} to open the list.")), DispatcherPriority.ApplicationIdle);
+                _shell.Ready += () => NativeToast.Show($"{Product} is running", $"Press {_cfg.Hotkey} to open the list.");
 
             RegisterV2Hotkeys();
             ListenForShow();
@@ -289,6 +290,7 @@ namespace Clip
             _capture = null;
             _tray?.Dispose();
             _tray = null;
+            NativeToast.Hide(); // a first-run hello still up must not outlive the tray
             _notif?.Close();
             _notif = null;
             _shell?.AllowClose();

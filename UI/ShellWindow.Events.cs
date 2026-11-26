@@ -25,6 +25,10 @@ namespace Clip.UI
         bool _warming = true;
         bool _pageReady;
         bool _allowClose;
+        // Warm() parks the window offscreen (a hosted HWND ignores Opacity); the centered
+        // position from the first Show is stashed here so EndWarm can put it back.
+        double _warmLeft = double.NaN;
+        double _warmTop = double.NaN;
         /// <summary>Last time the shell hid; a hidden-&gt;shown gap beyond <see cref="ResetIdleSeconds"/> resets the page to the 1st row.</summary>
         DateTime _lastHideUtc;
         const double ResetIdleSeconds = 5;
@@ -40,6 +44,13 @@ namespace Clip.UI
             ShowInTaskbar = false;
             Opacity = 0;
             Show();
+            // A hosted HWND (WebView2) ignores WPF Opacity, so an opacity-0 warm window still
+            // paints as an opaque box until the first frame hides it. Park it offscreen instead;
+            // EndWarm restores the centered position from the first Show.
+            _warmLeft = Left;
+            _warmTop = Top;
+            Left = -32000;
+            Top = -32000;
         }
 
         internal void Toggle()
@@ -63,7 +74,9 @@ namespace Clip.UI
         {
             // Only a real hidden->shown transition can reset; arming plain mode or
             // re-showing while already visible must keep the list exactly where it is.
-            bool wasHidden = !IsVisible;
+            // A parked warm window reports visible while sitting offscreen: a demand show
+            // during warming is a real hidden->shown transition, not a no-op.
+            bool wasHidden = !IsVisible || _warming;
             if (_warming) EndWarm(); // demanded before the first frame: finish the warm surface instead of reloading
             _host?.SetPlainMode(plain);
             // Warm() turned activation off; a later Show() would inherit that and never take the keyboard.
@@ -101,6 +114,9 @@ namespace Clip.UI
                 "document.querySelector('button[aria-label=\"Settings\"]')?.click()");
         }
 
+        /// <summary>Fired once when the warm surface is real (or never will be): the app is fully loaded.</summary>
+        internal event Action Ready;
+
         /// <summary>Hides the transparent warm window and restores the real show settings. Runs once.
         /// The shell stays out of the taskbar and Alt+Tab like the old popup (tool window).</summary>
         void EndWarm()
@@ -108,8 +124,11 @@ namespace Clip.UI
             if (!_warming) return;
             _warming = false;
             Hide();
+            if (!double.IsNaN(_warmLeft)) Left = _warmLeft;
+            if (!double.IsNaN(_warmTop)) Top = _warmTop;
             Opacity = 1;
             ShowActivated = true;
+            Ready?.Invoke();
         }
 
         void OnClosing(object sender, CancelEventArgs e)
