@@ -12,7 +12,9 @@ namespace Clip.Core
         {
             void Start(string name, string tag, int after)
             {
-                if (AtRoot && _pendingItem) Marker();
+                // The marker waits for content — except <input>, which IS the content signal
+                // for a checkbox item and must be seen while the item is still pending.
+                if (AtRoot && _pendingItem && name != "input") Marker();
                 switch (name)
                 {
                     case "p": case "div": case "section": case "article": case "header": case "footer":
@@ -227,6 +229,7 @@ namespace Clip.Core
                 }
                 _lineStart = false;
                 _wroteAny = true;
+                _freshMarker = true;
             }
 
             void CloseItem()

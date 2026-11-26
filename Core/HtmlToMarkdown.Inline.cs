@@ -151,6 +151,12 @@ namespace Clip.Core
                 Marker();
                 bool fresh = _lineStart;
                 Prefix();
+                if (_freshMarker)
+                {
+                    _freshMarker = false;
+                    if (s.Length > 0 && (s[0] == ' ' || s[0] == '\t')) s = s.Substring(1);
+                    if (s.Length == 0) return;
+                }
                 _root.Append(literal ? s : fresh ? Lead(Escape(s)) : Escape(s));
                 _wroteAny = true;
             }

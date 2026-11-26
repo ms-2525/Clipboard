@@ -18,8 +18,32 @@ namespace Clip.Core
         {
             var root = new StringBuilder(html == null ? 64 : Math.Min(html.Length * 2, 1 << 16));
             new Renderer(root).Run(html ?? "");
-            string s = root.ToString().TrimEnd();
+            string s = Squeeze(root.ToString()).TrimEnd();
             return s.Length == 0 ? "" : s + "\n";
+        }
+
+        // Export files never open with a blank line and never stack two: every newline path
+        // above (eager breaks plus lazy gaps) funnels through here. Fenced code passes raw.
+        static string Squeeze(string s)
+        {
+            var sb = new StringBuilder(s.Length);
+            bool fence = false, wrote = false, pending = false;
+            int i = 0;
+            while (i <= s.Length)
+            {
+                int nl = s.IndexOf('\n', i);
+                if (nl < 0) nl = s.Length;
+                string line = s.Substring(i, nl - i).TrimEnd('\r', ' ', '\t');
+                i = nl + 1;
+                string t = line.TrimStart();
+                if (t.StartsWith("```", StringComparison.Ordinal)) fence = !fence;
+                if (!fence && t.Length == 0) { pending = true; continue; }
+                if (wrote) sb.Append(pending ? "\n\n" : "\n");
+                sb.Append(line);
+                wrote = true;
+                pending = false;
+            }
+            return sb.ToString();
         }
 
         // 0 = link, 1 = code, 2 = table cell: buffers whose content wraps on close.
@@ -61,6 +85,7 @@ namespace Clip.Core
             bool _lineStart = true;
             bool _wroteAny;
             bool _pendingItem; // <li> waiting for its first content: the marker is deferred
+            bool _freshMarker; // the marker just wrote "- ": one source space after it is redundant
             bool _checked;
             bool _hasChecked;
 
