@@ -25,6 +25,7 @@ namespace Clip
         ShellWindow _shell;
         EventWaitHandle _showSignal;
         string _themeSetting;
+        Window _trayHost;
 
         void StartV2Shell(string[] args)
         {
@@ -253,12 +254,37 @@ namespace Clip
             var cursor = System.Windows.Forms.Cursor.Position;
             var screen = System.Windows.Forms.Screen.FromPoint(cursor);
             double scale = ScreenDpi.Scale(screen);
+            double dipX = cursor.X / scale;
+            double dipY = cursor.Y / scale;
+            // An unparented menu never takes foreground, so outside clicks and Esc go to the
+            // app below and WPF light-dismiss never fires. A 1px helper owns foreground instead.
+            _trayHost?.Close();
+            var host = new Window
+            {
+                Width = 1,
+                Height = 1,
+                Left = dipX,
+                Top = dipY,
+                WindowStyle = WindowStyle.None,
+                AllowsTransparency = true,
+                Background = System.Windows.Media.Brushes.Transparent,
+                ShowInTaskbar = false,
+                Topmost = true,
+                ShowActivated = true,
+            };
+            _trayHost = host;
+            menu.PlacementTarget = host;
             menu.Placement = System.Windows.Controls.Primitives.PlacementMode.AbsolutePoint;
-            menu.HorizontalOffset = cursor.X / scale;
-            menu.VerticalOffset = cursor.Y / scale;
+            menu.HorizontalOffset = dipX;
+            menu.VerticalOffset = dipY;
             // Light-dismiss: a programmatically opened menu keeps StaysOpen=true, so a click
             // elsewhere or Esc would leave it hanging. False hands dismissal back to WPF.
             menu.StaysOpen = false;
+            menu.Closed += (s, e) => { if (ReferenceEquals(_trayHost, host)) _trayHost = null; host.Close(); };
+            host.Deactivated += (s, e) => { try { menu.IsOpen = false; } catch { } }; // click outside while capture is missing
+            host.Show();
+            host.Activate();
+            ForegroundApp.Force(new System.Windows.Interop.WindowInteropHelper(host).Handle);
             menu.IsOpen = true;
         }
 
