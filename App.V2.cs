@@ -111,11 +111,10 @@ namespace Clip
                 Dispatcher.BeginInvoke(new Action(() => _notif?.ShowMessage(ClipboardStore.CorruptionNotice)),
                     DispatcherPriority.ApplicationIdle);
 
-            // A first launch that lands silently in the tray is a mystery: once the shell is fully
-            // loaded, name the hotkey. It fires from Ready, never during startup.
-            if (_cfg.WasNew)
-                _shell.Ready += () => _notif?.ShowMessage(
-                    $"{Product} is running. Press {_cfg.Hotkey} to open the list.");
+            // A launch that lands silently in the tray is a mystery: once the shell is fully
+            // loaded, name the hotkey. It fires from Ready on every cold start, never during startup.
+            _shell.Ready += () => _notif?.ShowMessage(
+                $"{Product} is running. Press {_cfg.Hotkey} to open the list.");
 
             RegisterV2Hotkeys();
             ListenForShow();

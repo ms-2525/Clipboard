@@ -127,7 +127,7 @@ Harness sources are in `%TEMP%\opencode\` (scratch, not committed): `s17\verify-
       radius, close X and body copy). `93-settings-from-tray.png`, `94-preview-toast.png`,
       `95-preview-toast-2.png`. It is a button-driven preview, not a live drag of the offset sliders — that
       sub-clause is not claimed.
-- [x] **PASS** — [L] First-run hint on the very first launch: a new isolated profile shows the native toast
+- [x] **PASS** — [L] Startup hint on every launch: a start shows the native toast
       `Clip is running. Press Alt+V to open the list.` Live 25 Nov pass 3, fresh profile on
       `221D045B…0548`: visible at 1.9 s and 2.6 s after process start, not yet at 1.2 s; toast window
       **477x116 px at 1419,988** (`02-firstrun-1900.png`, `03-firstrun-2600.png`). The same profile then

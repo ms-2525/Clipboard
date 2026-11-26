@@ -75,7 +75,7 @@ page, live proof pending · **AWAITING SIGN** = fixed after a failed live read, 
 | 25 | No data loss (truncation, corrupt DB, cap) | SHIPPED | Emoji truncation fixed and guarded; corrupt DB set aside + notice; cap exact; tab purge counted |
 | 26 | Memory honest and acceptable | LIMIT / decision | 527.5 MB WS / 270.5 MB private, 7 processes (06:52 exe); newest exe not re-measured; owner must accept or set a ceiling |
 | 27 | Cold first open <= 150 ms | LIMIT / decision | Live **160.8 ms** (150 % DPI, 11 ms over); warm median **97.9 ms**; internal show 3.5 ms |
-| 28 | First-run hint ("… is running, press Alt+V") | SHIPPED (live pending) | `App.V2.cs` shows "Clip is running. Press Alt+V to open the list." once when `Config.WasNew`; the old path had it, this one did not. Fresh-profile live check running |
+| 28 | Startup hint ("… is running, press Alt+V") | SHIPPED (live pending) | `App.V2.cs` shows "Clip is running. Press Alt+V to open the list." from `Ready` on every cold start. Fresh-profile live check running |
 | 29 | Ghost notification preview in Settings | PARTIAL | Settings → **Preview** now calls the host and shows the **real** native toast at its real coordinates with the current settings (`previewNotification` → `NotificationWindow.ShowFor`). Drag-to-move and live-follow on every slider tick are not built |
 | 30 | On-screen known-limits note | SHIPPED (live pending) | Settings → **Known limits**: colour emoji in the preview, Google Docs/Notion HTML degradation, OCR never for amounts, Excel `007` → `7` in CSV |
 | 31 | Notice for over-budget clipboard formats | SHIPPED (live pending) | `ClipboardFormats.Snapshot` reports every dropped format name; `CaptureService` toasts "Part of the copy was not saved: <formats> over the N MB clip limit". Oversized images already toasted |
@@ -151,7 +151,7 @@ page, live proof pending · **AWAITING SIGN** = fixed after a failed live read, 
 35. As the owner, I want the app to start at login and stay in the tray, so that it is always ready.
 36. As the owner, I want a corrupt database to be set aside with a visible message instead of a dead
     start, so that I know what happened and a fresh history begins.
-37. As the owner, I want a first-run hint telling me the app is running and the hotkey, so that a silent
+37. As the owner, I want a startup hint telling me the app is running and the hotkey, so that a silent
     tray start is not a mystery.
 38. As the owner, I want a native toast preview in Settings, so that I can see where it will appear
     before I rely on it.
