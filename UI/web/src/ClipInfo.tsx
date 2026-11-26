@@ -175,7 +175,7 @@ export function StorageNotice({
             <div className="set-row">
               <span className="grow" style={{ wordBreak: 'break-word' }}>
                 New copies are still saved — nothing is lost. To free space, right-click clips you no
-                longer need and choose Delete, or use Clear history in the tray menu.
+                longer need and choose Delete, or use Clear history in Settings → Storage.
               </span>
             </div>
           </div>

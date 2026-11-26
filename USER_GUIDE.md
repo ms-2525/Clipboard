@@ -219,7 +219,8 @@ sections down the left: **General**, **Capture**, **Appearance**, **Notification
 **About**. **Save changes** keeps everything on the open page; zoom applies the moment you pick it.
 
 - **General**
-  - *Launch at login* — start Clip with Windows. Mirrors the tray menu switch.
+  - *Launch at login* — start Clip with Windows. On for fresh installs; mirrors the tray
+    menu switch, and the tick always shows the real startup entry.
   - *Start hidden in the tray* — fixed on in this release; Clip always starts in the tray.
   - *Open Clip hotkey* — click the field, then press the new combination. If another app owns it,
     Clip keeps the old one and tells you.
