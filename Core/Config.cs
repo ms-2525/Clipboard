@@ -78,6 +78,8 @@ namespace Clip.Core
             public bool ShowApp { get; set; } = true;
             public bool ShowTime { get; set; } = true;
             public int MaxLines { get; set; } = 3;
+            /// <summary>Toast size 0-10: level N scales the Width/Height caps to (1 + N/10)x.</summary>
+            public int Size { get; set; } = 0;
         }
 
         public static Config Load()
@@ -93,6 +95,7 @@ namespace Clip.Core
                         cfg.Notification ??= new NotificationSettings();
                         cfg.IgnoreFormats ??= new Config().IgnoreFormats;
                         if (cfg.TimeFormat != "12h" && cfg.TimeFormat != "24h") cfg.TimeFormat = "24h";
+                        if (cfg.Notification.Size < 0 || cfg.Notification.Size > 10) cfg.Notification.Size = 0;
                         return cfg;
                     }
                 }

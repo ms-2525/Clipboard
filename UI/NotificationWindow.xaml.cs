@@ -177,11 +177,11 @@ namespace Clip.UI
             }
         }
 
-        /// <summary>True when the laid-out content fits the configured maximum height (DIP).</summary>
+        /// <summary>True when the laid-out content fits the scaled maximum height (DIP).</summary>
         bool Fits()
         {
-            MeasureRoot(_cfg.Notification.Width);
-            return Root.DesiredSize.Height <= _cfg.Notification.Height;
+            MeasureRoot(ScaledWidth());
+            return Root.DesiredSize.Height <= ScaledHeight();
         }
 
         /// <summary>
@@ -223,6 +223,16 @@ namespace Clip.UI
             Present();
         }
 
+        /// <summary>
+        /// Toast size 0-10 as a scale on the configured caps: level N is (1 + N/10)x, so 0 is the
+        /// standard size and 10 is 2.0x. One home so measuring, presenting and warming all agree.
+        /// </summary>
+        double ToastScale() => 1.0 + Math.Clamp(_cfg.Notification.Size, 0, 10) / 10.0;
+
+        double ScaledWidth() => _cfg.Notification.Width * ToastScale();
+
+        double ScaledHeight() => _cfg.Notification.Height * ToastScale();
+
         /// <summary>Shared placement + fade + auto-dismiss. The window instance lives for the session (S0 leak fix).</summary>
         void Present()
         {
@@ -237,8 +247,8 @@ namespace Clip.UI
 
             // Image toasts get the scaled caps so the thumbnail renders ~2x; text toasts
             // keep the configured caps. Either way the toast never outgrows the screen.
-            double capW = Math.Min(_large ? n.Width * ImageScale : n.Width, wa.Width / sc - EdgeGap * 2);
-            double capH = Math.Min(_large ? n.Height * ImageScale : n.Height, wa.Height / sc - EdgeGap * 2);
+            double capW = Math.Min(_large ? ScaledWidth() * ImageScale : ScaledWidth(), wa.Width / sc - EdgeGap * 2);
+            double capH = Math.Min(_large ? ScaledHeight() * ImageScale : ScaledHeight(), wa.Height / sc - EdgeGap * 2);
             MeasureRoot(capW);
             double width = Math.Min(capW, Math.Max(ToastMinWidth, Math.Ceiling(Root.DesiredSize.Width)));
             Width = width;
@@ -320,8 +330,8 @@ namespace Clip.UI
             Opacity = 0.004;
             Left = -32000;
             Top = -32000;
-            Width = _cfg.Notification.Width;
-            Height = _cfg.Notification.Height;
+            Width = ScaledWidth();
+            Height = ScaledHeight();
             Root.Opacity = 0;
             try
             {

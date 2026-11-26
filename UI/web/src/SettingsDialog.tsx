@@ -79,6 +79,7 @@ export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, o
   const [cap, setCap] = useState(settings.maxItems)
   const [showImagesInAll, setShowImagesInAll] = useState(settings.showImagesInAll)
   const [lines, setLines] = useState(settings.notification.maxLines)
+  const [toastSize, setToastSize] = useState(settings.notification.size ?? 0)
   const [themeChoice, setThemeChoice] = useState(settings.themeChoice)
   const [timeFormat, setTimeFormat] = useState(settings.timeFormat)
   const [hotkey, setHotkey] = useState(settings.hotkey)
@@ -113,6 +114,7 @@ export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, o
       setCap(settings.maxItems)
       setShowImagesInAll(settings.showImagesInAll)
       setLines(settings.notification.maxLines)
+      setToastSize(settings.notification.size ?? 0)
       setThemeChoice(settings.themeChoice)
       setTimeFormat(settings.timeFormat)
       setHotkey(settings.hotkey)
@@ -191,7 +193,7 @@ export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, o
         uiZoom: settings.uiZoom,
         hotkey,
         startOnLogin: autostart,
-        notification: { maxLines: lines },
+        notification: { maxLines: lines, size: toastSize },
       })
       if (result.hotkeyError) {
         // The host kept the binding that still works; say which one is live and leave the dialog open.
@@ -443,6 +445,19 @@ export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, o
                           <button className="btn ghost sm" onClick={onPreviewToast} type="button">
                             Preview
                           </button>
+                        </div>
+                        <div className="set-row">
+                          <div className="grow">
+                            <div className="label">Toast size</div>
+                            <div className="t-sec">0 is the default size, 10 is double. Preview shows the real one.</div>
+                          </div>
+                          <Slider.Root className="slider" min={0} max={10} step={1} value={[toastSize]} onValueChange={([value]) => setToastSize(value)} aria-label="Toast size">
+                            <Slider.Track className="slider-track">
+                              <Slider.Range className="slider-range" />
+                            </Slider.Track>
+                            <Slider.Thumb className="slider-thumb" />
+                          </Slider.Root>
+                          <span className="set-value">{toastSize === 0 ? 'Default size' : toastSize === 10 ? '2x' : `${toastSize} · ${(1 + toastSize / 10).toFixed(1)}×`}</span>
                         </div>
                       </div>
                     </>

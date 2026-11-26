@@ -241,6 +241,8 @@ sections down the left: **General**, **Capture**, **Appearance**, **Notification
     ways: a short copy gets a narrow, short toast; a long one widens to the maximum, wraps, and
     stops at the line cap. **Preview** shows the real toast, where it will appear, with your
     current settings.
+  - *Toast size* (0–10) — how big that toast is: 0 is the default size, 10 is double.
+    The toast still auto-fits its content inside the bigger or smaller box.
 - **Storage**
   - Everything lives in one storage file with a 1 GB guide, far above normal use (a full day of
     copying is a few MB). If it is ever crossed, Clip says so the next time the list opens and

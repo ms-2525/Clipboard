@@ -65,6 +65,7 @@ namespace Clip.Host
                     width = n.Width,
                     height = n.Height,
                     maxLines = n.MaxLines,
+                    size = n.Size,
                     position = n.Position
                 }
             };
@@ -148,10 +149,12 @@ namespace Clip.Host
             int? width = IntOrNull(n, "width");
             int? height = IntOrNull(n, "height");
             int? lines = IntOrNull(n, "maxLines");
+            int? size = IntOrNull(n, "size");
             string position = Choice(n, "position", null, "bottom-right", "bottom-left", "top-right", "top-left");
             if (width.HasValue) _cfg.Notification.Width = Math.Clamp(width.Value, 240, 900);
             if (height.HasValue) _cfg.Notification.Height = Math.Clamp(height.Value, 60, 700);
             if (lines.HasValue) _cfg.Notification.MaxLines = Math.Clamp(lines.Value, 1, 30);
+            if (size.HasValue) _cfg.Notification.Size = Math.Clamp(size.Value, 0, 10);
             if (position != null) _cfg.Notification.Position = position;
         }
 

@@ -21,7 +21,7 @@ export interface HostSettings {
   hotkey: string
   hotkeyPlain: string
   startOnLogin: boolean
-  notification: { width: number; height: number; maxLines: number; position: string }
+  notification: { width: number; height: number; maxLines: number; size: number; position: string }
 }
 
 /** Only the fields the dialog edits; the host clamps and validates them. */
@@ -62,6 +62,7 @@ export function toSettings(config: HostConfig | null | undefined): HostSettings 
       width: typeof n.width === 'number' ? n.width : 420,
       height: typeof n.height === 'number' ? n.height : 160,
       maxLines: typeof n.maxLines === 'number' ? n.maxLines : 3,
+      size: typeof n.size === 'number' && n.size >= 0 && n.size <= 10 ? n.size : 0,
       position: typeof n.position === 'string' ? n.position : 'bottom-right',
     },
   }
