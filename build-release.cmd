@@ -1,6 +1,6 @@
 @echo off
-rem Double-click this to build the latest Clip.exe into dist\ and start it.
-rem Flow: build the web bundle if stale -> stop every running Clip -> publish one self-contained exe -> start it.
+rem Double-click this to build the latest Clip.exe into dist\ and dist-fd\ and start it.
+rem Flow: build the web bundle if stale -> stop every running Clip -> publish one self-contained exe (dist) + one framework-dependent folder (dist-fd) -> start it.
 rem If the product is renamed (AssemblyName in Clip.csproj), update the Clip.exe names below.
 setlocal
 cd /d "%~dp0"
@@ -53,7 +53,11 @@ pause
 exit /b 1
 
 :stopped
-rem ---- 3. publish the self-contained exe ---------------------------------------------
+rem ---- 3. clear last build outputs so stale files never linger ---------------------------
+rem Runs after the stop above: deleting dist while Clip is still running would fail on a locked exe.
+if exist "%~dp0dist" rmdir /s /q "%~dp0dist"
+if exist "%~dp0dist-fd" rmdir /s /q "%~dp0dist-fd"
+rem ---- 4. publish the self-contained exe ---------------------------------------------
 echo Building Clip - this takes a minute...
 echo.
 dotnet publish Clip.csproj -c Release -r win-x64 --self-contained true ^
@@ -71,7 +75,17 @@ if errorlevel 1 (
 )
 echo.
 echo Embedded page: clip.assets.web/index.html
-echo Exe size: %exesize% bytes
+echo Portable exe: dist\Clip.exe ^(%exesize% bytes, runs with no .NET installed^)
+
+rem ---- 5. framework-dependent folder (needs the .NET 10 desktop runtime on the target machine) --
+echo Building the framework-dependent folder - this takes a minute...
+dotnet publish Clip.csproj -c Release --self-contained false ^
+    -p:DebugType=none ^
+    -o dist-fd
+if errorlevel 1 goto failed
+
+for /f %%S in ('powershell -NoProfile -Command "(Get-ChildItem dist-fd -Recurse -File | Measure-Object Length -Sum).Sum"') do set fdsize=%%S
+echo Runtime folder: dist-fd\Clip.exe + files beside it ^(%fdsize% bytes total^)
 
 rem Something may have started old copies during the build (Windows startup entry, a shortcut); they would win Clip's
 rem single-instance lock and the new exe would exit. Clear them again right before starting.
@@ -109,7 +123,8 @@ exit /b 1
 
 :failed
 echo.
-echo BUILD FAILED. Restarting the last good exe so you still have Clip.
+echo BUILD FAILED. Outputs were cleared before the build, so restart Clip from your
+echo Start-menu shortcut if you need it running while you fix the error above.
 if exist "%~dp0dist\Clip.exe" start "" "%~dp0dist\Clip.exe"
 echo Fix the error above, then run this script again.
 pause
