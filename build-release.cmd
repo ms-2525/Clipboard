@@ -87,6 +87,11 @@ if errorlevel 1 goto failed
 for /f %%S in ('powershell -NoProfile -Command "(Get-ChildItem dist-fd -Recurse -File | Measure-Object Length -Sum).Sum"') do set fdsize=%%S
 echo Runtime folder: dist-fd\Clip.exe + files beside it ^(%fdsize% bytes total^)
 
+rem ---- 6. drop compiler intermediates (bin/obj regenerate on the next build) -------------
+if exist "%~dp0bin" rmdir /s /q "%~dp0bin"
+if exist "%~dp0obj" rmdir /s /q "%~dp0obj"
+echo Cleaned bin\ and obj\ to save disk space.
+
 rem Something may have started old copies during the build (Windows startup entry, a shortcut); they would win Clip's
 rem single-instance lock and the new exe would exit. Clear them again right before starting.
 taskkill /IM Clip.exe /F >nul 2>&1
