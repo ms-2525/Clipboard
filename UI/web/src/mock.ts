@@ -223,6 +223,10 @@ export function createMockHost(): Host {
       counter.__mockGetItemCalls = (counter.__mockGetItemCalls ?? 0) + 1
       counter.__mockGetItemIds?.push(id)
       if (real && realBodies.has(id)) return wait(realBodies.get(id) ?? null)
+      // Saved edits persist HTML like the host store (SaveEditor writes Html):
+      // prefer it over the rebuilt preview so markup round-trips through getItem.
+      const stored = realBodies.get(id)
+      if (stored?.html) return wait({ ...stored })
       const clip = clips.find((entry) => entry.id === id)
       return wait(
         clip
@@ -359,8 +363,9 @@ export function createMockHost(): Host {
       if (!clip) return wait({ saved: false, error: 'That clip no longer exists.' })
       if (!html.trim()) return wait({ saved: false, error: 'The editor is empty, so nothing was saved.' })
       if (/<script/i.test(html)) return wait({ saved: false, error: 'The clip contains a script, so it was not saved.' })
-      const body = realBodies.get(id)
-      if (body) realBodies.set(id, { ...body, html, text, formats: [] })
+      // Mirror the host store: every save persists the full HTML body (RTF is
+      // dropped on edit), so reopen loads what was saved, not a rebuilt preview.
+      realBodies.set(id, { text, html, rtf: null, formats: [] })
       // Same rule as the host's SaveEditor: a saved grid keeps spreadsheet-ness via the kind.
       const isGrid = text.includes('\t') && /<table/i.test(html)
       const kind = isGrid ? 'sheet' : clip.kind === 'files' ? 'text' : clip.kind

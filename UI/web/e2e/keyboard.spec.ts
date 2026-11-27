@@ -461,3 +461,92 @@ test('Change case offers upper, lower, title and sentence case', async ({ page }
   await expect(body).toHaveText('the cat and the dog. it ran!')
   await expect(overlay.getByText('Unsaved changes').first()).toBeVisible()
 })
+
+test('the Breaks toggle is off by default and shows ¶ and ↵ in the same grey', async ({ page }) => {
+  const overlay = page.locator('.editor-overlay')
+  const body = overlay.locator('.ProseMirror')
+  await page.keyboard.press('F2')
+  await expect(body).toBeFocused()
+  const toggle = overlay.getByRole('button', { name: 'Show line and paragraph breaks' })
+  // Off on open: the editor renders exactly as before, with no mark paint.
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false')
+  await expect(overlay.locator('.editor-page')).not.toHaveClass(/show-breaks/)
+  const soft = overlay.locator('.pb-soft')
+  const before = await soft.count()
+  await toggle.click()
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true')
+  // The toggle steals focus; land the caret back at the end of the clip first.
+  await body.click()
+  await page.keyboard.press('End')
+  await page.keyboard.press('Enter')
+  await page.keyboard.press('Shift+Enter')
+  await expect(soft).toHaveCount(before + 1)
+  // ¶ and ↵ share one quiet grey (no accent shouting).
+  const widgetColor = await soft.last().evaluate((el) => window.getComputedStyle(el).color)
+  const paraColor = await overlay.evaluate(() => {
+    const el = document.querySelector('.editor-page p.brk-para') as HTMLElement
+    return window.getComputedStyle(el, '::after').color
+  })
+  expect(widgetColor).toBe(paraColor)
+  await toggle.click()
+  await expect(overlay.locator('.editor-page')).not.toHaveClass(/show-breaks/)
+  await page.keyboard.press('Escape')
+  await expect(page.getByText('Discard changes?')).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(overlay).toHaveCount(0)
+})
+
+test('exiting a list leaves the trailing blank unmarked', async ({ page }) => {
+  const overlay = page.locator('.editor-overlay')
+  const body = overlay.locator('.ProseMirror')
+  const paras = overlay.locator('.ProseMirror p')
+  await page.keyboard.press('F2')
+  await expect(body).toBeFocused()
+  // Replace the stored body so the list scenario starts from exactly one paragraph.
+  await page.keyboard.press('Control+a')
+  await page.keyboard.type('one')
+  // The toolbar click steals focus; chain().focus() restores the editor but the
+  // caret position is unreliable, so park it explicitly before pressing Enter.
+  await overlay.getByRole('button', { name: 'Numbered list' }).click()
+  await body.click()
+  await page.keyboard.press('End')
+  await page.keyboard.press('Enter')
+  await page.keyboard.press('Enter')
+  await overlay.getByRole('button', { name: 'Show line and paragraph breaks' }).click()
+  // However many blanks the exit leaves, the trailing one is never marked: no stuck icon.
+  await expect(overlay.locator('.ProseMirror ol li')).toHaveCount(1)
+  await expect(paras.last()).not.toHaveClass(/brk-para/)
+  await page.keyboard.press('Escape')
+  await expect(page.getByText('Discard changes?')).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(overlay).toHaveCount(0)
+})
+
+test('Backspace removes the trailing blank line below a list', async ({ page }) => {
+  const overlay = page.locator('.editor-overlay')
+  const body = overlay.locator('.ProseMirror')
+  const paras = overlay.locator('.ProseMirror p')
+  await page.keyboard.press('F2')
+  await expect(body).toBeFocused()
+  // Replace the stored body so the list scenario starts from exactly one paragraph.
+  await page.keyboard.press('Control+a')
+  await page.keyboard.type('one')
+  // The toolbar click steals focus; chain().focus() restores the editor but the
+  // caret position is unreliable, so park it explicitly before pressing Enter.
+  await overlay.getByRole('button', { name: 'Numbered list' }).click()
+  await body.click()
+  await page.keyboard.press('End')
+  await page.keyboard.press('Enter')
+  await page.keyboard.press('Enter')
+  // Each Backspace clears one trailing blank until only the list item remains.
+  for (let guard = 0; guard < 5 && ((await paras.count()) as number) > 1; guard++) {
+    await page.keyboard.press('Backspace')
+  }
+  await expect(paras).toHaveCount(1)
+  await expect(overlay.locator('.ProseMirror ol')).toHaveCount(1)
+  await expect(paras.first()).toHaveText('one')
+  await page.keyboard.press('Escape')
+  await expect(page.getByText('Discard changes?')).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(overlay).toHaveCount(0)
+})

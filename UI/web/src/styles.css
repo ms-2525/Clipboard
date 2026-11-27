@@ -1657,6 +1657,43 @@ mark.hit {
 .editor-page .tiptap p {
   margin: 0 0 10px;
 }
+/* Break marks (¶ for Enter, ↵ for Shift+Enter) live behind the toolbar toggle: without
+   .show-breaks the editor renders exactly as before. Marks are ProseMirror decorations —
+   never saved, copied or printed. The ¶ is ::after paint (no caret position, Backspace-safe);
+   the ↵ is a zero-width widget (a <br> cannot carry ::after). */
+.editor-page .tiptap .pb-soft {
+  display: none;
+}
+.editor-page.show-breaks .tiptap p.brk-para::after {
+  content: '¶';
+  color: var(--control);
+  font-size: 0.85em;
+  margin-left: 2px;
+  pointer-events: none;
+}
+/* An empty paragraph is <p><br></p>: hide the filler break so the ¶ rides the blank line
+   itself instead of dropping onto a phantom second line. */
+.editor-page.show-breaks .tiptap p.brk-empty {
+  min-height: 1.6em;
+}
+.editor-page.show-breaks .tiptap p.brk-empty > br {
+  display: none;
+}
+.editor-page.show-breaks .tiptap .pb-soft {
+  display: inline-block;
+  width: 0;
+  margin-left: 0;
+  color: var(--control);
+  font-style: normal;
+  font-weight: 400;
+  user-select: none;
+  pointer-events: none;
+}
+.tool .brk-glyph {
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: 1px;
+}
 .editor-page .tiptap h2 {
   font-size: 19px;
   line-height: 28px;

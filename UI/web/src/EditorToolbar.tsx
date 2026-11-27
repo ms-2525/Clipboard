@@ -34,6 +34,8 @@ interface Props {
   onSize: (next: number) => void
   onSingleLine: () => void
   highlight: string
+  showBreaks: boolean
+  onToggleBreaks: () => void
 }
 
 /**
@@ -98,7 +100,7 @@ function sentenceRun(text: string, flag: boolean): { text: string; flag: boolean
  * The editor's formatting surface. Formatting state is read from TipTap on every render, so an
  * active mark lights up right after the command that changed it.
  */
-export function EditorToolbar({ editor, pop, setPop, size, onSize, onSingleLine, highlight }: Props) {
+export function EditorToolbar({ editor, pop, setPop, size, onSize, onSingleLine, highlight, showBreaks, onToggleBreaks }: Props) {
   const [linkDraft, setLinkDraft] = useState('')
   const popRef = useRef<HTMLDivElement>(null)
 
@@ -370,6 +372,18 @@ export function EditorToolbar({ editor, pop, setPop, size, onSize, onSingleLine,
       </button>
       <button className="tool text" onClick={onSingleLine} title="Collapse to one paragraph">
         Single line
+      </button>
+      <button
+        className="tool text"
+        data-on={showBreaks}
+        onClick={onToggleBreaks}
+        title="Show line and paragraph breaks (¶ for Enter, ↵ for Shift+Enter)"
+        aria-label="Show line and paragraph breaks"
+        aria-pressed={showBreaks}
+      >
+        <span aria-hidden="true" className="brk-glyph">
+          ¶↵
+        </span>
       </button>
       <div className="tool-wrap">
         <button

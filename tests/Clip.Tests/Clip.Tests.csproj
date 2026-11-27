@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>Clip.Tests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="11.0.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+  </ItemGroup>
+
+  <!-- No ProjectReference to Clip.csproj: it is a WPF WinExe, so referencing it
+       would drag App.xaml and the whole shell into the test run. The editor-save
+       backend under test is host-independent pure logic, so the needed files are
+       compiled in directly. If a listed file gains a WPF/WebView2 dependency,
+       this project fails to compile until the file is dropped or stubbed. -->
+  <ItemGroup>
+    <Compile Include="..\..\Core\ClipboardItem.cs" Link="Prod\Core\ClipboardItem.cs" />
+    <Compile Include="..\..\Core\ClipboardStore.cs" Link="Prod\Core\ClipboardStore.cs" />
+    <Compile Include="..\..\Core\ClipboardStore.Items.cs" Link="Prod\Core\ClipboardStore.Items.cs" />
+    <Compile Include="..\..\Core\ClipboardStore.Tabs.cs" Link="Prod\Core\ClipboardStore.Tabs.cs" />
+    <Compile Include="..\..\Core\ClipExport.cs" Link="Prod\Core\ClipExport.cs" />
+    <Compile Include="..\..\Core\SearchService.cs" Link="Prod\Core\SearchService.cs" />
+    <Compile Include="..\..\Core\ClipSearch.cs" Link="Prod\Core\ClipSearch.cs" />
+    <Compile Include="..\..\Core\HtmlToMarkdown.cs" Link="Prod\Core\HtmlToMarkdown.cs" />
+    <Compile Include="..\..\Core\HtmlToMarkdown.Inline.cs" Link="Prod\Core\HtmlToMarkdown.Inline.cs" />
+    <Compile Include="..\..\Core\HtmlToMarkdown.Blocks.cs" Link="Prod\Core\HtmlToMarkdown.Blocks.cs" />
+    <Compile Include="..\..\Interop\HtmlFragment.cs" Link="Prod\Interop\HtmlFragment.cs" />
+  </ItemGroup>
+
+</Project>

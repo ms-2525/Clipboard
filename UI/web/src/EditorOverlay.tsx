@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
 import { EditorContent, useEditor } from '@tiptap/react'
 import { Extension, type Editor } from '@tiptap/core'
+import { EditorState } from '@tiptap/pm/state'
 import StarterKit from '@tiptap/starter-kit'
 import { BackgroundColor, Color, FontFamily, FontSize, TextStyle } from '@tiptap/extension-text-style'
 import Highlight from '@tiptap/extension-highlight'
@@ -9,6 +10,7 @@ import { TableKit } from '@tiptap/extension-table'
 import TaskList from '@tiptap/extension-task-list'
 import TaskItem from '@tiptap/extension-task-item'
 import { EditorToolbar, type EditorPop } from './EditorToolbar'
+import { BreakMarks, handleBreakBackspace } from './breakMarks'
 import { cfHtmlFragment } from './rich'
 import type { ClipBody, ClipItem } from './host'
 import { formatTime, type TimeFormat } from './format'
@@ -124,6 +126,8 @@ export function EditorOverlay({ clip, timeFormat, getItem, getImage, onSave, onS
   const [confirmConvert, setConfirmConvert] = useState(false)
   const [size, setSize] = useState(14)
   const [pop, setPop] = useState<EditorPop>(null)
+  /** Break-mark visibility (¶/↵): off by default so the editor opens exactly as before. */
+  const [showBreaks, setShowBreaks] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -140,12 +144,19 @@ export function EditorOverlay({ clip, timeFormat, getItem, getImage, onSave, onS
   /** Bumped on every editor update: the count must move on each keystroke, not only when `dirty` flips. */
   const [revision, setRevision] = useState(0)
   const baseline = useRef('')
+  /** Clip id whose body is on screen: a same-id refresh must not clobber fresh typing. */
+  const loadedId = useRef<number | null>(null)
   // Captured during the first render, before Radix moves focus into the dialog.
   const returnFocus = useRef<HTMLElement | null>(document.activeElement instanceof HTMLElement ? document.activeElement : null)
 
   const editor = useEditor({
     extensions: [
-      StarterKit.configure({ link: { openOnClick: false } }),
+      StarterKit.configure({
+        link: { openOnClick: false },
+        // No trailing paragraph after lists: the extra blank line below a list
+        // is never created, and tables/code keep theirs (cursor escape hatch).
+        trailingNode: { notAfter: ['bulletList', 'orderedList', 'taskList'] },
+      }),
       TextStyle,
       Color,
       BackgroundColor,
@@ -156,6 +167,7 @@ export function EditorOverlay({ clip, timeFormat, getItem, getImage, onSave, onS
       TableKit.configure({ table: { resizable: false } }),
       TaskList,
       TaskItem.configure({ nested: true }),
+      BreakMarks,
     ],
     content: '',
     autofocus: false,
@@ -164,6 +176,9 @@ export function EditorOverlay({ clip, timeFormat, getItem, getImage, onSave, onS
       // so the last line never hides behind the foot + bottom breathing room.
       scrollThreshold: 80,
       scrollMargin: 80,
+      // An empty trailing paragraph after a list (or table) cannot be joined by stock
+      // Backspace, so the blank line strands; delete it and land at the end of the list.
+      handleKeyDown: (view, event) => handleBreakBackspace(view, event),
     },
     onUpdate: ({ editor: instance }) => {
       setDirty(instance.getHTML() !== baseline.current)
@@ -173,6 +188,10 @@ export function EditorOverlay({ clip, timeFormat, getItem, getImage, onSave, onS
 
   useEffect(() => {
     if (!editor) return
+    // A same-clip refresh (the post-save reload) racing fresh keystrokes must not
+    // wipe them: typing wins, and the next save persists it. Checked up front so
+    // the skip never strands the loading state.
+    if (clip.id === loadedId.current && editor.getHTML() !== baseline.current) return
     let cancelled = false
     setLoading(true)
     setError('')
@@ -187,7 +206,13 @@ export function EditorOverlay({ clip, timeFormat, getItem, getImage, onSave, onS
       // getItem carries the whole stored body (never the list preview), so a truncated clip edits in full.
       const html = body?.html ? cfHtmlFragment(body.html) : textToHtml(body?.text ?? clip.text ?? '')
       editor.commands.setContent(html || '<p></p>', { emitUpdate: false })
+      // The programmatic load is not an undo step: rebuild the state with the same
+      // doc and plugins so a clean Ctrl+Z is a no-op instead of wiping the body.
+      editor.view.updateState(
+        EditorState.create({ schema: editor.schema, doc: editor.state.doc, plugins: editor.state.plugins }),
+      )
       baseline.current = editor.getHTML()
+      loadedId.current = clip.id
       setDirty(false)
       setLoading(false)
       requestAnimationFrame(() => editor.commands.focus('start'))
@@ -497,10 +522,10 @@ export function EditorOverlay({ clip, timeFormat, getItem, getImage, onSave, onS
             )
           )}
 
-          <EditorToolbar editor={editor} pop={pop} setPop={setPop} size={size} onSize={setSize} onSingleLine={singleLine} highlight={highlight} />
+          <EditorToolbar editor={editor} pop={pop} setPop={setPop} size={size} onSize={setSize} onSingleLine={singleLine} highlight={highlight} showBreaks={showBreaks} onToggleBreaks={() => setShowBreaks((value) => !value)} />
 
           <div className="editor-scroll">
-            <div className="editor-page">
+            <div className={'editor-page' + (showBreaks ? ' show-breaks' : '')}>
               {loading ? (
                 <div className="t-sec">Loading the full clip…</div>
               ) : (
