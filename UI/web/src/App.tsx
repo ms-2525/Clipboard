@@ -1484,6 +1484,7 @@ export default function App() {
         onSave={saveSettings}
         onClearHistory={() => void clearHistory()}
         onStorageUsage={host.storageUsage}
+        onReadSettings={host.getConfig}
         onPreviewToast={() => void host.previewNotification()}
         returnFocus={settingsReturn}
       />

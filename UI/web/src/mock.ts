@@ -24,13 +24,46 @@ const KNOWN_TAGS = new Set([
 /** Mirrors Core\ClipSearch.LanguageTags: `code:` means any of these. */
 const LANGUAGES = ['csharp', 'typescript', 'javascript', 'python', 'rust', 'php', 'go', 'java', 'shell']
 
+/**
+ * A ChatGPT/Edge dark-mode capture, exactly the shape the owner reported: the block carries
+ * `color` + `background-color` on the block element (not a span). A row renders FOREGROUND only
+ * (S0-HANDOFF §3), so no row may paint that near-black band. Served at `?mock=darkband`.
+ */
+const DARK_BAND_HTML =
+  '<h2 style="color: rgb(253, 251, 247); background-color: rgb(3, 6, 7)">Hour formats</h2>' +
+  '<ul style="color: rgb(236, 236, 241); background-color: rgb(0, 0, 0)">' +
+  '<li style="color: rgb(236, 236, 241); background-color: rgb(0, 0, 0)">H — 24-hour format without leading zero</li>' +
+  '<li style="color: rgb(236, 236, 241); background-color: rgb(0, 0, 0)">HH — 24-hour format with leading zero</li>' +
+  '</ul>'
+
+const DARK_BAND_CLIP: ClipItem = {
+  id: 1,
+  kind: 'rich',
+  app: 'msedge',
+  title: 'ChatGPT: Chat, Work, Create & Code with AI - Personal - Microsoft Edge',
+  time: new Date(Date.UTC(2026, 10, 28, 10, 36)).toISOString(),
+  pinned: false,
+  tabId: null,
+  text: 'Hour formats\nH — 24-hour format without leading zero\nHH — 24-hour format with leading zero',
+  hasImage: false,
+  hasHtml: true,
+  hasRtf: false,
+  formats: ['HTML Format', 'Text'],
+  tags: [],
+  truncated: false,
+  remainingChars: 0,
+  sizeBytes: 2476,
+}
+
 /** Deterministic 1,000-clip fixture for `npm run dev` and screenshots. Never used in WebView2. */
 export function createMockHost(): Host {
   // `?mock=real` serves the owner's six real captures (rich HTML, RTF-only, files, image);
+  // `?mock=darkband` serves one dark-source ChatGPT capture (row must drop its background);
   // `?mock=1` is the 1,000-row fixture the virtualiser and keyboard checks use;
   // `?mock=1000` keeps every row in the All tab, for the 1,000-row render measurement.
   const params = new URLSearchParams(window.location.search)
   const real = params.get('mock') === 'real'
+  const darkBand = params.get('mock') === 'darkband'
   const flat = params.get('mock') === '1000'
   // `?rich=1` makes every row of the 1,000-row fixture rich: the 10-mounted-rich-row measurement.
   const richAll = params.get('rich') === '1'
@@ -40,17 +73,27 @@ export function createMockHost(): Host {
       { text: clip.text, html: clip.html, rtf: clip.rtf, formats: clip.item.formats },
     ]),
   )
+  if (darkBand) {
+    realBodies.set(DARK_BAND_CLIP.id, {
+      text: DARK_BAND_CLIP.text,
+      html: DARK_BAND_HTML,
+      rtf: null,
+      formats: DARK_BAND_CLIP.formats,
+    })
+  }
   const realThumbs = new Map<number, string>(
     REAL_CLIPS.filter((clip) => clip.thumb).map((clip) => [clip.item.id, clip.thumb as string]),
   )
-  let clips: ClipItem[] = real
-    ? REAL_CLIPS.map((clip) => clip.item)
-    : makeClips(1000).map((clip, index) => ({
-        ...clip,
-        tags: MOCK_TAGS[index] ?? [],
-        tabId: flat ? null : clip.tabId,
-        hasHtml: richAll ? true : clip.hasHtml,
-      }))
+  let clips: ClipItem[] = darkBand
+    ? [DARK_BAND_CLIP]
+    : real
+      ? REAL_CLIPS.map((clip) => clip.item)
+      : makeClips(1000).map((clip, index) => ({
+          ...clip,
+          tags: MOCK_TAGS[index] ?? [],
+          tabId: flat ? null : clip.tabId,
+          hasHtml: richAll ? true : clip.hasHtml,
+        }))
   // The bridge has no cancel path; counting calls here proves only mounted rows ask for a body.
   const counter = window as unknown as {
     __mockGetItemCalls?: number
@@ -223,6 +266,7 @@ export function createMockHost(): Host {
       counter.__mockGetItemCalls = (counter.__mockGetItemCalls ?? 0) + 1
       counter.__mockGetItemIds?.push(id)
       if (real && realBodies.has(id)) return wait(realBodies.get(id) ?? null)
+      if (darkBand && realBodies.has(id)) return wait(realBodies.get(id) ?? null)
       // Saved edits persist HTML like the host store (SaveEditor writes Html):
       // prefer it over the rebuilt preview so markup round-trips through getItem.
       const stored = realBodies.get(id)
@@ -358,6 +402,8 @@ export function createMockHost(): Host {
       emit({ event: 'settingsSaved', data: settings })
       return wait({ config: settings, hotkeyError: null })
     },
+    // The mock has no Startup folder: it reports the value it was given, nothing live to re-read.
+    getConfig: async () => wait(toSettings(settings)),
     saveEditor: async ({ id, html, text }) => {
       const clip = clips.find((entry) => entry.id === id)
       if (!clip) return wait({ saved: false, error: 'That clip no longer exists.' })

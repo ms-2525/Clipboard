@@ -19,6 +19,12 @@ interface Props {
   onClearHistory: () => void
   /** Fresh clip.db usage for the Clear row; advisory, so a failure simply shows no readout. */
   onStorageUsage: () => Promise<{ bytes: number; limit: number }>
+  /**
+   * Live settings read on open. "Start on login" is the tray's Startup-folder shortcut, which can be
+   * switched from the tray menu while this dialog is closed, so the switch must not trust the snapshot
+   * the page loaded at startup.
+   */
+  onReadSettings?: () => Promise<HostSettings>
   /** Shows the real native toast at its real coordinates with the current settings. */
   onPreviewToast: () => void
   /** The Settings button; Radix has no Trigger here, so close restores focus to it explicitly. */
@@ -75,7 +81,7 @@ const SECTIONS: { id: Section; label: string; icon: React.ComponentType }[] = [
   { id: 'about', label: 'About', icon: IconInfo },
 ]
 
-export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, onZoom, onSave, onClearHistory, onPreviewToast, onStorageUsage, returnFocus }: Props) {
+export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, onZoom, onSave, onClearHistory, onPreviewToast, onStorageUsage, onReadSettings, returnFocus }: Props) {
   const [autostart, setAutostart] = useState(settings.startOnLogin)
   const [cap, setCap] = useState(settings.maxItems)
   const [rowLines, setRowLines] = useState(settings.previewLines)
@@ -132,6 +138,22 @@ export function SettingsDialog({ open, onOpenChange, settings, onPreviewTheme, o
     }
     wasOpen.current = open
   }, [open, settings, onStorageUsage])
+
+  // The tray can switch "Start on login" while this dialog is shut, so that one switch is re-read live
+  // on every open rather than trusting the snapshot the page loaded at startup. Anything else the user
+  // may have started editing meanwhile is left alone.
+  useEffect(() => {
+    if (!open) return
+    let live = true
+    void onReadSettings?.()
+      .then((current) => {
+        if (live) setAutostart(current.startOnLogin)
+      })
+      .catch(() => {}) // advisory: keep the snapshot when the host cannot answer
+    return () => {
+      live = false
+    }
+  }, [open, onReadSettings])
 
   // Re-measure when the dialog opens, a section changes, a group expands or the window resizes.
   useEffect(() => {

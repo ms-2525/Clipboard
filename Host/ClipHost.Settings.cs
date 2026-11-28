@@ -59,7 +59,8 @@ namespace Clip.Host
                 uiZoom = _zoom,
                 hotkey = _cfg.Hotkey,
                 hotkeyPlain = _cfg.HotkeyPlain,
-                startOnLogin = _cfg.StartOnLogin,
+                // Live, like the tray tick: the folder decides, never a stored flag.
+                startOnLogin = Autostart.IsEnabled(),
                 notification = new
                 {
                     width = n.Width,
@@ -70,6 +71,12 @@ namespace Clip.Host
                 }
             };
         }
+
+        /// <summary>
+        /// Bridge method "getConfig": the same shape the page gets at init, read fresh. The page asks on every
+        /// Settings open, so a tray switch flipped meanwhile is already reflected in the dialog.
+        /// </summary>
+        object GetConfig(JsonElement p) => ConfigDto();
 
         // ---- saveConfig -----------------------------------------------------------------------
 
@@ -130,11 +137,9 @@ namespace Clip.Host
                 _cfg.UiZoom = _zoom;
                 _web.ZoomFactor = _zoom / 100.0;
             }
-            if (startOnLogin.HasValue && startOnLogin.Value != _cfg.StartOnLogin)
-            {
-                _cfg.StartOnLogin = startOnLogin.Value;
-                Autostart.Set(startOnLogin.Value);
-            }
+            // Applied whenever the page sends it, even when it repeats what is stored: the flag can be
+            // stale, and skipping the write would leave the shortcut untouched after an external change.
+            if (startOnLogin.HasValue) Autostart.Set(startOnLogin.Value);
 
             // The hotkeys last: a conflict rolls back to the binding that still works, and nothing else is lost.
             string hotkeyError = null;

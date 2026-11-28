@@ -113,9 +113,14 @@ if /i "%running%"=="%~dp0dist\Clip.exe" (
     echo Exit it from the notification area, then run this script again.
 )
 
-rem Keep "start with Windows" pointing at the exe this script builds, not the old bin folder.
-reg query "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" /v Clip >nul 2>&1
-if not errorlevel 1 reg add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" /v Clip /t REG_SZ /d "%~dp0dist\Clip.exe" /f >nul
+rem Windows must be able to start exactly one copy: the app owns the visible Startup shortcut, and the
+rem old registry value (pre-shortcut builds) is dropped so a stale path cannot start a second copy.
+set "startlink=%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\Clip.lnk"
+reg delete "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" /v Clip /f >nul 2>&1
+if exist "%startlink%" (
+    powershell -NoProfile -ExecutionPolicy Bypass -Command "$s=(New-Object -ComObject WScript.Shell).CreateShortcut($env:startlink); $s.TargetPath='%~dp0dist\Clip.exe'; $s.WorkingDirectory='%~dp0dist'; $s.Save()"
+    echo Start on login: shortcut repointed to dist\Clip.exe
+)
 pause
 exit /b 0
 

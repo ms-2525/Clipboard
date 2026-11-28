@@ -48,9 +48,12 @@ namespace Clip
             }
 
             _cfg = Config.Load();
-            // A fresh install defaults to StartOnLogin but has no Run value yet: write it once so the
-            // tray tick and the Settings switch agree from the first right-click.
-            if (_cfg.WasNew && _cfg.StartOnLogin) Autostart.Set(true);
+            // Older builds wrote an HKCU Run value; turn it into the visible Startup-folder shortcut once
+            // so there is exactly one way Windows can start Clip.
+            Autostart.MigrateLegacyRunEntry();
+            // A fresh install has no shortcut yet: write it once so the tray tick and the Settings
+            // switch agree from the first right-click.
+            if (_cfg.WasNew) Autostart.Set(true);
             ClipboardItem.ClockFormat = _cfg.TimeFormat == "12h" ? "h:mm tt" : "HH:mm";
             _themeSetting = _cfg.Theme;
             _cfg.Theme = ApplyTheme(_themeSetting); // memory only: the page needs light|dark, never "system"
@@ -211,7 +214,7 @@ namespace Clip
             menu.Items.Add(Themed(new MenuItem { Header = $"Open: {_cfg.Hotkey}", IsEnabled = false }));
             AddTrayItem(menu, $"{Product}: show/hide", () => _shell?.Toggle());
             AddTrayItem(menu, "Settings\u2026", () => _shell?.ShowForSettings());
-            // The tick reads live state: the Run value for login, the config for toasts.
+            // The tick reads live state: the Startup shortcut for login, the config for toasts.
             var notes = Themed(new MenuItem { Header = "Notifications", IsCheckable = true, IsChecked = _cfg.Notification.Enabled });
             notes.Click += (s, e) =>
             {
@@ -219,14 +222,9 @@ namespace Clip
                 SaveCfg();
             };
             menu.Items.Add(notes);
-            // The tick reads the real HKCU Run value, not the config: an external change shows honestly.
+            // The tick reads the Startup folder itself, not the config: an external change shows honestly.
             var login = Themed(new MenuItem { Header = "Start on login", IsCheckable = true, IsChecked = Autostart.IsEnabled() });
-            login.Click += (s, e) =>
-            {
-                _cfg.StartOnLogin = login.IsChecked;
-                Autostart.Set(login.IsChecked);
-                SaveCfg();
-            };
+            login.Click += (s, e) => Autostart.Set(login.IsChecked);
             menu.Items.Add(login);
             menu.Items.Add(Themed(new System.Windows.Controls.Separator()));
             AddTrayItem(menu, "Open data folder", () =>

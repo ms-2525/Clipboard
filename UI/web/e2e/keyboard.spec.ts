@@ -7,6 +7,8 @@ import { pathToFileURL } from 'node:url'
  * Zero network, zero WebView2: the page's own `?mock=1000` fixture is the data.
  */
 const PAGE = pathToFileURL(fileURLToPath(new URL('../dist/index.html', import.meta.url))).href + '?mock=1000'
+/** One dark-source ChatGPT capture: the row must drop its background band (S0-HANDOFF §3). */
+const PAGEDARKBAND = pathToFileURL(fileURLToPath(new URL('../dist/index.html', import.meta.url))).href + '?mock=darkband'
 
 const activeTab = (page: Page) => page.locator('[role="tab"][aria-selected="true"] .tab-label')
 const footerScope = (page: Page) => page.locator('.footer-left .t-meta')
@@ -547,6 +549,48 @@ test('Backspace removes the trailing blank line below a list', async ({ page }) 
   await expect(paras.first()).toHaveText('one')
   await page.keyboard.press('Escape')
   await expect(page.getByText('Discard changes?')).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(overlay).toHaveCount(0)
+})
+
+/**
+ * The owner's report: a ChatGPT/Edge dark-mode copy showed black bands in the list while the
+ * editor looked right. A row renders FOREGROUND only (S0-HANDOFF §3) — the source background is
+ * dropped and its near-white ink falls back to the row's own --fg. The editor keeps fidelity.
+ */
+test('a dark-source clip draws no black band in the row, and the editor keeps its colours', async ({ page }) => {
+  await page.goto(PAGEDARKBAND)
+  const body = page.locator('.row .clip-rich')
+  await expect(body).toBeVisible()
+  await expect(body).toContainText('Hour formats')
+
+  // No element inside the row body may carry a source background — the black slab is the bug.
+  const painted = await body.evaluate((root) => {
+    const offenders: string[] = []
+    for (const el of [root as HTMLElement, ...Array.from(root.querySelectorAll<HTMLElement>('*'))]) {
+      const bg = window.getComputedStyle(el).backgroundColor
+      // A transparent/inherited background is fine: any opaque fill is a source band.
+      if (bg && bg !== 'transparent' && bg !== 'rgba(0, 0, 0, 0)') offenders.push(`${el.tagName}:${bg}`)
+    }
+    return offenders
+  })
+  expect(painted).toEqual([])
+
+  // The row falls back to its own ink, which is readable on the row surface.
+  const ink = await body.evaluate((el) => window.getComputedStyle(el).color)
+  expect(ink).not.toBe('rgb(253, 251, 247)')
+
+  // The editor is the half the owner called correct: it opens on the same clip with its text and
+  // never draws the source band either. Left as-is by design.
+  await page.keyboard.press('F2')
+  const overlay = page.locator('.editor-overlay')
+  await expect(overlay.locator('.ProseMirror')).toContainText('Hour formats')
+  const editorBands = await overlay.locator('.ProseMirror').evaluate((root) =>
+    Array.from(root.querySelectorAll<HTMLElement>('*'))
+      .map((el) => window.getComputedStyle(el).backgroundColor)
+      .filter((bg) => bg !== 'transparent' && bg !== 'rgba(0, 0, 0, 0)'),
+  )
+  expect(editorBands).toEqual([])
   await page.keyboard.press('Escape')
   await expect(overlay).toHaveCount(0)
 })

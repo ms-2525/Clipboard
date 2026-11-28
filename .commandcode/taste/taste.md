@@ -1,0 +1,3 @@
+- Prefers explanations in nontechnical, plain language. Confidence: 0.8
+- Prefers user-visible, inspectable mechanisms (e.g., a Startup-folder shortcut) over silent, invisible ones (e.g., a registry Run entry). Confidence: 0.7
+- Prefers UI state (toggles/checkboxes) to be derived from the live underlying state on each start rather than a stored config value. Confidence: 0.7

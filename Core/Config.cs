@@ -45,7 +45,8 @@ namespace Clip.Core
         public int UiZoom { get; set; } = 100;
         // "12h" or "24h"; any other value behaves as 24h (normalised on load).
         public string TimeFormat { get; set; } = "24h";
-        public bool StartOnLogin { get; set; } = true;
+        // No StartOnLogin here on purpose: the Startup-folder shortcut IS the state (Autostart.IsEnabled),
+        // and a stored copy would drift the moment the user deletes the shortcut by hand.
         public NotificationSettings Notification { get; set; } = new NotificationSettings();
         public List<string> IgnoreFormats { get; set; } = new List<string>
         {

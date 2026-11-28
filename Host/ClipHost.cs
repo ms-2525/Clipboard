@@ -150,6 +150,9 @@ namespace Clip.Host
                 case "saveConfig":
                     return SaveConfig(p);
 
+                case "getConfig":
+                    return GetConfig(p);
+
                 case "saveEditor":
                     return SaveEditor(p);
 

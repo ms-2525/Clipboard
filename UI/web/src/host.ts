@@ -157,6 +157,8 @@ export interface Host {
   exportClip(params: { id: number; format: string }): Promise<ExportResult>
   openInApp(params: { id: number }): Promise<OpenInAppResult>
   saveConfig(patch: SettingsPatch): Promise<SaveConfigResult>
+  /** The same settings shape read fresh; the dialog asks on open so live state (login start) is current. */
+  getConfig(): Promise<HostSettings>
   saveEditor(params: { id: number; html: string; text: string }): Promise<EditorSaveResult>
   reOcr(params: { id: number }): Promise<ReOcrResult>
   clearHistory(): Promise<void>
@@ -429,6 +431,11 @@ class WebViewHost implements Host {
   saveConfig = async (patch: SettingsPatch): Promise<SaveConfigResult> => {
     const result = await this.send<{ config?: HostConfig; hotkeyError?: string | null }>('saveConfig', { patch })
     return { config: toSettings(result?.config), hotkeyError: result?.hotkeyError ?? null }
+  }
+
+  getConfig = async (): Promise<HostSettings> => {
+    const result = await this.send<{ config?: HostConfig }>('getConfig')
+    return toSettings(result?.config)
   }
 
   saveEditor = async (params: { id: number; html: string; text: string }): Promise<EditorSaveResult> => {

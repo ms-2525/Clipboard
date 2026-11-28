@@ -18,9 +18,14 @@ const TAGS = [
 ]
 const ATTRS = ['href', 'src', 'alt', 'title', 'colspan', 'rowspan', 'align', 'style']
 
-/** The only inline properties a source clip may name (DESIGN-language §3: row text stays 14/20). */
+/**
+ * The only inline properties a source clip may name (DESIGN-language §3: row text stays 14/20).
+ * `background-color` is deliberately absent: a row renders FOREGROUND only (S0-HANDOFF §3). A
+ * ChatGPT/Edge dark-mode block pastes as white ink on a near-black band, and painting that band
+ * into the list draws a black slab in a light row. The editor keeps full fidelity.
+ */
 const PROPS = new Set([
-  'color', 'background-color', 'font-weight', 'font-style', 'text-decoration', 'text-align',
+  'color', 'font-weight', 'font-style', 'text-decoration', 'text-align',
   'font-family', 'font-size', 'white-space',
 ])
 
@@ -82,8 +87,8 @@ function fontWeight(value: string): string | null {
 
 /**
  * Word/Excel: keep only the allowed properties, drop mso-*, clamp the type scale, and keep a
- * source colour only when its own background proves 4.5:1 on BOTH themes (a clip copied with
- * black ink must not paint black on the dark row).
+ * source ink only when it reads on BOTH row surfaces (a clip copied with black ink must not paint
+ * black on the dark row). Source backgrounds never reach a row — see PROPS.
  */
 function cleanStyle(el: Element): void {
   const raw = el.getAttribute('style')
@@ -104,14 +109,12 @@ function cleanStyle(el: Element): void {
     else if (prop === 'white-space') mapped = /^(normal|pre|pre-wrap|pre-line)$/i.test(value) ? value : null
     if (mapped) kept.set(prop, mapped)
   }
+  // A source ink survives only if it reads on BOTH row surfaces. That single rule also handles the
+  // dark-source case: ChatGPT's near-white ink fails on the light row and is dropped, so the row
+  // falls back to its own --fg instead of drawing white-on-white or white-on-black.
   const ink = kept.has('color') ? rgbOf(kept.get('color')!) : null
-  const fill = kept.has('background-color') ? rgbOf(kept.get('background-color')!) : null
   kept.delete('color')
-  kept.delete('background-color')
-  if (ink && fill && contrast(ink, fill) >= 4.5) {
-    kept.set('color', `rgb(${ink.join(', ')})`)
-    kept.set('background-color', `rgb(${fill.join(', ')})`)
-  } else if (ink && SURFACES.every((surface) => contrast(ink, surface) >= 4.5)) {
+  if (ink && SURFACES.every((surface) => contrast(ink, surface) >= 4.5)) {
     kept.set('color', `rgb(${ink.join(', ')})`)
   }
   if (kept.size === 0) el.removeAttribute('style')

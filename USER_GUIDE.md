@@ -28,8 +28,10 @@ first run shows a toast naming the hotkey, since Clip starts silently in the tra
   - **Clip: show/hide** — same as left-click.
   - **Settings…** — opens Settings.
   - **Notifications** (ticked on/off) — turns the capture toasts on or off.
-  - **Start on login** (ticked on/off) — starts Clip with Windows. The tick reads the real
-    Windows startup entry, so it stays honest even if something else changed it.
+  - **Start on login** (ticked on/off) — starts Clip with Windows. It works by keeping one shortcut,
+    named `Clip`, in your own startup folder (press Win+R, type `shell:startup` to see it). Deleting
+    that shortcut is the same as unticking this, and the tick always tells the truth about what is
+    actually there.
   - **Open data folder** — opens `%APPDATA%\Clip` in Explorer.
   - **Exit** — quits Clip completely.
 
@@ -221,7 +223,7 @@ sections down the left: **General**, **Shortcuts**, **Capture**, **Appearance**,
 
 - **General**
   - *Launch at login* — start Clip with Windows. On for fresh installs; mirrors the tray
-    menu switch, and the tick always shows the real startup entry.
+    menu switch, and the tick always shows the truth about the startup-folder shortcut.
   - *Start hidden in the tray* — fixed on in this release; Clip always starts in the tray.
   - *Time format* — 12-hour or 24-hour clock on every row.
 - **Shortcuts**
